@@ -415,6 +415,14 @@ dźwiękowego (11.10.2026, 23:01):**
 - Pomiar (A1200 060/50, `SCALE=2`, demo): bez dźwięku **28,8–36,5 kl./s** (było 25–26,5), z
   dźwiękiem 16,5–20,3 (było 16,2–19,9; sam TFR/EXG/RTI/`3A05` to 1–2%).
 
+**Szybkość rdzeni 6809 (`CpuBench [MLN_CYKLI]`):** pętla typowego kodu (kopiowanie ze zmianą,
+arytmetyka 16-bit, `JSR`/`RTS`, `PSHS`/`PULS`, `TFR`, skoki; 3,54 cyklu na instrukcję) w płaskiej
+pamięci 64 KB, bez pomijania pętli. A1200 060/50: rdzeń asm **5,38 MHz** emulowanego 6809
+(1,52 mln instrukcji/s, ok. 33 cykle 68060 na instrukcję) = **3,6×** prawdziwy 6809 1,5 MHz
+(jak w automacie), 5,4× przy 1 MHz; rdzeń C (vbcc) 0,49 MHz (11× wolniej niż asm); PC (gcc,
+rdzeń C) 284 MHz. Automat to 3 × 1,5 MHz = 4,5 MHz – bez pomijania pętli oczekiwania rdzeń
+asm zająłby ok. 84% czasu 68060/50.
+
 Renderer na A1200 sprawdzony `XAIN_CHECK` (porównanie z wzorcowym w każdej klatce): 0 różnic
 w 3000 klatkach `play1`, sumy kontrolne klatek 1600–2900 identyczne z PC.
 

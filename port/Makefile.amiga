@@ -21,7 +21,7 @@ CFLAGS   := +aos68k_win -c99 -cpu=68060 -O3 -speed \
 CORE     := src/m6809.c src/m6809_68k.s src/m6805.c src/mcu68705.c src/ym2203.c src/ym2203_68k.s src/xain.c src/video.c src/video_68k.s src/romload.c
 HEADERS  := $(wildcard src/*.h)
 
-all: $(OUT)/XainSleena $(OUT)/XainTest $(OUT)/Lockstep $(OUT)/YmBench $(OUT)/CpuTest6809 $(OUT)/RenderBench
+all: $(OUT)/XainSleena $(OUT)/XainTest $(OUT)/Lockstep $(OUT)/YmBench $(OUT)/CpuTest6809 $(OUT)/RenderBench $(OUT)/CpuBench
 
 $(OUT)/XainSleena: $(CORE) src/main_amiga.c src/amiga_68k.s $(HEADERS)
 	mkdir -p $(OUT)
@@ -49,6 +49,11 @@ src/m6809_68k_trace.s: ../tools/gen_6809_68k.py
 $(OUT)/RenderBench: $(CORE) tests/renderbench.c $(HEADERS)
 	mkdir -p $(OUT)
 	vc $(CFLAGS) $(CORE) tests/renderbench.c -o $@ -lamiga
+
+# speed of the 6809 cores (emulated MHz)
+$(OUT)/CpuBench: src/m6809.c src/m6809_68k.s tests/cpubench.c src/m6809.h
+	mkdir -p $(OUT)
+	vc $(CFLAGS) src/m6809.c src/m6809_68k.s tests/cpubench.c -o $@ -lamiga
 
 # random instructions: the 6809 assembler core against the C core
 $(OUT)/CpuTest6809: src/m6809.c src/m6809_68k.s tests/cputest6809.c src/m6809.h
