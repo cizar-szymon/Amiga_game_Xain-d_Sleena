@@ -732,6 +732,19 @@ def gen_pull(op, user):
     ins("moveq #0,d0")
     ins("move.w %d(a5),d0" % sp)
     sub_cycles(5)
+    pull_steps(sp, other)
+    # the final read of the stack (RAM: no side effect) is only counted
+    ins("btst #0,(sp)+")                              # CC pulled: interrupts may be enabled
+    no_cc = L()
+    ins("beq.s " + no_cc)
+    go_check_ints(0)
+    emit(no_cc + ":")
+    next_op(0)
+
+
+def pull_steps(sp, other):
+    """the registers of the mask at (sp) from the stack (address in d0, struct field sp), order
+    CC, A, B, DP, X, Y, U/S, PC; 1 cycle per byte; S/U stored at the end"""
     steps = [(0x01, "cc"), (0x02, "a"), (0x04, "b"), (0x08, "dp"), (0x10, "x"), (0x20, "y"), (0x40, "other"), (0x80, "pc")]
     for bit, what in steps:
         skip = L()
@@ -765,13 +778,138 @@ def gen_pull(op, user):
             sub_cycles(2)
         emit(skip + ":")
     ins("move.w d0,%d(a5)" % sp)
-    # the final read of the stack (RAM: no side effect) is only counted
-    ins("btst #0,(sp)+")                              # CC pulled: interrupts may be enabled
-    no_cc = L()
-    ins("beq.s " + no_cc)
+
+
+def gen_rti():
+    """3B RTI: CC from S, then (E set) A B DP X Y U PC or (E clear) PC; 6 or 15 cycles; the
+    pulled CC may enable interrupts (MAME: EAT 1, the reads, a dummy read)"""
+    handler("op_3B")
+    ins("moveq #0,d0")
+    ins("move.w %d(a5),d0" % O_S)
+    rd8()
+    ins("move.b d1,d3")
+    ins("addq.w #1,d0")
+    ins("move.b #$80,d1")                            # E clear: PC only
+    ins("btst #7,d3")
+    ins("beq.s *+6")
+    ins("move.b #$fe,d1")                            # E set: A B DP X Y U PC
+    ins("move.b d1,-(sp)")
+    sub_cycles(4)
+    pull_steps(O_S, O_U)
+    ins("addq.l #2,sp")
     go_check_ints(0)
-    emit(no_cc + ":")
-    next_op(0)
+
+
+def gen_tfr_exg(op):
+    """1E EXG (8 cycles), 1F TFR (6): registers through tfr_get / tfr_set (as m6809.c tfr_read,
+    tfr_write); then interrupts are checked (CC may have changed), PC may have been written"""
+    handler("op_%02X" % op)
+    ins("moveq #0,d1")
+    ins("move.b (a4)+,d1")
+    if op == 0x1f:
+        ins("move.w d1,-(sp)")                       # postbyte
+        ins("lsr.b #4,d1")
+        ins("moveq #0,d2")                           # not EXG: 8 bit sources as hi:lo copies
+        ins("bsr tfr_get")
+        ins("move.w (sp)+,d1")
+        ins("and.w #$0f,d1")
+        ins("bsr tfr_set")
+        ins("cmp.b #4,d1")
+        ins("bne.s *+8")
+        ins("move.b #1,%d(a5)" % O_LDS)             # TFR to S: NMI enabled
+        go_check_ints(6)
+    else:
+        ins("move.w d1,-(sp)")                       # postbyte
+        ins("moveq #0,d2")
+        ins("btst #7,d1")
+        ins("seq d2")                                # 8/16 bit exchange (bit 7 clear): FF in the high byte
+        ins("move.w d2,-(sp)")
+        ins("lsr.b #4,d1")
+        ins("bsr tfr_get")                           # r1
+        ins("move.w d0,-(sp)")
+        ins("move.w 4(sp),d1")
+        ins("and.w #$0f,d1")
+        ins("move.w 2(sp),d2")
+        ins("bsr tfr_get")                           # r2
+        ins("move.w d0,2(sp)")                       # (the flag is no longer needed)
+        ins("move.w (sp)+,d0")                       # r1 -> register 2
+        ins("move.w 2(sp),d1")
+        ins("and.w #$0f,d1")
+        ins("bsr tfr_set")
+        ins("move.w (sp)+,d0")                       # r2 -> register 1
+        ins("move.w (sp)+,d1")
+        ins("lsr.b #4,d1")
+        ins("bsr tfr_set")
+        go_check_ints(8)
+
+
+def gen_tfr_helpers():
+    """tfr_get: register d1 (0-15) -> d0.w, d2.b != 0: 8 bit registers of EXG 8/16 as FF:value;
+    tfr_set: d0.w -> register d1 (kept). Both may clobber d2 a0."""
+    emit("", "tfr_get:")
+    ins("lea tfr_gtab(pc),a0")
+    ins("move.l (a0,d1.w*4),a0")
+    ins("jmp (a0)")
+    regs = {0: "d", 1: "x", 2: "y", 3: "u", 4: "s", 5: "pc", 8: "a", 9: "b", 10: "cc", 11: "dp"}
+    labels = []
+    for r in range(16):
+        lab = "tg_%d" % r
+        labels.append(lab)
+        emit(lab + ":")
+        w = regs.get(r)
+        if w == "d":
+            ins("move.b d4,d0"); ins("lsl.w #8,d0"); ins("move.b d5,d0")
+        elif w == "x":
+            ins("move.w d6,d0")
+        elif w in ("y", "u", "s"):
+            ins("move.w %d(a5),d0" % {"y": O_Y, "u": O_U, "s": O_S}[w])
+        elif w == "pc":
+            ins("move.l a4,d0"); ins("sub.l a3,d0")
+        elif w in ("a", "b"):
+            ins("move.w #$ff00,d0"); ins("move.b %s,d0" % ("d4" if w == "a" else "d5"))
+        elif w in ("cc", "dp"):
+            src = "d3" if w == "cc" else "%d(a5)" % O_DP
+            ins("move.b %s,d0" % src)
+            ins("lsl.w #8,d0")
+            ins("move.b %s,d0" % src)
+            ins("tst.b d2")
+            ins("beq.s *+6")
+            ins("or.w #$ff00,d0")
+        else:
+            ins("move.w #$ffff,d0")
+        ins("rts")
+    emit("	cnop	0,4", "tfr_gtab:")
+    emit("	dc.l " + ",".join(labels))
+    emit("", "tfr_set:")
+    ins("lea tfr_stab(pc),a0")
+    ins("move.l (a0,d1.w*4),a0")
+    ins("jmp (a0)")
+    labels = []
+    for r in range(16):
+        lab = "ts_%d" % r
+        labels.append(lab)
+        emit(lab + ":")
+        w = regs.get(r)
+        if w == "d":
+            ins("move.b d0,d5"); ins("move.w d0,d2"); ins("lsr.w #8,d2"); ins("move.b d2,d4")
+        elif w == "x":
+            ins("move.w d0,d6")
+        elif w in ("y", "u", "s"):
+            ins("move.w d0,%d(a5)" % {"y": O_Y, "u": O_U, "s": O_S}[w])
+        elif w == "pc":
+            ins("and.l #$ffff,d0")
+            set_pc("d0")
+        elif w == "a":
+            ins("move.b d0,d4")
+        elif w == "b":
+            ins("move.b d0,d5")
+        elif w == "cc":
+            ins("move.b d0,d3")
+        elif w == "dp":
+            ins("move.b d0,%d(a5)" % O_DP)
+        ins("rts")
+    emit("	cnop	0,4", "tfr_stab:")
+    emit("	dc.l " + ",".join(labels))
 
 
 def gen_page0():
@@ -894,7 +1032,11 @@ def gen_page0():
             ins("or.b #1,d3")
             emit(c + ":")
             next_op(11)
-        else:                                         # 13 SYNC, 14 15 18 19 1E 1F 38 3B 3C 3E 3F
+        elif op in (0x1e, 0x1f):
+            gen_tfr_exg(op)
+        elif op == 0x3b:
+            gen_rti()
+        else:                                         # 13 SYNC, 14 15 18 19 38 3C 3E 3F
             fallback(name)
 
 
@@ -1197,6 +1339,13 @@ exit_loop:
 
 ; d0.l address -> d1.b (I/O through the C read handler); keeps d0
 rd_slow:
+\tcmp.w\t12416(a5),d0                  ; fast_addr: its value is kept by the machine
+\tbne.s\t.call
+\ttst.b\t12419(a5)                     ; fast_ok
+\tbeq.s\t.call
+\tmove.b\t12418(a5),d1                 ; fast_val
+\trts
+.call:
 \tmovem.l\td0/a2,-(sp)
 \tmove.l\td0,-(sp)
 \tmove.l\ta5,-(sp)
@@ -1310,6 +1459,7 @@ trace_rec:
 
 def main():
     gen_frame()
+    gen_tfr_helpers()
     gen_page0()
     p10 = gen_page10()
     p11 = gen_page11()

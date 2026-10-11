@@ -67,6 +67,12 @@ struct M6809 {
     uint8_t idle_regs[12];                  /* 4211 */
     uint8_t pad;                            /* 4223 */
     uint8_t idle_map[8192];                 /* 4224: bit per address: an idle loop starts here */
+
+    /* 12416: one I/O address whose read the assembler core answers without calling the read
+       handler: fast_val while fast_ok (kept up to date by the machine; the C core always calls
+       the handler) */
+    uint16_t fast_addr;                     /* 12416 */
+    uint8_t fast_val, fast_ok;              /* 12418, 12419 */
 };
 
 #define M6809_OFS_IDLE_MAP 4224

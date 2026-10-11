@@ -394,6 +394,27 @@ zapis do VRAM (długie słowa ok. 17 MB/s, MOVE16 ok. 30 MB/s); `SCALE=2` to 4×
 Gra (demo): bez dźwięku 24,9–26,5 kl./s, z dźwiękiem 16,2–19,9 kl./s (`SCALE=2`); `SCALE=1`
 bez dźwięku 25,9–26,7.
 
+**Rdzeń 6809: TFR, EXG, RTI w asm; odczyt `3A05` bez wywołania C; bez dźwięku bez procesora
+dźwiękowego (11.10.2026, 23:01):**
+- `TFR` (6 cykli), `EXG` (8), `RTI` (6 / 15) w `gen_6809_68k.py` (`tfr_get`/`tfr_set` jak
+  `tfr_read`/`tfr_write` w C, `RTI` przez wspólną część `PULS`); po nich sprawdzenie przerwań.
+  W C zostały: `SYNC`, `CWAI`, `SWI*`, `DAA`, kody nieudokumentowane, reszta stron 10/11, wejście
+  w przerwanie i I/O.
+- `M6809.fast_addr/fast_val/fast_ok` (offset 12416): wartość `3A05` (VBLANK, moneta 3, flagi
+  MCU) ustawiana przez maszynę przed każdym przebiegiem procesora głównego i po każdym jego
+  dostępie do I/O przez C (`3A04`/`3A06`/`3A0E` zmieniają flagi MCU); `rd_slow` w asm zwraca
+  ją bez wywołania C (ok. 1500 odczytów na klatkę w pętlach czekania na VBLANK). Rdzeń C wciąż
+  woła funkcję obsługi, więc `Lockstep` porównuje obie drogi.
+- `Xain.sound_cpu = 0` (Amiga: `NOSOUND`; `xain_test`: `XAIN_NOSNDCPU`): procesor dźwiękowy
+  i YM2203 nie są emulowane – nic w automacie ich nie czyta (zatrzask dźwięku działa w jedną
+  stronę). Zrzuty klatek 1600–4400 `play1` identyczne z wersją z procesorem dźwiękowym.
+- Sprawdzenie: ślady MAME 0 różnic (C bez zmian), PC: klatki 1600–2900 jak poprzednio;
+  A1200: `CpuTest6809` 30 000 pojedynczych (test nie losuje już PC > FFF0 – przejście przez
+  FFFF/0000 to znane założenie rdzenia asm) i 10 000 ciągów bez różnic, `Lockstep` 5000 klatek
+  identycznych.
+- Pomiar (A1200 060/50, `SCALE=2`, demo): bez dźwięku **28,8–36,5 kl./s** (było 25–26,5), z
+  dźwiękiem 16,5–20,3 (było 16,2–19,9; sam TFR/EXG/RTI/`3A05` to 1–2%).
+
 Renderer na A1200 sprawdzony `XAIN_CHECK` (porównanie z wzorcowym w każdej klatce): 0 różnic
 w 3000 klatkach `play1`, sumy kontrolne klatek 1600–2900 identyczne z PC.
 

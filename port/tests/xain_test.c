@@ -275,6 +275,8 @@ int main(int argc, char **argv)
     if (getenv("XAIN_ASM"))                             /* the 6809 assembler core (Amiga) */
         machine.cpu_run = m6809_run_asm;
 #endif
+    if (getenv("XAIN_NOSNDCPU"))                       /* the sound CPU and YM2203 left out */
+        machine.sound_cpu = 0;
     if (getenv("XAIN_YMDEBUG"))
         ym2203_debug = atoi(getenv("XAIN_YMDEBUG"));
     if (getenv("XAIN_FMDIV"))

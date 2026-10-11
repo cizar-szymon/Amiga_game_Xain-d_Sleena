@@ -14,9 +14,23 @@ static void main_set_bank(Xain *x)
         m6809_map_page(&x->main, i, x->main_bank_rom[x->main_bank] + (i - 0x40) * 256, x->ram_sink);
 }
 
-static uint8_t main_read(void *ctx, uint16_t a)
+/* 3A05: bits 0-1, 6-7 unused (1), bit 2 coin 3 (active low), bits 3-4 MCU flags, bit 5 VBLANK */
+static uint8_t status_3a05(const Xain *x)
 {
-    Xain *x = ctx;
+    return (uint8_t)(0xc3 | (x->coin3 ? 0 : 0x04) | mcu_host_status(&x->mcu) | (x->vblank ? 0x20 : 0));
+}
+
+/* the value of 3A05 for the assembler core (M6809.fast_val): it changes only between the time
+   slices of the main CPU and by its own I/O accesses (MCU), after which this runs again */
+static void main_fast_update(Xain *x)
+{
+    x->main.fast_addr = 0x3a05;
+    x->main.fast_val = status_3a05(x);
+    x->main.fast_ok = 1;
+}
+
+static uint8_t main_read_io(Xain *x, uint16_t a)
+{
     if (a >= 0x3900 && a < 0x3980) return x->spriteram[a - 0x3800];
     switch (a) {
     case 0x3a00: return (uint8_t)~x->in_p1;
@@ -25,8 +39,7 @@ static uint8_t main_read(void *ctx, uint16_t a)
     case 0x3a03: return x->dsw1;
     case 0x3a04: return mcu_host_read(&x->mcu);
     case 0x3a05:
-        /* bits 0-1, 6-7 unused (1), bit 2 coin 3 (active low), bits 3-4 MCU flags, bit 5 VBLANK */
-        return (uint8_t)(0xc3 | (x->coin3 ? 0 : 0x04) | mcu_host_status(&x->mcu) | (x->vblank ? 0x20 : 0));
+        return status_3a05(x);
     case 0x3a06:
         mcu_host_reset(&x->mcu);
         return 0xff;
@@ -35,9 +48,25 @@ static uint8_t main_read(void *ctx, uint16_t a)
     }
 }
 
+static uint8_t main_read(void *ctx, uint16_t a)
+{
+    Xain *x = ctx;
+    uint8_t v = main_read_io(x, a);
+    main_fast_update(x);                                /* 3A04 / 3A06 change the MCU flags */
+    return v;
+}
+
+static void main_write_io(Xain *x, uint16_t a, uint8_t v);
+
 static void main_write(void *ctx, uint16_t a, uint8_t v)
 {
     Xain *x = ctx;
+    main_write_io(x, a, v);
+    main_fast_update(x);                                /* 3A0E changes the MCU flags */
+}
+
+static void main_write_io(Xain *x, uint16_t a, uint8_t v)
+{
     if (a >= 0x3900 && a < 0x3980) { x->spriteram[a - 0x3800] = v; return; }
     if (a >= 0x3c00 && a < 0x4000) {
         if (a < 0x3e00) x->palette[a - 0x3c00] = v;
@@ -162,6 +191,7 @@ void xain_init(Xain *x)
     x->cpu_run = m6809_run;
     x->slice = 96;                                      /* one scanline; see docs/PORTING.md */
     x->idle_skip = 1;
+    x->sound_cpu = 1;
     xain_reset(x);
 }
 
@@ -286,25 +316,32 @@ static void run_slice(Xain *x, int32_t cycles)
 {
     if (xain_prof) {
         xain_prof(-1);
+        main_fast_update(x);
         x->cpu_run(&x->main, cycles);
         xain_prof(0);
         x->cpu_run(&x->sub, cycles);
         xain_prof(1);
-        x->cpu_run(&x->snd, cycles);
+        if (x->sound_cpu) x->cpu_run(&x->snd, cycles);
         xain_prof(2);
-        x->snd.firq_line = (uint8_t)ym2203_advance(&x->ym[0], cycles * 2);
-        ym2203_advance(&x->ym[1], cycles * 2);
+        if (x->sound_cpu) {
+            x->snd.firq_line = (uint8_t)ym2203_advance(&x->ym[0], cycles * 2);
+            ym2203_advance(&x->ym[1], cycles * 2);
+        }
         xain_prof(3);
         mcu_run(&x->mcu, cycles / 2);
         xain_prof(4);
         return;
     }
+    main_fast_update(x);                                /* VBLANK, coin 3, MCU flags since the last slice */
     x->cpu_run(&x->main, cycles);
     x->cpu_run(&x->sub, cycles);
-    x->cpu_run(&x->snd, cycles);
-    /* YM2203 at 3 MHz: 2 clocks per 6809 cycle; YM #1 IRQ -> sound FIRQ */
-    x->snd.firq_line = (uint8_t)ym2203_advance(&x->ym[0], cycles * 2);
-    ym2203_advance(&x->ym[1], cycles * 2);
+    if (x->sound_cpu) {
+        /* the sound CPU only receives (sound latch), so it can be left out without sound */
+        x->cpu_run(&x->snd, cycles);
+        /* YM2203 at 3 MHz: 2 clocks per 6809 cycle; YM #1 IRQ -> sound FIRQ */
+        x->snd.firq_line = (uint8_t)ym2203_advance(&x->ym[0], cycles * 2);
+        ym2203_advance(&x->ym[1], cycles * 2);
+    }
     mcu_run(&x->mcu, cycles / 2);                       /* 3 MHz / 4 = half the 6809 rate */
 }
 

@@ -79,6 +79,8 @@ struct Xain {
     uint32_t audio_pos;                 /* next FM sample to resample */
     uint32_t audio_frac;                /* resampler position between audio_pos and audio_pos+1 */
     int sound;                          /* 0 = timers only (no synthesis) */
+    int sound_cpu;                      /* 0 = the sound CPU and the YM2203 not emulated at all (no
+                                           sound; nothing else reads them, so the rest is exact) */
 
     /* renderer callback: draw scanline y (MAME screen y, 8..247) with the current state */
     void (*render_line)(void *ctx, Xain *x, int y);

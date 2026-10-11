@@ -90,7 +90,7 @@ int main(int argc, char **argv)
         uint8_t code[6];
         M6809 start;
         do pc = (uint16_t)rnd();
-        while (slow_page(pc >> 8) || slow_page(((pc + 5) & 0xffff) >> 8));
+        while (slow_page(pc >> 8) || slow_page(((pc + 5) & 0xffff) >> 8) || pc > 0xfff0);   /* not over FFFF/0000 */
         k = 0;
         if (page) code[k++] = (uint8_t)(page == 1 ? 0x10 : 0x11);
         code[k++] = (uint8_t)op;

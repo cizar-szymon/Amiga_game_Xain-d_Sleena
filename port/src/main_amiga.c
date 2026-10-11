@@ -1487,6 +1487,7 @@ int main(int argc, char **argv)
     if (sound)
         open_sound();
     xain_set_sound(&machine, sound_mode != SND_NONE);
+    machine.sound_cpu = sound_mode != SND_NONE;         /* no sound: no sound CPU / YM2203 at all */
     xain_set_fm_div(&machine, fmdiv);
     start_watchdog();
     if (stats > 1)

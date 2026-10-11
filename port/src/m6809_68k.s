@@ -230,6 +230,13 @@ exit_loop:
 
 ; d0.l address -> d1.b (I/O through the C read handler); keeps d0
 rd_slow:
+	cmp.w	12416(a5),d0                  ; fast_addr: its value is kept by the machine
+	bne.s	.call
+	tst.b	12419(a5)                     ; fast_ok
+	beq.s	.call
+	move.b	12418(a5),d1                 ; fast_val
+	rts
+.call:
 	movem.l	d0/a2,-(sp)
 	move.l	d0,-(sp)
 	move.l	a5,-(sp)
@@ -319,6 +326,134 @@ L3:
 	bsr wr_slow
 L4:
 	rts
+
+tfr_get:
+	lea tfr_gtab(pc),a0
+	move.l (a0,d1.w*4),a0
+	jmp (a0)
+tg_0:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	rts
+tg_1:
+	move.w d6,d0
+	rts
+tg_2:
+	move.w 4162(a5),d0
+	rts
+tg_3:
+	move.w 4164(a5),d0
+	rts
+tg_4:
+	move.w 4166(a5),d0
+	rts
+tg_5:
+	move.l a4,d0
+	sub.l a3,d0
+	rts
+tg_6:
+	move.w #$ffff,d0
+	rts
+tg_7:
+	move.w #$ffff,d0
+	rts
+tg_8:
+	move.w #$ff00,d0
+	move.b d4,d0
+	rts
+tg_9:
+	move.w #$ff00,d0
+	move.b d5,d0
+	rts
+tg_10:
+	move.b d3,d0
+	lsl.w #8,d0
+	move.b d3,d0
+	tst.b d2
+	beq.s *+6
+	or.w #$ff00,d0
+	rts
+tg_11:
+	move.b 4192(a5),d0
+	lsl.w #8,d0
+	move.b 4192(a5),d0
+	tst.b d2
+	beq.s *+6
+	or.w #$ff00,d0
+	rts
+tg_12:
+	move.w #$ffff,d0
+	rts
+tg_13:
+	move.w #$ffff,d0
+	rts
+tg_14:
+	move.w #$ffff,d0
+	rts
+tg_15:
+	move.w #$ffff,d0
+	rts
+	cnop	0,4
+tfr_gtab:
+	dc.l tg_0,tg_1,tg_2,tg_3,tg_4,tg_5,tg_6,tg_7,tg_8,tg_9,tg_10,tg_11,tg_12,tg_13,tg_14,tg_15
+
+tfr_set:
+	lea tfr_stab(pc),a0
+	move.l (a0,d1.w*4),a0
+	jmp (a0)
+ts_0:
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	rts
+ts_1:
+	move.w d0,d6
+	rts
+ts_2:
+	move.w d0,4162(a5)
+	rts
+ts_3:
+	move.w d0,4164(a5)
+	rts
+ts_4:
+	move.w d0,4166(a5)
+	rts
+ts_5:
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	rts
+ts_6:
+	rts
+ts_7:
+	rts
+ts_8:
+	move.b d0,d4
+	rts
+ts_9:
+	move.b d0,d5
+	rts
+ts_10:
+	move.b d0,d3
+	rts
+ts_11:
+	move.b d0,4192(a5)
+	rts
+ts_12:
+	rts
+ts_13:
+	rts
+ts_14:
+	rts
+ts_15:
+	rts
+	cnop	0,4
+tfr_stab:
+	dc.l ts_0,ts_1,ts_2,ts_3,ts_4,ts_5,ts_6,ts_7,ts_8,ts_9,ts_10,ts_11,ts_12,ts_13,ts_14,ts_15
 
 op_00:
 	moveq #0,d0
@@ -974,12 +1109,47 @@ op_1D:
 	jmp (a0)
 
 op_1E:
-	subq.l #1,a4
-	bra c_step
+	moveq #0,d1
+	move.b (a4)+,d1
+	move.w d1,-(sp)
+	moveq #0,d2
+	btst #7,d1
+	seq d2
+	move.w d2,-(sp)
+	lsr.b #4,d1
+	bsr tfr_get
+	move.w d0,-(sp)
+	move.w 4(sp),d1
+	and.w #$0f,d1
+	move.w 2(sp),d2
+	bsr tfr_get
+	move.w d0,2(sp)
+	move.w (sp)+,d0
+	move.w 2(sp),d1
+	and.w #$0f,d1
+	bsr tfr_set
+	move.w (sp)+,d0
+	move.w (sp)+,d1
+	lsr.b #4,d1
+	bsr tfr_set
+	subq.l #8,d7
+	bra check_ints
 
 op_1F:
-	subq.l #1,a4
-	bra c_step
+	moveq #0,d1
+	move.b (a4)+,d1
+	move.w d1,-(sp)
+	lsr.b #4,d1
+	moveq #0,d2
+	bsr tfr_get
+	move.w (sp)+,d1
+	and.w #$0f,d1
+	bsr tfr_set
+	cmp.b #4,d1
+	bne.s *+8
+	move.b #1,4198(a5)
+	subq.l #6,d7
+	bra check_ints
 
 op_20:
 	move.b (a4)+,d0
@@ -2432,8 +2602,213 @@ op_3A:
 	jmp (a0)
 
 op_3B:
-	subq.l #1,a4
-	bra c_step
+	moveq #0,d0
+	move.w 4166(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L227
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L228
+L227:
+	bsr rd_slow
+L228:
+	move.b d1,d3
+	addq.w #1,d0
+	move.b #$80,d1
+	btst #7,d3
+	beq.s *+6
+	move.b #$fe,d1
+	move.b d1,-(sp)
+	subq.l #4,d7
+	btst #0,(sp)
+	beq.s L229
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L230
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L231
+L230:
+	bsr rd_slow
+L231:
+	addq.w #1,d0
+	move.b d1,d3
+	subq.l #1,d7
+L229:
+	btst #1,(sp)
+	beq.s L232
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L233
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L234
+L233:
+	bsr rd_slow
+L234:
+	addq.w #1,d0
+	move.b d1,d4
+	subq.l #1,d7
+L232:
+	btst #2,(sp)
+	beq.s L235
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L236
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L237
+L236:
+	bsr rd_slow
+L237:
+	addq.w #1,d0
+	move.b d1,d5
+	subq.l #1,d7
+L235:
+	btst #3,(sp)
+	beq.s L238
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L239
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L240
+L239:
+	bsr rd_slow
+L240:
+	addq.w #1,d0
+	move.b d1,4192(a5)
+	subq.l #1,d7
+L238:
+	btst #4,(sp)
+	beq.s L241
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L242
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L243
+L242:
+	bsr rd_slow
+L243:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L244
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L245
+L244:
+	bsr rd_slow
+L245:
+	addq.w #1,d0
+	move.w d1,d6
+	subq.l #2,d7
+L241:
+	btst #5,(sp)
+	beq.s L246
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L247
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L248
+L247:
+	bsr rd_slow
+L248:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L249
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L250
+L249:
+	bsr rd_slow
+L250:
+	addq.w #1,d0
+	move.w d1,4162(a5)
+	subq.l #2,d7
+L246:
+	btst #6,(sp)
+	beq.s L251
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L252
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L253
+L252:
+	bsr rd_slow
+L253:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L254
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L255
+L254:
+	bsr rd_slow
+L255:
+	addq.w #1,d0
+	move.w d1,4164(a5)
+	subq.l #2,d7
+L251:
+	btst #7,(sp)
+	beq.s L256
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L257
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L258
+L257:
+	bsr rd_slow
+L258:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L259
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L260
+L259:
+	bsr rd_slow
+L260:
+	addq.w #1,d0
+	move.w d0,4166(a5)
+	moveq #0,d0
+	move.w d1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+L256:
+	move.w d0,4166(a5)
+	addq.l #2,sp
+	bra check_ints
 
 op_3C:
 	subq.l #1,a4
@@ -2451,13 +2826,13 @@ op_3D:
 	move.b d1,d4
 	and.b #$fa,d3
 	tst.w d0
-	bne.s L227
+	bne.s L261
 	or.b #4,d3
-L227:
+L261:
 	btst #7,d0
-	beq.s L228
+	beq.s L262
 	or.b #1,d3
-L228:
+L262:
 	sub.l #11,d7
 	ble exit_loop
 	moveq #0,d0
@@ -2595,13 +2970,13 @@ op_49:
 	move.w ccr,d2
 	and.b #$0d,d2
 	btst #3,d2
-	beq.s L229
+	beq.s L263
 	bchg #1,d2
-L229:
+L263:
 	btst #0,d2
-	beq.s L230
+	beq.s L264
 	bchg #1,d2
-L230:
+L264:
 	and.b #$f0,d3
 	or.b d2,d3
 	subq.l #2,d7
@@ -2791,13 +3166,13 @@ op_59:
 	move.w ccr,d2
 	and.b #$0d,d2
 	btst #3,d2
-	beq.s L231
+	beq.s L265
 	bchg #1,d2
-L231:
+L265:
 	btst #0,d2
-	beq.s L232
+	beq.s L266
 	bchg #1,d2
-L232:
+L266:
 	and.b #$f0,d3
 	or.b d2,d3
 	subq.l #2,d7
@@ -2874,13 +3249,13 @@ op_60:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L233
+	beq.s L267
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L234
-L233:
+	bra.s L268
+L267:
 	bsr rd_slow
-L234:
+L268:
 	neg.b d1
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -2889,13 +3264,13 @@ L234:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L235
+	beq.s L269
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L236
-L235:
+	bra.s L270
+L269:
 	bsr wr_slow
-L236:
+L270:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -2912,13 +3287,13 @@ op_61:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L237
+	beq.s L271
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L238
-L237:
+	bra.s L272
+L271:
 	bsr rd_slow
-L238:
+L272:
 	neg.b d1
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -2927,13 +3302,13 @@ L238:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L239
+	beq.s L273
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L240
-L239:
+	bra.s L274
+L273:
 	bsr wr_slow
-L240:
+L274:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -2954,13 +3329,13 @@ op_63:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L241
+	beq.s L275
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L242
-L241:
+	bra.s L276
+L275:
 	bsr rd_slow
-L242:
+L276:
 	not.b d1
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -2970,13 +3345,13 @@ L242:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L243
+	beq.s L277
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L244
-L243:
+	bra.s L278
+L277:
 	bsr wr_slow
-L244:
+L278:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -2993,13 +3368,13 @@ op_64:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L245
+	beq.s L279
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L246
-L245:
+	bra.s L280
+L279:
 	bsr rd_slow
-L246:
+L280:
 	lsr.b #1,d1
 	move.w ccr,d2
 	and.b #$0d,d2
@@ -3008,13 +3383,13 @@ L246:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L247
+	beq.s L281
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L248
-L247:
+	bra.s L282
+L281:
 	bsr wr_slow
-L248:
+L282:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -3031,13 +3406,13 @@ op_65:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L249
+	beq.s L283
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L250
-L249:
+	bra.s L284
+L283:
 	bsr rd_slow
-L250:
+L284:
 	lsr.b #1,d1
 	move.w ccr,d2
 	and.b #$0d,d2
@@ -3046,13 +3421,13 @@ L250:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L251
+	beq.s L285
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L252
-L251:
+	bra.s L286
+L285:
 	bsr wr_slow
-L252:
+L286:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -3069,13 +3444,13 @@ op_66:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L253
+	beq.s L287
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L254
-L253:
+	bra.s L288
+L287:
 	bsr rd_slow
-L254:
+L288:
 	move.b d3,d2
 	and.b #1,d2
 	lsl.b #4,d2
@@ -3088,13 +3463,13 @@ L254:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L255
+	beq.s L289
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L256
-L255:
+	bra.s L290
+L289:
 	bsr wr_slow
-L256:
+L290:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -3111,13 +3486,13 @@ op_67:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L257
+	beq.s L291
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L258
-L257:
+	bra.s L292
+L291:
 	bsr rd_slow
-L258:
+L292:
 	asr.b #1,d1
 	move.w ccr,d2
 	and.b #$0d,d2
@@ -3126,13 +3501,13 @@ L258:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L259
+	beq.s L293
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L260
-L259:
+	bra.s L294
+L293:
 	bsr wr_slow
-L260:
+L294:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -3149,13 +3524,13 @@ op_68:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L261
+	beq.s L295
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L262
-L261:
+	bra.s L296
+L295:
 	bsr rd_slow
-L262:
+L296:
 	asl.b #1,d1
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -3164,13 +3539,13 @@ L262:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L263
+	beq.s L297
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L264
-L263:
+	bra.s L298
+L297:
 	bsr wr_slow
-L264:
+L298:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -3187,13 +3562,13 @@ op_69:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L265
+	beq.s L299
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L266
-L265:
+	bra.s L300
+L299:
 	bsr rd_slow
-L266:
+L300:
 	move.b d3,d2
 	and.b #1,d2
 	lsl.b #4,d2
@@ -3202,25 +3577,25 @@ L266:
 	move.w ccr,d2
 	and.b #$0d,d2
 	btst #3,d2
-	beq.s L267
+	beq.s L301
 	bchg #1,d2
-L267:
+L301:
 	btst #0,d2
-	beq.s L268
+	beq.s L302
 	bchg #1,d2
-L268:
+L302:
 	and.b #$f0,d3
 	or.b d2,d3
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L269
+	beq.s L303
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L270
-L269:
+	bra.s L304
+L303:
 	bsr wr_slow
-L270:
+L304:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -3237,13 +3612,13 @@ op_6A:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L271
+	beq.s L305
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L272
-L271:
+	bra.s L306
+L305:
 	bsr rd_slow
-L272:
+L306:
 	subq.b #1,d1
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -3252,13 +3627,13 @@ L272:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L273
+	beq.s L307
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L274
-L273:
+	bra.s L308
+L307:
 	bsr wr_slow
-L274:
+L308:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -3279,13 +3654,13 @@ op_6C:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L275
+	beq.s L309
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L276
-L275:
+	bra.s L310
+L309:
 	bsr rd_slow
-L276:
+L310:
 	addq.b #1,d1
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -3294,13 +3669,13 @@ L276:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L277
+	beq.s L311
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L278
-L277:
+	bra.s L312
+L311:
 	bsr wr_slow
-L278:
+L312:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -3317,13 +3692,13 @@ op_6D:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L279
+	beq.s L313
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L280
-L279:
+	bra.s L314
+L313:
 	bsr rd_slow
-L280:
+L314:
 	tst.b d1
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -3367,24 +3742,24 @@ op_6F:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L281
+	beq.s L315
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L282
-L281:
+	bra.s L316
+L315:
 	bsr rd_slow
-L282:
+L316:
 	moveq #0,d1
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L283
+	beq.s L317
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L284
-L283:
+	bra.s L318
+L317:
 	bsr wr_slow
-L284:
+L318:
 	and.b #$f0,d3
 	or.b #4,d3
 	subq.l #4,d7
@@ -3400,317 +3775,16 @@ op_70:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L285
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L286
-L285:
-	bsr rd_slow
-L286:
-	neg.b d1
-	move.w ccr,d2
-	and.b #$0f,d2
-	and.b #$f0,d3
-	or.b d2,d3
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L287
-	move.l d2,a0
-	move.b d1,(a0,d0.l)
-	bra.s L288
-L287:
-	bsr wr_slow
-L288:
-	subq.l #7,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_71:
-	moveq #0,d0
-	move.w (a4)+,d0
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L289
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L290
-L289:
-	bsr rd_slow
-L290:
-	neg.b d1
-	move.w ccr,d2
-	and.b #$0f,d2
-	and.b #$f0,d3
-	or.b d2,d3
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L291
-	move.l d2,a0
-	move.b d1,(a0,d0.l)
-	bra.s L292
-L291:
-	bsr wr_slow
-L292:
-	subq.l #7,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_72:
-	subq.l #1,a4
-	bra c_step
-
-op_73:
-	moveq #0,d0
-	move.w (a4)+,d0
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L293
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L294
-L293:
-	bsr rd_slow
-L294:
-	not.b d1
-	move.w ccr,d2
-	and.b #$0e,d2
-	and.b #$f1,d3
-	or.b d2,d3
-	or.b #1,d3
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L295
-	move.l d2,a0
-	move.b d1,(a0,d0.l)
-	bra.s L296
-L295:
-	bsr wr_slow
-L296:
-	subq.l #7,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_74:
-	moveq #0,d0
-	move.w (a4)+,d0
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L297
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L298
-L297:
-	bsr rd_slow
-L298:
-	lsr.b #1,d1
-	move.w ccr,d2
-	and.b #$0d,d2
-	and.b #$f2,d3
-	or.b d2,d3
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L299
-	move.l d2,a0
-	move.b d1,(a0,d0.l)
-	bra.s L300
-L299:
-	bsr wr_slow
-L300:
-	subq.l #7,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_75:
-	moveq #0,d0
-	move.w (a4)+,d0
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L301
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L302
-L301:
-	bsr rd_slow
-L302:
-	lsr.b #1,d1
-	move.w ccr,d2
-	and.b #$0d,d2
-	and.b #$f2,d3
-	or.b d2,d3
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L303
-	move.l d2,a0
-	move.b d1,(a0,d0.l)
-	bra.s L304
-L303:
-	bsr wr_slow
-L304:
-	subq.l #7,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_76:
-	moveq #0,d0
-	move.w (a4)+,d0
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L305
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L306
-L305:
-	bsr rd_slow
-L306:
-	move.b d3,d2
-	and.b #1,d2
-	lsl.b #4,d2
-	move.w d2,ccr
-	roxr.b #1,d1
-	move.w ccr,d2
-	and.b #$0d,d2
-	and.b #$f2,d3
-	or.b d2,d3
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L307
-	move.l d2,a0
-	move.b d1,(a0,d0.l)
-	bra.s L308
-L307:
-	bsr wr_slow
-L308:
-	subq.l #7,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_77:
-	moveq #0,d0
-	move.w (a4)+,d0
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L309
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L310
-L309:
-	bsr rd_slow
-L310:
-	asr.b #1,d1
-	move.w ccr,d2
-	and.b #$0d,d2
-	and.b #$f2,d3
-	or.b d2,d3
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L311
-	move.l d2,a0
-	move.b d1,(a0,d0.l)
-	bra.s L312
-L311:
-	bsr wr_slow
-L312:
-	subq.l #7,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_78:
-	moveq #0,d0
-	move.w (a4)+,d0
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L313
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L314
-L313:
-	bsr rd_slow
-L314:
-	asl.b #1,d1
-	move.w ccr,d2
-	and.b #$0f,d2
-	and.b #$f0,d3
-	or.b d2,d3
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L315
-	move.l d2,a0
-	move.b d1,(a0,d0.l)
-	bra.s L316
-L315:
-	bsr wr_slow
-L316:
-	subq.l #7,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_79:
-	moveq #0,d0
-	move.w (a4)+,d0
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L317
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L318
-L317:
-	bsr rd_slow
-L318:
-	move.b d3,d2
-	and.b #1,d2
-	lsl.b #4,d2
-	move.w d2,ccr
-	roxl.b #1,d1
-	move.w ccr,d2
-	and.b #$0d,d2
-	btst #3,d2
 	beq.s L319
-	bchg #1,d2
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L320
 L319:
-	btst #0,d2
-	beq.s L320
-	bchg #1,d2
+	bsr rd_slow
 L320:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
 	and.b #$f0,d3
 	or.b d2,d3
 	move.w d0,d2
@@ -3730,7 +3804,7 @@ L322:
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_7A:
+op_71:
 	moveq #0,d0
 	move.w (a4)+,d0
 	move.w d0,d2
@@ -3743,10 +3817,10 @@ op_7A:
 L323:
 	bsr rd_slow
 L324:
-	subq.b #1,d1
+	neg.b d1
 	move.w ccr,d2
-	and.b #$0e,d2
-	and.b #$f1,d3
+	and.b #$0f,d2
+	and.b #$f0,d3
 	or.b d2,d3
 	move.w d0,d2
 	lsr.w #8,d2
@@ -3765,11 +3839,11 @@ L326:
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_7B:
+op_72:
 	subq.l #1,a4
 	bra c_step
 
-op_7C:
+op_73:
 	moveq #0,d0
 	move.w (a4)+,d0
 	move.w d0,d2
@@ -3782,11 +3856,12 @@ op_7C:
 L327:
 	bsr rd_slow
 L328:
-	addq.b #1,d1
+	not.b d1
 	move.w ccr,d2
 	and.b #$0e,d2
 	and.b #$f1,d3
 	or.b d2,d3
+	or.b #1,d3
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
@@ -3804,7 +3879,7 @@ L330:
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_7D:
+op_74:
 	moveq #0,d0
 	move.w (a4)+,d0
 	move.w d0,d2
@@ -3817,6 +3892,306 @@ op_7D:
 L331:
 	bsr rd_slow
 L332:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L333
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L334
+L333:
+	bsr wr_slow
+L334:
+	subq.l #7,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_75:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L335
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L336
+L335:
+	bsr rd_slow
+L336:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L337
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L338
+L337:
+	bsr wr_slow
+L338:
+	subq.l #7,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_76:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L339
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L340
+L339:
+	bsr rd_slow
+L340:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L341
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L342
+L341:
+	bsr wr_slow
+L342:
+	subq.l #7,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_77:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L343
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L344
+L343:
+	bsr rd_slow
+L344:
+	asr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L345
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L346
+L345:
+	bsr wr_slow
+L346:
+	subq.l #7,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_78:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L347
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L348
+L347:
+	bsr rd_slow
+L348:
+	asl.b #1,d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L349
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L350
+L349:
+	bsr wr_slow
+L350:
+	subq.l #7,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_79:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L351
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L352
+L351:
+	bsr rd_slow
+L352:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxl.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	btst #3,d2
+	beq.s L353
+	bchg #1,d2
+L353:
+	btst #0,d2
+	beq.s L354
+	bchg #1,d2
+L354:
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L355
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L356
+L355:
+	bsr wr_slow
+L356:
+	subq.l #7,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_7A:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L357
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L358
+L357:
+	bsr rd_slow
+L358:
+	subq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L359
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L360
+L359:
+	bsr wr_slow
+L360:
+	subq.l #7,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_7B:
+	subq.l #1,a4
+	bra c_step
+
+op_7C:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L361
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L362
+L361:
+	bsr rd_slow
+L362:
+	addq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L363
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L364
+L363:
+	bsr wr_slow
+L364:
+	subq.l #7,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_7D:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L365
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L366
+L365:
+	bsr rd_slow
+L366:
 	tst.b d1
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -3854,24 +4229,24 @@ op_7F:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L333
+	beq.s L367
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L334
-L333:
+	bra.s L368
+L367:
 	bsr rd_slow
-L334:
+L368:
 	moveq #0,d1
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L335
+	beq.s L369
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L336
-L335:
+	bra.s L370
+L369:
 	bsr wr_slow
-L336:
+L370:
 	and.b #$f0,d3
 	or.b #4,d3
 	subq.l #7,d7
@@ -4095,25 +4470,25 @@ op_8D:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L337
+	beq.s L371
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L338
-L337:
+	bra.s L372
+L371:
 	bsr wr_slow
-L338:
+L372:
 	subq.w #1,d0
 	ror.w #8,d1
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L339
+	beq.s L373
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L340
-L339:
+	bra.s L374
+L373:
 	bsr wr_slow
-L340:
+L374:
 	move.w d0,4166(a5)
 	subq.l #7,d7
 	ble exit_loop
@@ -4147,13 +4522,13 @@ op_90:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L341
+	beq.s L375
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L342
-L341:
+	bra.s L376
+L375:
 	bsr rd_slow
-L342:
+L376:
 	sub.b d1,d4
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -4173,13 +4548,13 @@ op_91:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L343
+	beq.s L377
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L344
-L343:
+	bra.s L378
+L377:
 	bsr rd_slow
-L344:
+L378:
 	cmp.b d1,d4
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -4199,13 +4574,13 @@ op_92:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L345
+	beq.s L379
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L346
-L345:
+	bra.s L380
+L379:
 	bsr rd_slow
-L346:
+L380:
 	move.b d3,d2
 	and.b #1,d2
 	lsl.b #4,d2
@@ -4230,15 +4605,15 @@ op_93:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L347
+	beq.s L381
 	cmp.b #$ff,d0
-	beq.s L347
+	beq.s L381
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L348
-L347:
+	bra.s L382
+L381:
 	bsr rd16_slow
-L348:
+L382:
 	move.b d4,d0
 	lsl.w #8,d0
 	move.b d5,d0
@@ -4265,13 +4640,13 @@ op_94:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L349
+	beq.s L383
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L350
-L349:
+	bra.s L384
+L383:
 	bsr rd_slow
-L350:
+L384:
 	and.b d1,d4
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -4291,13 +4666,13 @@ op_95:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L351
+	beq.s L385
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L352
-L351:
+	bra.s L386
+L385:
 	bsr rd_slow
-L352:
+L386:
 	move.b d4,d2
 	and.b d1,d2
 	move.w ccr,d2
@@ -4318,13 +4693,13 @@ op_96:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L353
+	beq.s L387
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L354
-L353:
+	bra.s L388
+L387:
 	bsr rd_slow
-L354:
+L388:
 	move.b d1,d4
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -4349,13 +4724,13 @@ op_97:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L355
+	beq.s L389
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L356
-L355:
+	bra.s L390
+L389:
 	bsr wr_slow
-L356:
+L390:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -4370,13 +4745,13 @@ op_98:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L357
+	beq.s L391
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L358
-L357:
+	bra.s L392
+L391:
 	bsr rd_slow
-L358:
+L392:
 	eor.b d1,d4
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -4396,13 +4771,13 @@ op_99:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L359
+	beq.s L393
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L360
-L359:
+	bra.s L394
+L393:
 	bsr rd_slow
-L360:
+L394:
 	move.b d4,d0
 	move.b d3,d2
 	and.b #1,d2
@@ -4433,13 +4808,13 @@ op_9A:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L361
+	beq.s L395
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L362
-L361:
+	bra.s L396
+L395:
 	bsr rd_slow
-L362:
+L396:
 	or.b d1,d4
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -4459,13 +4834,13 @@ op_9B:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L363
+	beq.s L397
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L364
-L363:
+	bra.s L398
+L397:
 	bsr rd_slow
-L364:
+L398:
 	move.b d4,d0
 	add.b d1,d4
 	move.w ccr,d2
@@ -4491,15 +4866,15 @@ op_9C:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L365
+	beq.s L399
 	cmp.b #$ff,d0
-	beq.s L365
+	beq.s L399
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L366
-L365:
+	bra.s L400
+L399:
 	bsr rd16_slow
-L366:
+L400:
 	cmp.w d1,d6
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -4516,505 +4891,6 @@ op_9D:
 	moveq #0,d0
 	move.w 4192(a5),d0
 	move.b (a4)+,d0
-	move.l a4,d1
-	sub.l a3,d1
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),a3
-	lea (a3,d0.l),a4
-	moveq #0,d0
-	move.w 4166(a5),d0
-	subq.w #1,d0
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L367
-	move.l d2,a0
-	move.b d1,(a0,d0.l)
-	bra.s L368
-L367:
-	bsr wr_slow
-L368:
-	subq.w #1,d0
-	ror.w #8,d1
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L369
-	move.l d2,a0
-	move.b d1,(a0,d0.l)
-	bra.s L370
-L369:
-	bsr wr_slow
-L370:
-	move.w d0,4166(a5)
-	subq.l #7,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_9E:
-	moveq #0,d0
-	move.w 4192(a5),d0
-	move.b (a4)+,d0
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L371
-	cmp.b #$ff,d0
-	beq.s L371
-	move.l d2,a0
-	move.w (a0,d0.l),d1
-	bra.s L372
-L371:
-	bsr rd16_slow
-L372:
-	move.w d1,d6
-	move.w ccr,d2
-	and.b #$0e,d2
-	and.b #$f1,d3
-	or.b d2,d3
-	subq.l #5,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_9F:
-	moveq #0,d0
-	move.w 4192(a5),d0
-	move.b (a4)+,d0
-	move.w d6,d1
-	move.w ccr,d2
-	and.b #$0e,d2
-	and.b #$f1,d3
-	or.b d2,d3
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L373
-	cmp.b #$ff,d0
-	beq.s L373
-	move.l d2,a0
-	move.w d1,(a0,d0.l)
-	bra.s L374
-L373:
-	bsr wr16_slow
-L374:
-	subq.l #5,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_A0:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L375
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L376
-L375:
-	bsr rd_slow
-L376:
-	sub.b d1,d4
-	move.w ccr,d2
-	and.b #$0f,d2
-	and.b #$f0,d3
-	or.b d2,d3
-	subq.l #2,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_A1:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L377
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L378
-L377:
-	bsr rd_slow
-L378:
-	cmp.b d1,d4
-	move.w ccr,d2
-	and.b #$0f,d2
-	and.b #$f0,d3
-	or.b d2,d3
-	subq.l #2,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_A2:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L379
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L380
-L379:
-	bsr rd_slow
-L380:
-	move.b d3,d2
-	and.b #1,d2
-	lsl.b #4,d2
-	or.b #4,d2
-	move.w d2,ccr
-	subx.b d1,d4
-	move.w ccr,d2
-	and.b #$0f,d2
-	and.b #$f0,d3
-	or.b d2,d3
-	subq.l #2,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_A3:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L381
-	cmp.b #$ff,d0
-	beq.s L381
-	move.l d2,a0
-	move.w (a0,d0.l),d1
-	bra.s L382
-L381:
-	bsr rd16_slow
-L382:
-	move.b d4,d0
-	lsl.w #8,d0
-	move.b d5,d0
-	sub.w d1,d0
-	move.w ccr,d2
-	and.b #$0f,d2
-	and.b #$f0,d3
-	or.b d2,d3
-	move.b d0,d5
-	move.w d0,d2
-	lsr.w #8,d2
-	move.b d2,d4
-	subq.l #4,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_A4:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L383
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L384
-L383:
-	bsr rd_slow
-L384:
-	and.b d1,d4
-	move.w ccr,d2
-	and.b #$0e,d2
-	and.b #$f1,d3
-	or.b d2,d3
-	subq.l #2,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_A5:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L385
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L386
-L385:
-	bsr rd_slow
-L386:
-	move.b d4,d2
-	and.b d1,d2
-	move.w ccr,d2
-	and.b #$0e,d2
-	and.b #$f1,d3
-	or.b d2,d3
-	subq.l #2,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_A6:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L387
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L388
-L387:
-	bsr rd_slow
-L388:
-	move.b d1,d4
-	move.w ccr,d2
-	and.b #$0e,d2
-	and.b #$f1,d3
-	or.b d2,d3
-	subq.l #2,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_A7:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.b d4,d1
-	move.w ccr,d2
-	and.b #$0e,d2
-	and.b #$f1,d3
-	or.b d2,d3
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a1,d2.w*4),d2
-	beq.s L389
-	move.l d2,a0
-	move.b d1,(a0,d0.l)
-	bra.s L390
-L389:
-	bsr wr_slow
-L390:
-	subq.l #2,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_A8:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L391
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L392
-L391:
-	bsr rd_slow
-L392:
-	eor.b d1,d4
-	move.w ccr,d2
-	and.b #$0e,d2
-	and.b #$f1,d3
-	or.b d2,d3
-	subq.l #2,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_A9:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L393
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L394
-L393:
-	bsr rd_slow
-L394:
-	move.b d4,d0
-	move.b d3,d2
-	and.b #1,d2
-	lsl.b #4,d2
-	or.b #4,d2
-	move.w d2,ccr
-	addx.b d1,d4
-	move.w ccr,d2
-	and.b #$0f,d2
-	eor.b d1,d0
-	eor.b d4,d0
-	and.b #$10,d0
-	add.b d0,d0
-	and.b #$d0,d3
-	or.b d2,d3
-	or.b d0,d3
-	subq.l #2,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_AA:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L395
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L396
-L395:
-	bsr rd_slow
-L396:
-	or.b d1,d4
-	move.w ccr,d2
-	and.b #$0e,d2
-	and.b #$f1,d3
-	or.b d2,d3
-	subq.l #2,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_AB:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L397
-	move.l d2,a0
-	move.b (a0,d0.l),d1
-	bra.s L398
-L397:
-	bsr rd_slow
-L398:
-	move.b d4,d0
-	add.b d1,d4
-	move.w ccr,d2
-	and.b #$0f,d2
-	eor.b d1,d0
-	eor.b d4,d0
-	and.b #$10,d0
-	add.b d0,d0
-	and.b #$d0,d3
-	or.b d2,d3
-	or.b d0,d3
-	subq.l #2,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_AC:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
-	move.w d0,d2
-	lsr.w #8,d2
-	move.l (a2,d2.w*4),d2
-	beq.s L399
-	cmp.b #$ff,d0
-	beq.s L399
-	move.l d2,a0
-	move.w (a0,d0.l),d1
-	bra.s L400
-L399:
-	bsr rd16_slow
-L400:
-	cmp.w d1,d6
-	move.w ccr,d2
-	and.b #$0f,d2
-	and.b #$f0,d3
-	or.b d2,d3
-	subq.l #4,d7
-	ble exit_loop
-	moveq #0,d0
-	move.b (a4)+,d0
-	move.l (a6,d0.w*4),a0
-	jmp (a0)
-
-op_AD:
-	moveq #0,d0
-	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
 	move.l a4,d1
 	sub.l a3,d1
 	move.w d0,d2
@@ -5047,19 +4923,17 @@ L403:
 	bsr wr_slow
 L404:
 	move.w d0,4166(a5)
-	subq.l #5,d7
+	subq.l #7,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_AE:
+op_9E:
 	moveq #0,d0
+	move.w 4192(a5),d0
 	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5077,19 +4951,17 @@ L406:
 	and.b #$0e,d2
 	and.b #$f1,d3
 	or.b d2,d3
-	subq.l #3,d7
+	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_AF:
+op_9F:
 	moveq #0,d0
+	move.w 4192(a5),d0
 	move.b (a4)+,d0
-	lea idxtab,a0
-	move.l (a0,d0.w*4),a0
-	jsr (a0)
 	move.w d6,d1
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -5107,16 +4979,19 @@ op_AF:
 L407:
 	bsr wr16_slow
 L408:
-	subq.l #3,d7
+	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_B0:
+op_A0:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5132,16 +5007,19 @@ L410:
 	and.b #$0f,d2
 	and.b #$f0,d3
 	or.b d2,d3
-	subq.l #5,d7
+	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_B1:
+op_A1:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5157,16 +5035,19 @@ L412:
 	and.b #$0f,d2
 	and.b #$f0,d3
 	or.b d2,d3
-	subq.l #5,d7
+	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_B2:
+op_A2:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5187,16 +5068,19 @@ L414:
 	and.b #$0f,d2
 	and.b #$f0,d3
 	or.b d2,d3
-	subq.l #5,d7
+	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_B3:
+op_A3:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5221,16 +5105,19 @@ L416:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.b d2,d4
-	subq.l #7,d7
+	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_B4:
+op_A4:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5246,16 +5133,19 @@ L418:
 	and.b #$0e,d2
 	and.b #$f1,d3
 	or.b d2,d3
-	subq.l #5,d7
+	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_B5:
+op_A5:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5272,16 +5162,19 @@ L420:
 	and.b #$0e,d2
 	and.b #$f1,d3
 	or.b d2,d3
-	subq.l #5,d7
+	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_B6:
+op_A6:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5297,16 +5190,19 @@ L422:
 	and.b #$0e,d2
 	and.b #$f1,d3
 	or.b d2,d3
-	subq.l #5,d7
+	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_B7:
+op_A7:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.b d4,d1
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -5322,16 +5218,19 @@ op_B7:
 L423:
 	bsr wr_slow
 L424:
-	subq.l #5,d7
+	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_B8:
+op_A8:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5347,16 +5246,19 @@ L426:
 	and.b #$0e,d2
 	and.b #$f1,d3
 	or.b d2,d3
-	subq.l #5,d7
+	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_B9:
+op_A9:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5383,16 +5285,19 @@ L428:
 	and.b #$d0,d3
 	or.b d2,d3
 	or.b d0,d3
-	subq.l #5,d7
+	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_BA:
+op_AA:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5408,16 +5313,19 @@ L430:
 	and.b #$0e,d2
 	and.b #$f1,d3
 	or.b d2,d3
-	subq.l #5,d7
+	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_BB:
+op_AB:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5439,16 +5347,19 @@ L432:
 	and.b #$d0,d3
 	or.b d2,d3
 	or.b d0,d3
-	subq.l #5,d7
+	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_BC:
+op_AC:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
@@ -5466,16 +5377,19 @@ L434:
 	and.b #$0f,d2
 	and.b #$f0,d3
 	or.b d2,d3
-	subq.l #7,d7
+	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
 
-op_BD:
+op_AD:
 	moveq #0,d0
-	move.w (a4)+,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
 	move.l a4,d1
 	sub.l a3,d1
 	move.w d0,d2
@@ -5508,6 +5422,467 @@ L437:
 	bsr wr_slow
 L438:
 	move.w d0,4166(a5)
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_AE:
+	moveq #0,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L439
+	cmp.b #$ff,d0
+	beq.s L439
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L440
+L439:
+	bsr rd16_slow
+L440:
+	move.w d1,d6
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #3,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_AF:
+	moveq #0,d0
+	move.b (a4)+,d0
+	lea idxtab,a0
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+	move.w d6,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L441
+	cmp.b #$ff,d0
+	beq.s L441
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L442
+L441:
+	bsr wr16_slow
+L442:
+	subq.l #3,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_B0:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L443
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L444
+L443:
+	bsr rd_slow
+L444:
+	sub.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_B1:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L445
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L446
+L445:
+	bsr rd_slow
+L446:
+	cmp.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_B2:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L447
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L448
+L447:
+	bsr rd_slow
+L448:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_B3:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L449
+	cmp.b #$ff,d0
+	beq.s L449
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L450
+L449:
+	bsr rd16_slow
+L450:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	sub.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	subq.l #7,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_B4:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L451
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L452
+L451:
+	bsr rd_slow
+L452:
+	and.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_B5:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L453
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L454
+L453:
+	bsr rd_slow
+L454:
+	move.b d4,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_B6:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L455
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L456
+L455:
+	bsr rd_slow
+L456:
+	move.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_B7:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.b d4,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L457
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L458
+L457:
+	bsr wr_slow
+L458:
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_B8:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L459
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L460
+L459:
+	bsr rd_slow
+L460:
+	eor.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_B9:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L461
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L462
+L461:
+	bsr rd_slow
+L462:
+	move.b d4,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_BA:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L463
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L464
+L463:
+	bsr rd_slow
+L464:
+	or.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_BB:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L465
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L466
+L465:
+	bsr rd_slow
+L466:
+	move.b d4,d0
+	add.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #5,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_BC:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L467
+	cmp.b #$ff,d0
+	beq.s L467
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L468
+L467:
+	bsr rd16_slow
+L468:
+	cmp.w d1,d6
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #7,d7
+	ble exit_loop
+	moveq #0,d0
+	move.b (a4)+,d0
+	move.l (a6,d0.w*4),a0
+	jmp (a0)
+
+op_BD:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.l a4,d1
+	sub.l a3,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L469
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L470
+L469:
+	bsr wr_slow
+L470:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L471
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L472
+L471:
+	bsr wr_slow
+L472:
+	move.w d0,4166(a5)
 	subq.l #8,d7
 	ble exit_loop
 	moveq #0,d0
@@ -5521,15 +5896,15 @@ op_BE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L439
+	beq.s L473
 	cmp.b #$ff,d0
-	beq.s L439
+	beq.s L473
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L440
-L439:
+	bra.s L474
+L473:
 	bsr rd16_slow
-L440:
+L474:
 	move.w d1,d6
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -5553,15 +5928,15 @@ op_BF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L441
+	beq.s L475
 	cmp.b #$ff,d0
-	beq.s L441
+	beq.s L475
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L442
-L441:
+	bra.s L476
+L475:
 	bsr wr16_slow
-L442:
+L476:
 	subq.l #6,d7
 	ble exit_loop
 	moveq #0,d0
@@ -5804,13 +6179,13 @@ op_D0:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L443
+	beq.s L477
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L444
-L443:
+	bra.s L478
+L477:
 	bsr rd_slow
-L444:
+L478:
 	sub.b d1,d5
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -5830,13 +6205,13 @@ op_D1:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L445
+	beq.s L479
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L446
-L445:
+	bra.s L480
+L479:
 	bsr rd_slow
-L446:
+L480:
 	cmp.b d1,d5
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -5856,13 +6231,13 @@ op_D2:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L447
+	beq.s L481
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L448
-L447:
+	bra.s L482
+L481:
 	bsr rd_slow
-L448:
+L482:
 	move.b d3,d2
 	and.b #1,d2
 	lsl.b #4,d2
@@ -5887,15 +6262,15 @@ op_D3:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L449
+	beq.s L483
 	cmp.b #$ff,d0
-	beq.s L449
+	beq.s L483
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L450
-L449:
+	bra.s L484
+L483:
 	bsr rd16_slow
-L450:
+L484:
 	move.b d4,d0
 	lsl.w #8,d0
 	move.b d5,d0
@@ -5922,13 +6297,13 @@ op_D4:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L451
+	beq.s L485
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L452
-L451:
+	bra.s L486
+L485:
 	bsr rd_slow
-L452:
+L486:
 	and.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -5948,13 +6323,13 @@ op_D5:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L453
+	beq.s L487
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L454
-L453:
+	bra.s L488
+L487:
 	bsr rd_slow
-L454:
+L488:
 	move.b d5,d2
 	and.b d1,d2
 	move.w ccr,d2
@@ -5975,13 +6350,13 @@ op_D6:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L455
+	beq.s L489
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L456
-L455:
+	bra.s L490
+L489:
 	bsr rd_slow
-L456:
+L490:
 	move.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -6006,13 +6381,13 @@ op_D7:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L457
+	beq.s L491
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L458
-L457:
+	bra.s L492
+L491:
 	bsr wr_slow
-L458:
+L492:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -6027,13 +6402,13 @@ op_D8:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L459
+	beq.s L493
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L460
-L459:
+	bra.s L494
+L493:
 	bsr rd_slow
-L460:
+L494:
 	eor.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -6053,13 +6428,13 @@ op_D9:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L461
+	beq.s L495
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L462
-L461:
+	bra.s L496
+L495:
 	bsr rd_slow
-L462:
+L496:
 	move.b d5,d0
 	move.b d3,d2
 	and.b #1,d2
@@ -6090,13 +6465,13 @@ op_DA:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L463
+	beq.s L497
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L464
-L463:
+	bra.s L498
+L497:
 	bsr rd_slow
-L464:
+L498:
 	or.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -6116,13 +6491,13 @@ op_DB:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L465
+	beq.s L499
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L466
-L465:
+	bra.s L500
+L499:
 	bsr rd_slow
-L466:
+L500:
 	move.b d5,d0
 	add.b d1,d5
 	move.w ccr,d2
@@ -6148,15 +6523,15 @@ op_DC:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L467
+	beq.s L501
 	cmp.b #$ff,d0
-	beq.s L467
+	beq.s L501
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L468
-L467:
+	bra.s L502
+L501:
 	bsr rd16_slow
-L468:
+L502:
 	move.b d1,d5
 	move.w d1,d2
 	lsr.w #8,d2
@@ -6188,15 +6563,15 @@ op_DD:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L469
+	beq.s L503
 	cmp.b #$ff,d0
-	beq.s L469
+	beq.s L503
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L470
-L469:
+	bra.s L504
+L503:
 	bsr wr16_slow
-L470:
+L504:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -6211,15 +6586,15 @@ op_DE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L471
+	beq.s L505
 	cmp.b #$ff,d0
-	beq.s L471
+	beq.s L505
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L472
-L471:
+	bra.s L506
+L505:
 	bsr rd16_slow
-L472:
+L506:
 	move.w d1,4164(a5)
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -6244,15 +6619,15 @@ op_DF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L473
+	beq.s L507
 	cmp.b #$ff,d0
-	beq.s L473
+	beq.s L507
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L474
-L473:
+	bra.s L508
+L507:
 	bsr wr16_slow
-L474:
+L508:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -6269,13 +6644,13 @@ op_E0:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L475
+	beq.s L509
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L476
-L475:
+	bra.s L510
+L509:
 	bsr rd_slow
-L476:
+L510:
 	sub.b d1,d5
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -6297,13 +6672,13 @@ op_E1:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L477
+	beq.s L511
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L478
-L477:
+	bra.s L512
+L511:
 	bsr rd_slow
-L478:
+L512:
 	cmp.b d1,d5
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -6325,13 +6700,13 @@ op_E2:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L479
+	beq.s L513
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L480
-L479:
+	bra.s L514
+L513:
 	bsr rd_slow
-L480:
+L514:
 	move.b d3,d2
 	and.b #1,d2
 	lsl.b #4,d2
@@ -6358,15 +6733,15 @@ op_E3:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L481
+	beq.s L515
 	cmp.b #$ff,d0
-	beq.s L481
+	beq.s L515
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L482
-L481:
+	bra.s L516
+L515:
 	bsr rd16_slow
-L482:
+L516:
 	move.b d4,d0
 	lsl.w #8,d0
 	move.b d5,d0
@@ -6395,13 +6770,13 @@ op_E4:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L483
+	beq.s L517
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L484
-L483:
+	bra.s L518
+L517:
 	bsr rd_slow
-L484:
+L518:
 	and.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -6423,13 +6798,13 @@ op_E5:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L485
+	beq.s L519
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L486
-L485:
+	bra.s L520
+L519:
 	bsr rd_slow
-L486:
+L520:
 	move.b d5,d2
 	and.b d1,d2
 	move.w ccr,d2
@@ -6452,13 +6827,13 @@ op_E6:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L487
+	beq.s L521
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L488
-L487:
+	bra.s L522
+L521:
 	bsr rd_slow
-L488:
+L522:
 	move.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -6485,13 +6860,13 @@ op_E7:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L489
+	beq.s L523
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L490
-L489:
+	bra.s L524
+L523:
 	bsr wr_slow
-L490:
+L524:
 	subq.l #2,d7
 	ble exit_loop
 	moveq #0,d0
@@ -6508,13 +6883,13 @@ op_E8:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L491
+	beq.s L525
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L492
-L491:
+	bra.s L526
+L525:
 	bsr rd_slow
-L492:
+L526:
 	eor.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -6536,13 +6911,13 @@ op_E9:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L493
+	beq.s L527
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L494
-L493:
+	bra.s L528
+L527:
 	bsr rd_slow
-L494:
+L528:
 	move.b d5,d0
 	move.b d3,d2
 	and.b #1,d2
@@ -6575,13 +6950,13 @@ op_EA:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L495
+	beq.s L529
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L496
-L495:
+	bra.s L530
+L529:
 	bsr rd_slow
-L496:
+L530:
 	or.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -6603,13 +6978,13 @@ op_EB:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L497
+	beq.s L531
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L498
-L497:
+	bra.s L532
+L531:
 	bsr rd_slow
-L498:
+L532:
 	move.b d5,d0
 	add.b d1,d5
 	move.w ccr,d2
@@ -6637,15 +7012,15 @@ op_EC:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L499
+	beq.s L533
 	cmp.b #$ff,d0
-	beq.s L499
+	beq.s L533
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L500
-L499:
+	bra.s L534
+L533:
 	bsr rd16_slow
-L500:
+L534:
 	move.b d1,d5
 	move.w d1,d2
 	lsr.w #8,d2
@@ -6679,15 +7054,15 @@ op_ED:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L501
+	beq.s L535
 	cmp.b #$ff,d0
-	beq.s L501
+	beq.s L535
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L502
-L501:
+	bra.s L536
+L535:
 	bsr wr16_slow
-L502:
+L536:
 	subq.l #3,d7
 	ble exit_loop
 	moveq #0,d0
@@ -6704,15 +7079,15 @@ op_EE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L503
+	beq.s L537
 	cmp.b #$ff,d0
-	beq.s L503
+	beq.s L537
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L504
-L503:
+	bra.s L538
+L537:
 	bsr rd16_slow
-L504:
+L538:
 	move.w d1,4164(a5)
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -6739,15 +7114,15 @@ op_EF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L505
+	beq.s L539
 	cmp.b #$ff,d0
-	beq.s L505
+	beq.s L539
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L506
-L505:
+	bra.s L540
+L539:
 	bsr wr16_slow
-L506:
+L540:
 	subq.l #3,d7
 	ble exit_loop
 	moveq #0,d0
@@ -6761,13 +7136,13 @@ op_F0:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L507
+	beq.s L541
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L508
-L507:
+	bra.s L542
+L541:
 	bsr rd_slow
-L508:
+L542:
 	sub.b d1,d5
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -6786,13 +7161,13 @@ op_F1:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L509
+	beq.s L543
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L510
-L509:
+	bra.s L544
+L543:
 	bsr rd_slow
-L510:
+L544:
 	cmp.b d1,d5
 	move.w ccr,d2
 	and.b #$0f,d2
@@ -6811,13 +7186,13 @@ op_F2:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L511
+	beq.s L545
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L512
-L511:
+	bra.s L546
+L545:
 	bsr rd_slow
-L512:
+L546:
 	move.b d3,d2
 	and.b #1,d2
 	lsl.b #4,d2
@@ -6841,15 +7216,15 @@ op_F3:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L513
+	beq.s L547
 	cmp.b #$ff,d0
-	beq.s L513
+	beq.s L547
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L514
-L513:
+	bra.s L548
+L547:
 	bsr rd16_slow
-L514:
+L548:
 	move.b d4,d0
 	lsl.w #8,d0
 	move.b d5,d0
@@ -6875,13 +7250,13 @@ op_F4:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L515
+	beq.s L549
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L516
-L515:
+	bra.s L550
+L549:
 	bsr rd_slow
-L516:
+L550:
 	and.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -6900,13 +7275,13 @@ op_F5:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L517
+	beq.s L551
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L518
-L517:
+	bra.s L552
+L551:
 	bsr rd_slow
-L518:
+L552:
 	move.b d5,d2
 	and.b d1,d2
 	move.w ccr,d2
@@ -6926,13 +7301,13 @@ op_F6:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L519
+	beq.s L553
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L520
-L519:
+	bra.s L554
+L553:
 	bsr rd_slow
-L520:
+L554:
 	move.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -6956,13 +7331,13 @@ op_F7:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L521
+	beq.s L555
 	move.l d2,a0
 	move.b d1,(a0,d0.l)
-	bra.s L522
-L521:
+	bra.s L556
+L555:
 	bsr wr_slow
-L522:
+L556:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -6976,13 +7351,13 @@ op_F8:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L523
+	beq.s L557
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L524
-L523:
+	bra.s L558
+L557:
 	bsr rd_slow
-L524:
+L558:
 	eor.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -7001,13 +7376,13 @@ op_F9:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L525
+	beq.s L559
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L526
-L525:
+	bra.s L560
+L559:
 	bsr rd_slow
-L526:
+L560:
 	move.b d5,d0
 	move.b d3,d2
 	and.b #1,d2
@@ -7037,13 +7412,13 @@ op_FA:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L527
+	beq.s L561
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L528
-L527:
+	bra.s L562
+L561:
 	bsr rd_slow
-L528:
+L562:
 	or.b d1,d5
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -7062,13 +7437,13 @@ op_FB:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L529
+	beq.s L563
 	move.l d2,a0
 	move.b (a0,d0.l),d1
-	bra.s L530
-L529:
+	bra.s L564
+L563:
 	bsr rd_slow
-L530:
+L564:
 	move.b d5,d0
 	add.b d1,d5
 	move.w ccr,d2
@@ -7093,15 +7468,15 @@ op_FC:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L531
+	beq.s L565
 	cmp.b #$ff,d0
-	beq.s L531
+	beq.s L565
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L532
-L531:
+	bra.s L566
+L565:
 	bsr rd16_slow
-L532:
+L566:
 	move.b d1,d5
 	move.w d1,d2
 	lsr.w #8,d2
@@ -7132,15 +7507,15 @@ op_FD:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L533
+	beq.s L567
 	cmp.b #$ff,d0
-	beq.s L533
+	beq.s L567
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L534
-L533:
+	bra.s L568
+L567:
 	bsr wr16_slow
-L534:
+L568:
 	subq.l #6,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7154,15 +7529,15 @@ op_FE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L535
+	beq.s L569
 	cmp.b #$ff,d0
-	beq.s L535
+	beq.s L569
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L536
-L535:
+	bra.s L570
+L569:
 	bsr rd16_slow
-L536:
+L570:
 	move.w d1,4164(a5)
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -7186,15 +7561,15 @@ op_FF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L537
+	beq.s L571
 	cmp.b #$ff,d0
-	beq.s L537
+	beq.s L571
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L538
-L537:
+	bra.s L572
+L571:
 	bsr wr16_slow
-L538:
+L572:
 	subq.l #6,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7359,7 +7734,7 @@ p10_21:
 p10_22:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	bls.s L541
+	bls.s L575
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7374,7 +7749,7 @@ p10_22:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L541:
+L575:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7385,7 +7760,7 @@ L541:
 p10_23:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	bhi.s L542
+	bhi.s L576
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7400,7 +7775,7 @@ p10_23:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L542:
+L576:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7411,7 +7786,7 @@ L542:
 p10_24:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	bcs.s L543
+	bcs.s L577
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7426,7 +7801,7 @@ p10_24:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L543:
+L577:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7437,7 +7812,7 @@ L543:
 p10_25:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	bcc.s L544
+	bcc.s L578
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7452,7 +7827,7 @@ p10_25:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L544:
+L578:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7463,7 +7838,7 @@ L544:
 p10_26:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	beq.s L545
+	beq.s L579
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7478,7 +7853,7 @@ p10_26:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L545:
+L579:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7489,7 +7864,7 @@ L545:
 p10_27:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	bne.s L546
+	bne.s L580
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7504,7 +7879,7 @@ p10_27:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L546:
+L580:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7515,7 +7890,7 @@ L546:
 p10_28:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	bvs.s L547
+	bvs.s L581
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7530,7 +7905,7 @@ p10_28:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L547:
+L581:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7541,7 +7916,7 @@ L547:
 p10_29:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	bvc.s L548
+	bvc.s L582
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7556,7 +7931,7 @@ p10_29:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L548:
+L582:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7567,7 +7942,7 @@ L548:
 p10_2A:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	bmi.s L549
+	bmi.s L583
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7582,7 +7957,7 @@ p10_2A:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L549:
+L583:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7593,7 +7968,7 @@ L549:
 p10_2B:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	bpl.s L550
+	bpl.s L584
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7608,7 +7983,7 @@ p10_2B:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L550:
+L584:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7619,7 +7994,7 @@ L550:
 p10_2C:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	blt.s L551
+	blt.s L585
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7634,7 +8009,7 @@ p10_2C:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L551:
+L585:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7645,7 +8020,7 @@ L551:
 p10_2D:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	bge.s L552
+	bge.s L586
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7660,7 +8035,7 @@ p10_2D:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L552:
+L586:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7671,7 +8046,7 @@ L552:
 p10_2E:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	ble.s L553
+	ble.s L587
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7686,7 +8061,7 @@ p10_2E:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L553:
+L587:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -7697,7 +8072,7 @@ L553:
 p10_2F:
 	move.w (a4)+,d0
 	move.w d3,ccr
-	bgt.s L554
+	bgt.s L588
 	move.l a4,d2
 	sub.l a3,d2
 	add.w d2,d0
@@ -7712,7 +8087,7 @@ p10_2F:
 	move.b (a4)+,d0
 	move.l (a6,d0.w*4),a0
 	jmp (a0)
-L554:
+L588:
 	subq.l #5,d7
 	ble exit_loop
 	moveq #0,d0
@@ -8157,15 +8532,15 @@ p10_93:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L555
+	beq.s L589
 	cmp.b #$ff,d0
-	beq.s L555
+	beq.s L589
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L556
-L555:
+	bra.s L590
+L589:
 	bsr rd16_slow
-L556:
+L590:
 	move.b d4,d0
 	lsl.w #8,d0
 	move.b d5,d0
@@ -8220,15 +8595,15 @@ p10_9C:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L557
+	beq.s L591
 	cmp.b #$ff,d0
-	beq.s L557
+	beq.s L591
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L558
-L557:
+	bra.s L592
+L591:
 	bsr rd16_slow
-L558:
+L592:
 	move.w 4162(a5),d0
 	cmp.w d1,d0
 	move.w ccr,d2
@@ -8253,15 +8628,15 @@ p10_9E:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L559
+	beq.s L593
 	cmp.b #$ff,d0
-	beq.s L559
+	beq.s L593
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L560
-L559:
+	bra.s L594
+L593:
 	bsr rd16_slow
-L560:
+L594:
 	move.w d1,4162(a5)
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -8286,15 +8661,15 @@ p10_9F:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L561
+	beq.s L595
 	cmp.b #$ff,d0
-	beq.s L561
+	beq.s L595
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L562
-L561:
+	bra.s L596
+L595:
 	bsr wr16_slow
-L562:
+L596:
 	subq.l #6,d7
 	ble exit_loop
 	moveq #0,d0
@@ -8323,15 +8698,15 @@ p10_A3:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L563
+	beq.s L597
 	cmp.b #$ff,d0
-	beq.s L563
+	beq.s L597
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L564
-L563:
+	bra.s L598
+L597:
 	bsr rd16_slow
-L564:
+L598:
 	move.b d4,d0
 	lsl.w #8,d0
 	move.b d5,d0
@@ -8388,15 +8763,15 @@ p10_AC:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L565
+	beq.s L599
 	cmp.b #$ff,d0
-	beq.s L565
+	beq.s L599
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L566
-L565:
+	bra.s L600
+L599:
 	bsr rd16_slow
-L566:
+L600:
 	move.w 4162(a5),d0
 	cmp.w d1,d0
 	move.w ccr,d2
@@ -8423,15 +8798,15 @@ p10_AE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L567
+	beq.s L601
 	cmp.b #$ff,d0
-	beq.s L567
+	beq.s L601
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L568
-L567:
+	bra.s L602
+L601:
 	bsr rd16_slow
-L568:
+L602:
 	move.w d1,4162(a5)
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -8458,15 +8833,15 @@ p10_AF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L569
+	beq.s L603
 	cmp.b #$ff,d0
-	beq.s L569
+	beq.s L603
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L570
-L569:
+	bra.s L604
+L603:
 	bsr wr16_slow
-L570:
+L604:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -8492,15 +8867,15 @@ p10_B3:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L571
+	beq.s L605
 	cmp.b #$ff,d0
-	beq.s L571
+	beq.s L605
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L572
-L571:
+	bra.s L606
+L605:
 	bsr rd16_slow
-L572:
+L606:
 	move.b d4,d0
 	lsl.w #8,d0
 	move.b d5,d0
@@ -8554,15 +8929,15 @@ p10_BC:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L573
+	beq.s L607
 	cmp.b #$ff,d0
-	beq.s L573
+	beq.s L607
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L574
-L573:
+	bra.s L608
+L607:
 	bsr rd16_slow
-L574:
+L608:
 	move.w 4162(a5),d0
 	cmp.w d1,d0
 	move.w ccr,d2
@@ -8586,15 +8961,15 @@ p10_BE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L575
+	beq.s L609
 	cmp.b #$ff,d0
-	beq.s L575
+	beq.s L609
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L576
-L575:
+	bra.s L610
+L609:
 	bsr rd16_slow
-L576:
+L610:
 	move.w d1,4162(a5)
 	move.w ccr,d2
 	and.b #$0e,d2
@@ -8618,15 +8993,15 @@ p10_BF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L577
+	beq.s L611
 	cmp.b #$ff,d0
-	beq.s L577
+	beq.s L611
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L578
-L577:
+	bra.s L612
+L611:
 	bsr wr16_slow
-L578:
+L612:
 	subq.l #7,d7
 	ble exit_loop
 	moveq #0,d0
@@ -8773,15 +9148,15 @@ p10_DE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L579
+	beq.s L613
 	cmp.b #$ff,d0
-	beq.s L579
+	beq.s L613
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L580
-L579:
+	bra.s L614
+L613:
 	bsr rd16_slow
-L580:
+L614:
 	move.w d1,4166(a5)
 	move.b #1,4198(a5)
 	tst.w d1
@@ -8808,15 +9183,15 @@ p10_DF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L581
+	beq.s L615
 	cmp.b #$ff,d0
-	beq.s L581
+	beq.s L615
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L582
-L581:
+	bra.s L616
+L615:
 	bsr wr16_slow
-L582:
+L616:
 	subq.l #6,d7
 	ble exit_loop
 	moveq #0,d0
@@ -8889,15 +9264,15 @@ p10_EE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L583
+	beq.s L617
 	cmp.b #$ff,d0
-	beq.s L583
+	beq.s L617
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L584
-L583:
+	bra.s L618
+L617:
 	bsr rd16_slow
-L584:
+L618:
 	move.w d1,4166(a5)
 	move.b #1,4198(a5)
 	tst.w d1
@@ -8926,15 +9301,15 @@ p10_EF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L585
+	beq.s L619
 	cmp.b #$ff,d0
-	beq.s L585
+	beq.s L619
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L586
-L585:
+	bra.s L620
+L619:
 	bsr wr16_slow
-L586:
+L620:
 	subq.l #4,d7
 	ble exit_loop
 	moveq #0,d0
@@ -9004,15 +9379,15 @@ p10_FE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L587
+	beq.s L621
 	cmp.b #$ff,d0
-	beq.s L587
+	beq.s L621
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L588
-L587:
+	bra.s L622
+L621:
 	bsr rd16_slow
-L588:
+L622:
 	move.w d1,4166(a5)
 	move.b #1,4198(a5)
 	tst.w d1
@@ -9038,15 +9413,15 @@ p10_FF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a1,d2.w*4),d2
-	beq.s L589
+	beq.s L623
 	cmp.b #$ff,d0
-	beq.s L589
+	beq.s L623
 	move.l d2,a0
 	move.w d1,(a0,d0.l)
-	bra.s L590
-L589:
+	bra.s L624
+L623:
 	bsr wr16_slow
-L590:
+L624:
 	subq.l #7,d7
 	ble exit_loop
 	moveq #0,d0
@@ -9671,15 +10046,15 @@ p11_93:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L591
+	beq.s L625
 	cmp.b #$ff,d0
-	beq.s L591
+	beq.s L625
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L592
-L591:
+	bra.s L626
+L625:
 	bsr rd16_slow
-L592:
+L626:
 	move.w 4164(a5),d0
 	cmp.w d1,d0
 	move.w ccr,d2
@@ -9732,15 +10107,15 @@ p11_9C:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L593
+	beq.s L627
 	cmp.b #$ff,d0
-	beq.s L593
+	beq.s L627
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L594
-L593:
+	bra.s L628
+L627:
 	bsr rd16_slow
-L594:
+L628:
 	move.w 4166(a5),d0
 	cmp.w d1,d0
 	move.w ccr,d2
@@ -9787,15 +10162,15 @@ p11_A3:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L595
+	beq.s L629
 	cmp.b #$ff,d0
-	beq.s L595
+	beq.s L629
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L596
-L595:
+	bra.s L630
+L629:
 	bsr rd16_slow
-L596:
+L630:
 	move.w 4164(a5),d0
 	cmp.w d1,d0
 	move.w ccr,d2
@@ -9850,15 +10225,15 @@ p11_AC:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L597
+	beq.s L631
 	cmp.b #$ff,d0
-	beq.s L597
+	beq.s L631
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L598
-L597:
+	bra.s L632
+L631:
 	bsr rd16_slow
-L598:
+L632:
 	move.w 4166(a5),d0
 	cmp.w d1,d0
 	move.w ccr,d2
@@ -9902,15 +10277,15 @@ p11_B3:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L599
+	beq.s L633
 	cmp.b #$ff,d0
-	beq.s L599
+	beq.s L633
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L600
-L599:
+	bra.s L634
+L633:
 	bsr rd16_slow
-L600:
+L634:
 	move.w 4164(a5),d0
 	cmp.w d1,d0
 	move.w ccr,d2
@@ -9962,15 +10337,15 @@ p11_BC:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L601
+	beq.s L635
 	cmp.b #$ff,d0
-	beq.s L601
+	beq.s L635
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L602
-L601:
+	bra.s L636
+L635:
 	bsr rd16_slow
-L602:
+L636:
 	move.w 4166(a5),d0
 	cmp.w d1,d0
 	move.w ccr,d2
@@ -11124,15 +11499,15 @@ idx_90:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L603
+	beq.s L637
 	cmp.b #$ff,d0
-	beq.s L603
+	beq.s L637
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L604
-L603:
+	bra.s L638
+L637:
 	bsr rd16_slow
-L604:
+L638:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11145,15 +11520,15 @@ idx_91:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L605
+	beq.s L639
 	cmp.b #$ff,d0
-	beq.s L605
+	beq.s L639
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L606
-L605:
+	bra.s L640
+L639:
 	bsr rd16_slow
-L606:
+L640:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11166,15 +11541,15 @@ idx_92:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L607
+	beq.s L641
 	cmp.b #$ff,d0
-	beq.s L607
+	beq.s L641
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L608
-L607:
+	bra.s L642
+L641:
 	bsr rd16_slow
-L608:
+L642:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11187,15 +11562,15 @@ idx_93:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L609
+	beq.s L643
 	cmp.b #$ff,d0
-	beq.s L609
+	beq.s L643
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L610
-L609:
+	bra.s L644
+L643:
 	bsr rd16_slow
-L610:
+L644:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11207,15 +11582,15 @@ idx_94:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L611
+	beq.s L645
 	cmp.b #$ff,d0
-	beq.s L611
+	beq.s L645
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L612
-L611:
+	bra.s L646
+L645:
 	bsr rd16_slow
-L612:
+L646:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11230,15 +11605,15 @@ idx_95:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L613
+	beq.s L647
 	cmp.b #$ff,d0
-	beq.s L613
+	beq.s L647
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L614
-L613:
+	bra.s L648
+L647:
 	bsr rd16_slow
-L614:
+L648:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11253,15 +11628,15 @@ idx_96:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L615
+	beq.s L649
 	cmp.b #$ff,d0
-	beq.s L615
+	beq.s L649
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L616
-L615:
+	bra.s L650
+L649:
 	bsr rd16_slow
-L616:
+L650:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11272,15 +11647,15 @@ idx_97:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L617
+	beq.s L651
 	cmp.b #$ff,d0
-	beq.s L617
+	beq.s L651
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L618
-L617:
+	bra.s L652
+L651:
 	bsr rd16_slow
-L618:
+L652:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11295,15 +11670,15 @@ idx_98:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L619
+	beq.s L653
 	cmp.b #$ff,d0
-	beq.s L619
+	beq.s L653
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L620
-L619:
+	bra.s L654
+L653:
 	bsr rd16_slow
-L620:
+L654:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11317,15 +11692,15 @@ idx_99:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L621
+	beq.s L655
 	cmp.b #$ff,d0
-	beq.s L621
+	beq.s L655
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L622
-L621:
+	bra.s L656
+L655:
 	bsr rd16_slow
-L622:
+L656:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11336,15 +11711,15 @@ idx_9A:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L623
+	beq.s L657
 	cmp.b #$ff,d0
-	beq.s L623
+	beq.s L657
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L624
-L623:
+	bra.s L658
+L657:
 	bsr rd16_slow
-L624:
+L658:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11360,15 +11735,15 @@ idx_9B:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L625
+	beq.s L659
 	cmp.b #$ff,d0
-	beq.s L625
+	beq.s L659
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L626
-L625:
+	bra.s L660
+L659:
 	bsr rd16_slow
-L626:
+L660:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11383,15 +11758,15 @@ idx_9C:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L627
+	beq.s L661
 	cmp.b #$ff,d0
-	beq.s L627
+	beq.s L661
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L628
-L627:
+	bra.s L662
+L661:
 	bsr rd16_slow
-L628:
+L662:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11405,15 +11780,15 @@ idx_9D:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L629
+	beq.s L663
 	cmp.b #$ff,d0
-	beq.s L629
+	beq.s L663
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L630
-L629:
+	bra.s L664
+L663:
 	bsr rd16_slow
-L630:
+L664:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11424,15 +11799,15 @@ idx_9E:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L631
+	beq.s L665
 	cmp.b #$ff,d0
-	beq.s L631
+	beq.s L665
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L632
-L631:
+	bra.s L666
+L665:
 	bsr rd16_slow
-L632:
+L666:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11444,15 +11819,15 @@ idx_9F:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L633
+	beq.s L667
 	cmp.b #$ff,d0
-	beq.s L633
+	beq.s L667
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L634
-L633:
+	bra.s L668
+L667:
 	bsr rd16_slow
-L634:
+L668:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11566,15 +11941,15 @@ idx_B0:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L635
+	beq.s L669
 	cmp.b #$ff,d0
-	beq.s L635
+	beq.s L669
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L636
-L635:
+	bra.s L670
+L669:
 	bsr rd16_slow
-L636:
+L670:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11587,15 +11962,15 @@ idx_B1:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L637
+	beq.s L671
 	cmp.b #$ff,d0
-	beq.s L637
+	beq.s L671
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L638
-L637:
+	bra.s L672
+L671:
 	bsr rd16_slow
-L638:
+L672:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11608,15 +11983,15 @@ idx_B2:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L639
+	beq.s L673
 	cmp.b #$ff,d0
-	beq.s L639
+	beq.s L673
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L640
-L639:
+	bra.s L674
+L673:
 	bsr rd16_slow
-L640:
+L674:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11629,15 +12004,15 @@ idx_B3:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L641
+	beq.s L675
 	cmp.b #$ff,d0
-	beq.s L641
+	beq.s L675
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L642
-L641:
+	bra.s L676
+L675:
 	bsr rd16_slow
-L642:
+L676:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11649,15 +12024,15 @@ idx_B4:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L643
+	beq.s L677
 	cmp.b #$ff,d0
-	beq.s L643
+	beq.s L677
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L644
-L643:
+	bra.s L678
+L677:
 	bsr rd16_slow
-L644:
+L678:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11672,15 +12047,15 @@ idx_B5:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L645
+	beq.s L679
 	cmp.b #$ff,d0
-	beq.s L645
+	beq.s L679
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L646
-L645:
+	bra.s L680
+L679:
 	bsr rd16_slow
-L646:
+L680:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11695,15 +12070,15 @@ idx_B6:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L647
+	beq.s L681
 	cmp.b #$ff,d0
-	beq.s L647
+	beq.s L681
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L648
-L647:
+	bra.s L682
+L681:
 	bsr rd16_slow
-L648:
+L682:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11714,15 +12089,15 @@ idx_B7:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L649
+	beq.s L683
 	cmp.b #$ff,d0
-	beq.s L649
+	beq.s L683
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L650
-L649:
+	bra.s L684
+L683:
 	bsr rd16_slow
-L650:
+L684:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11737,15 +12112,15 @@ idx_B8:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L651
+	beq.s L685
 	cmp.b #$ff,d0
-	beq.s L651
+	beq.s L685
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L652
-L651:
+	bra.s L686
+L685:
 	bsr rd16_slow
-L652:
+L686:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11759,15 +12134,15 @@ idx_B9:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L653
+	beq.s L687
 	cmp.b #$ff,d0
-	beq.s L653
+	beq.s L687
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L654
-L653:
+	bra.s L688
+L687:
 	bsr rd16_slow
-L654:
+L688:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11778,15 +12153,15 @@ idx_BA:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L655
+	beq.s L689
 	cmp.b #$ff,d0
-	beq.s L655
+	beq.s L689
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L656
-L655:
+	bra.s L690
+L689:
 	bsr rd16_slow
-L656:
+L690:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11802,15 +12177,15 @@ idx_BB:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L657
+	beq.s L691
 	cmp.b #$ff,d0
-	beq.s L657
+	beq.s L691
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L658
-L657:
+	bra.s L692
+L691:
 	bsr rd16_slow
-L658:
+L692:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11825,15 +12200,15 @@ idx_BC:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L659
+	beq.s L693
 	cmp.b #$ff,d0
-	beq.s L659
+	beq.s L693
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L660
-L659:
+	bra.s L694
+L693:
 	bsr rd16_slow
-L660:
+L694:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11847,15 +12222,15 @@ idx_BD:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L661
+	beq.s L695
 	cmp.b #$ff,d0
-	beq.s L661
+	beq.s L695
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L662
-L661:
+	bra.s L696
+L695:
 	bsr rd16_slow
-L662:
+L696:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11866,15 +12241,15 @@ idx_BE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L663
+	beq.s L697
 	cmp.b #$ff,d0
-	beq.s L663
+	beq.s L697
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L664
-L663:
+	bra.s L698
+L697:
 	bsr rd16_slow
-L664:
+L698:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -11886,15 +12261,15 @@ idx_BF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L665
+	beq.s L699
 	cmp.b #$ff,d0
-	beq.s L665
+	beq.s L699
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L666
-L665:
+	bra.s L700
+L699:
 	bsr rd16_slow
-L666:
+L700:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12008,15 +12383,15 @@ idx_D0:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L667
+	beq.s L701
 	cmp.b #$ff,d0
-	beq.s L667
+	beq.s L701
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L668
-L667:
+	bra.s L702
+L701:
 	bsr rd16_slow
-L668:
+L702:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12029,15 +12404,15 @@ idx_D1:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L669
+	beq.s L703
 	cmp.b #$ff,d0
-	beq.s L669
+	beq.s L703
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L670
-L669:
+	bra.s L704
+L703:
 	bsr rd16_slow
-L670:
+L704:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12050,15 +12425,15 @@ idx_D2:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L671
+	beq.s L705
 	cmp.b #$ff,d0
-	beq.s L671
+	beq.s L705
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L672
-L671:
+	bra.s L706
+L705:
 	bsr rd16_slow
-L672:
+L706:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12071,15 +12446,15 @@ idx_D3:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L673
+	beq.s L707
 	cmp.b #$ff,d0
-	beq.s L673
+	beq.s L707
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L674
-L673:
+	bra.s L708
+L707:
 	bsr rd16_slow
-L674:
+L708:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12091,15 +12466,15 @@ idx_D4:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L675
+	beq.s L709
 	cmp.b #$ff,d0
-	beq.s L675
+	beq.s L709
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L676
-L675:
+	bra.s L710
+L709:
 	bsr rd16_slow
-L676:
+L710:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12114,15 +12489,15 @@ idx_D5:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L677
+	beq.s L711
 	cmp.b #$ff,d0
-	beq.s L677
+	beq.s L711
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L678
-L677:
+	bra.s L712
+L711:
 	bsr rd16_slow
-L678:
+L712:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12137,15 +12512,15 @@ idx_D6:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L679
+	beq.s L713
 	cmp.b #$ff,d0
-	beq.s L679
+	beq.s L713
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L680
-L679:
+	bra.s L714
+L713:
 	bsr rd16_slow
-L680:
+L714:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12156,15 +12531,15 @@ idx_D7:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L681
+	beq.s L715
 	cmp.b #$ff,d0
-	beq.s L681
+	beq.s L715
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L682
-L681:
+	bra.s L716
+L715:
 	bsr rd16_slow
-L682:
+L716:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12179,15 +12554,15 @@ idx_D8:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L683
+	beq.s L717
 	cmp.b #$ff,d0
-	beq.s L683
+	beq.s L717
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L684
-L683:
+	bra.s L718
+L717:
 	bsr rd16_slow
-L684:
+L718:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12201,15 +12576,15 @@ idx_D9:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L685
+	beq.s L719
 	cmp.b #$ff,d0
-	beq.s L685
+	beq.s L719
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L686
-L685:
+	bra.s L720
+L719:
 	bsr rd16_slow
-L686:
+L720:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12220,15 +12595,15 @@ idx_DA:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L687
+	beq.s L721
 	cmp.b #$ff,d0
-	beq.s L687
+	beq.s L721
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L688
-L687:
+	bra.s L722
+L721:
 	bsr rd16_slow
-L688:
+L722:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12244,15 +12619,15 @@ idx_DB:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L689
+	beq.s L723
 	cmp.b #$ff,d0
-	beq.s L689
+	beq.s L723
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L690
-L689:
+	bra.s L724
+L723:
 	bsr rd16_slow
-L690:
+L724:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12267,15 +12642,15 @@ idx_DC:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L691
+	beq.s L725
 	cmp.b #$ff,d0
-	beq.s L691
+	beq.s L725
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L692
-L691:
+	bra.s L726
+L725:
 	bsr rd16_slow
-L692:
+L726:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12289,15 +12664,15 @@ idx_DD:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L693
+	beq.s L727
 	cmp.b #$ff,d0
-	beq.s L693
+	beq.s L727
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L694
-L693:
+	bra.s L728
+L727:
 	bsr rd16_slow
-L694:
+L728:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12308,15 +12683,15 @@ idx_DE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L695
+	beq.s L729
 	cmp.b #$ff,d0
-	beq.s L695
+	beq.s L729
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L696
-L695:
+	bra.s L730
+L729:
 	bsr rd16_slow
-L696:
+L730:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12328,15 +12703,15 @@ idx_DF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L697
+	beq.s L731
 	cmp.b #$ff,d0
-	beq.s L697
+	beq.s L731
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L698
-L697:
+	bra.s L732
+L731:
 	bsr rd16_slow
-L698:
+L732:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12450,15 +12825,15 @@ idx_F0:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L699
+	beq.s L733
 	cmp.b #$ff,d0
-	beq.s L699
+	beq.s L733
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L700
-L699:
+	bra.s L734
+L733:
 	bsr rd16_slow
-L700:
+L734:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12471,15 +12846,15 @@ idx_F1:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L701
+	beq.s L735
 	cmp.b #$ff,d0
-	beq.s L701
+	beq.s L735
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L702
-L701:
+	bra.s L736
+L735:
 	bsr rd16_slow
-L702:
+L736:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12492,15 +12867,15 @@ idx_F2:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L703
+	beq.s L737
 	cmp.b #$ff,d0
-	beq.s L703
+	beq.s L737
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L704
-L703:
+	bra.s L738
+L737:
 	bsr rd16_slow
-L704:
+L738:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12513,15 +12888,15 @@ idx_F3:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L705
+	beq.s L739
 	cmp.b #$ff,d0
-	beq.s L705
+	beq.s L739
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L706
-L705:
+	bra.s L740
+L739:
 	bsr rd16_slow
-L706:
+L740:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12533,15 +12908,15 @@ idx_F4:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L707
+	beq.s L741
 	cmp.b #$ff,d0
-	beq.s L707
+	beq.s L741
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L708
-L707:
+	bra.s L742
+L741:
 	bsr rd16_slow
-L708:
+L742:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12556,15 +12931,15 @@ idx_F5:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L709
+	beq.s L743
 	cmp.b #$ff,d0
-	beq.s L709
+	beq.s L743
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L710
-L709:
+	bra.s L744
+L743:
 	bsr rd16_slow
-L710:
+L744:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12579,15 +12954,15 @@ idx_F6:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L711
+	beq.s L745
 	cmp.b #$ff,d0
-	beq.s L711
+	beq.s L745
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L712
-L711:
+	bra.s L746
+L745:
 	bsr rd16_slow
-L712:
+L746:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12598,15 +12973,15 @@ idx_F7:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L713
+	beq.s L747
 	cmp.b #$ff,d0
-	beq.s L713
+	beq.s L747
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L714
-L713:
+	bra.s L748
+L747:
 	bsr rd16_slow
-L714:
+L748:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12621,15 +12996,15 @@ idx_F8:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L715
+	beq.s L749
 	cmp.b #$ff,d0
-	beq.s L715
+	beq.s L749
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L716
-L715:
+	bra.s L750
+L749:
 	bsr rd16_slow
-L716:
+L750:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12643,15 +13018,15 @@ idx_F9:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L717
+	beq.s L751
 	cmp.b #$ff,d0
-	beq.s L717
+	beq.s L751
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L718
-L717:
+	bra.s L752
+L751:
 	bsr rd16_slow
-L718:
+L752:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12662,15 +13037,15 @@ idx_FA:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L719
+	beq.s L753
 	cmp.b #$ff,d0
-	beq.s L719
+	beq.s L753
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L720
-L719:
+	bra.s L754
+L753:
 	bsr rd16_slow
-L720:
+L754:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12686,15 +13061,15 @@ idx_FB:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L721
+	beq.s L755
 	cmp.b #$ff,d0
-	beq.s L721
+	beq.s L755
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L722
-L721:
+	bra.s L756
+L755:
 	bsr rd16_slow
-L722:
+L756:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12709,15 +13084,15 @@ idx_FC:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L723
+	beq.s L757
 	cmp.b #$ff,d0
-	beq.s L723
+	beq.s L757
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L724
-L723:
+	bra.s L758
+L757:
 	bsr rd16_slow
-L724:
+L758:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12731,15 +13106,15 @@ idx_FD:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L725
+	beq.s L759
 	cmp.b #$ff,d0
-	beq.s L725
+	beq.s L759
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L726
-L725:
+	bra.s L760
+L759:
 	bsr rd16_slow
-L726:
+L760:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12750,15 +13125,15 @@ idx_FE:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L727
+	beq.s L761
 	cmp.b #$ff,d0
-	beq.s L727
+	beq.s L761
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L728
-L727:
+	bra.s L762
+L761:
 	bsr rd16_slow
-L728:
+L762:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
@@ -12770,15 +13145,15 @@ idx_FF:
 	move.w d0,d2
 	lsr.w #8,d2
 	move.l (a2,d2.w*4),d2
-	beq.s L729
+	beq.s L763
 	cmp.b #$ff,d0
-	beq.s L729
+	beq.s L763
 	move.l d2,a0
 	move.w (a0,d0.l),d1
-	bra.s L730
-L729:
+	bra.s L764
+L763:
 	bsr rd16_slow
-L730:
+L764:
 	moveq #0,d0
 	move.w d1,d0
 	subq.l #3,d7
