@@ -432,6 +432,15 @@ procedury przez tablice i `check_ints`). Wniosek: najwięcej kosztują skoki obl
 ok. 15 cykli na każdą instrukcję, tryb indeksowy kolejne ok. 20), dostęp do pamięci przez
 tablicę stron ok. 12.
 
+**Tryby indeksowe w kodzie instrukcji (12.10.2026):** 23% wykonywanych instrukcji gry to tryby
+indeksowe (sonda `build/probe/idxstat.c`): `,X+` 20%, `,Y++` 13%, `,Y` 12%, `,X++` 9%, `,Y+` 6%,
+`,S` 5%, `,X` 4%, przesunięcia 5-bitowe (00–7F) ok. 12%. Te są teraz liczone w miejscu
+(`ea_indexed`: 5-bitowe ogólnie dla czterech rejestrów, 7 częstych przez porównania), reszta
+nadal przez `idx_XX` (`jsr`/`rts`). `CpuBench`: mieszanka 5,43 → **6,41 MHz** (+18%), `LDA ,X+`
+50 → 34 cykle, `LDA 5,X` 50 → 35,5, `LDA ,X` 50 → 38,5. `CpuTest6809` 30 000 + 10 000 i
+`Lockstep` 5000 klatek bez różnic. W grze (demo) w granicach rozrzutu pomiaru: bez dźwięku
+28–34,5 kl./s, z dźwiękiem 16,7–20 (6809 to tylko ok. 25–40% czasu klatki).
+
 Renderer na A1200 sprawdzony `XAIN_CHECK` (porównanie z wzorcowym w każdej klatce): 0 różnic
 w 3000 klatkach `play1`, sumy kontrolne klatek 1600–2900 identyczne z PC.
 

@@ -207,13 +207,46 @@ def ea_extended():
     return 3
 
 
+# the most frequent postbytes with bit 7 set (Xain'd Sleena, all CPUs: ,X+ ,Y++ ,Y ,X++ ,Y+ ,S ,X
+# are 70% of the indexed instructions; the 5 bit offsets 00-7F another 12%), done inline
+IDX_INLINE = [0x80, 0xa1, 0xa4, 0x81, 0xa0, 0xe4, 0x84]
+
+
 def ea_indexed():
-    """calls the handler of the postbyte (it subtracts the cycles of the indexed mode)"""
+    """the effective address of the postbyte in d0 (its cycles subtracted): 5 bit offsets and
+    the frequent postbytes inline, the others through the handler idx_XX (jsr, rts)"""
+    done, hi, xreg, add = L(), L(), L(), L()
     ins("moveq #0,d0")
     ins("move.b (a4)+,d0")
+    ins("bmi.s " + hi)
+    # 00-7F: register (bits 5-6) + 5 bit signed offset, 3 cycles with the postbyte
+    ins("move.w d0,d2")
+    ins("and.w #$60,d2")
+    ins("beq.s " + xreg)
+    ins("lsr.w #4,d2")                                # register * 2: Y U S at %d.. in the struct
+    ins("move.w %d(a5,d2.w),d2" % O_X)
+    ins("bra.s " + add)
+    emit(xreg + ":")
+    ins("move.w d6,d2")
+    emit(add + ":")
+    ins("lsl.b #3,d0")
+    ins("asr.b #3,d0")
+    ins("ext.w d0")
+    ins("add.w d2,d0")
+    sub_cycles(3)
+    ins("bra " + done)
+    emit(hi + ":")
+    for post in IDX_INLINE:
+        nxt = L()
+        ins("cmp.b #$%02x,d0" % post)
+        ins("bne " + nxt)
+        idx_body(post)
+        ins("bra " + done)
+        emit(nxt + ":")
     ins("lea idxtab,a0")
     ins("move.l (a0,d0.w*4),a0")
     ins("jsr (a0)")
+    emit(done + ":")
     return 0
 
 
@@ -246,6 +279,13 @@ def ireg_add(r, n):
 def gen_idx(post):
     """handler idx_XX: d0 = effective address, subtracts the cycles of the mode"""
     emit("idx_%02X:" % post)
+    idx_body(post)
+    ins("rts")
+
+
+def idx_body(post):
+    """the effective address of postbyte `post` into d0.l (upper word 0), cycles subtracted;
+    clobbers d2 (and a0 for indirect reads)"""
     r = IREG[(post >> 5) & 3]
     if not post & 0x80:
         off = (post & 0x0f) | (0xf0 if post & 0x10 else 0)
@@ -254,7 +294,6 @@ def gen_idx(post):
         if off:
             ins("add.w #%d,d0" % off)
         sub_cycles(3)
-        ins("rts")
         return
     mode = post & 0x0f
     cyc = 0
@@ -316,7 +355,6 @@ def gen_idx(post):
         ins("moveq #0,d0")
         ins("move.w d1,d0")
         sub_cycles(3)
-    ins("rts")
 
 
 # ---------------------------------------------------------------- instructions
