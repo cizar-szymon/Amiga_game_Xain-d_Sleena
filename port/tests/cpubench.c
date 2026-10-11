@@ -4,6 +4,9 @@
  * real 6809 at 1.5 MHz (Xain'd Sleena) and 1 MHz.
  *
  *   CpuBench [MEGACYCLES]
+ *
+ * Then micro benchmarks (asm core, Amiga): 32 equal instructions and a BRA back, per kind; the
+ * result in 68060 cycles per 6809 instruction (CPU clock from the argument CLOCK_MHZ, default 50).
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,10 +93,78 @@ static void bench(const char *name, int32_t (*run)(M6809 *, int32_t), long mcycl
            khz / 100 % 10);
 }
 
+/* micro benchmark loops: 32 x the instruction bytes, then BRA to the start */
+typedef struct Micro {
+    const char *name;
+    uint8_t bytes[4];
+    int len;
+} Micro;
+
+static const Micro micros[] = {
+    { "NOP", { 0x12 }, 1 },
+    { "INCA", { 0x4c }, 1 },
+    { "ADDA #1", { 0x8b, 0x01 }, 2 },
+    { "ANDA #$7F", { 0x84, 0x7f }, 2 },
+    { "LDA $1000", { 0xb6, 0x10, 0x00 }, 3 },
+    { "STA $1000", { 0xb7, 0x10, 0x00 }, 3 },
+    { "LDA <$10", { 0x96, 0x10 }, 2 },
+    { "LDA ,X", { 0xa6, 0x84 }, 2 },
+    { "LDA ,X+", { 0xa6, 0x80 }, 2 },
+    { "LDA 5,X", { 0xa6, 0x05 }, 2 },
+    { "LDD $1000", { 0xfc, 0x10, 0x00 }, 3 },
+    { "BRA +0", { 0x20, 0x00 }, 2 },
+    { "BNE +0 (taken)", { 0x26, 0x00 }, 2 },
+    { "TFR A,B", { 0x1f, 0x89 }, 2 },
+};
+
+static void micro(const Micro *mc, long mhz)
+{
+    int i, k, pc = 0x8000;
+    long t0, t1, ms, n;
+    unsigned long ins;
+    setup();
+    for (i = 0; i < 32; i++)
+        for (k = 0; k < mc->len; k++)
+            mem[pc++] = mc->bytes[k];
+    mem[pc] = 0x20;                                     /* BRA start */
+    mem[pc + 1] = (uint8_t)(0x8000 - (pc + 2));
+    cpu.pc = 0x8000;
+    cpu.x = 0x1000;
+    cpu.cc = 0x50;                                      /* Z clear: BNE taken */
+    /* instructions per run: count with the C core */
+    instructions = 0;
+    cpu.hook = hook;
+    m6809_run(&cpu, 100000);
+    cpu.hook = 0;
+    ins = instructions;
+    setup();
+    for (i = 0, pc = 0x8000; i < 32; i++)
+        for (k = 0; k < mc->len; k++)
+            mem[pc++] = mc->bytes[k];
+    mem[pc] = 0x20;
+    mem[pc + 1] = (uint8_t)(0x8000 - (pc + 2));
+    cpu.pc = 0x8000;
+    cpu.x = 0x1000;
+    cpu.cc = 0x50;
+    t0 = now_ms();
+    for (n = 0; n < 200; n++)
+#ifdef __VBCC__
+        m6809_run_asm(&cpu, 100000);
+#else
+        m6809_run(&cpu, 100000);
+#endif
+    t1 = now_ms();
+    ms = t1 - t0 > 0 ? t1 - t0 : 1;
+    /* 68060 cycles per instruction = mhz * 1000 * ms / (instructions in 200 runs) */
+    printf("  %-16s %4lu ins per 100k cycles, %3ld.%ld 68060 cycles per instruction\n", mc->name, ins / 1000,
+           mhz * 50L * ms / (long)ins / 10, mhz * 50L * ms / (long)ins % 10);   /* = mhz * 1e6 * ms / 1000 / (ins * 200) */
+}
+
 int main(int argc, char **argv)
 {
     long mcycles = argc > 1 ? atol(argv[1]) : 50;
-    long ms;
+    long mhz = argc > 2 ? atol(argv[2]) : 50, ms;
+    unsigned i;
     /* the instruction mix: count instructions of 1 M cycles with the C core */
     setup();
     cpu.hook = hook;
@@ -109,6 +180,15 @@ int main(int argc, char **argv)
     }
     bench("asm", m6809_run_asm, mcycles);
 #endif
+    printf("micro benchmarks (32 x the instruction + BRA; %s core, CPU at %ld MHz):\n",
+#ifdef __VBCC__
+           "asm",
+#else
+           "C",
+#endif
+           mhz);
+    for (i = 0; i < sizeof micros / sizeof micros[0]; i++)
+        micro(&micros[i], mhz);
     (void)ms;
     return 0;
 }

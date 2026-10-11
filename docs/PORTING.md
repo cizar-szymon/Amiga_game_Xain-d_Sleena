@@ -423,6 +423,15 @@ pamięci 64 KB, bez pomijania pętli. A1200 060/50: rdzeń asm **5,38 MHz** emul
 rdzeń C) 284 MHz. Automat to 3 × 1,5 MHz = 4,5 MHz – bez pomijania pętli oczekiwania rdzeń
 asm zająłby ok. 84% czasu 68060/50.
 
+Mikrotesty (`CpuBench`, 32 jednakowe instrukcje + `BRA`, rdzeń asm, 68060/50), cykle 68060 na
+instrukcję 6809: `NOP` 14,7 (sam rozdział: `subq`/`ble`, pobranie kodu, tablica, `jmp (a0)`),
+`INCA` 17,6, `ANDA #` 19,8, `ADDA #` 23,9 (flaga H), `BRA`/`BNE` 22 (sprawdzenie mapy pętli
+oczekiwania), `LDA ext` 29,8, `STA ext` 30,1, `LDA <dp` 31,5, `LDD ext` 33,9, `LDA ,X` / `,X+` /
+`5,X` ok. 50 (tryb indeksowy przez `jsr` do procedury z tablicy i `rts`), `TFR A,B` 80 (dwie
+procedury przez tablice i `check_ints`). Wniosek: najwięcej kosztują skoki obliczane (rozdział
+ok. 15 cykli na każdą instrukcję, tryb indeksowy kolejne ok. 20), dostęp do pamięci przez
+tablicę stron ok. 12.
+
 Renderer na A1200 sprawdzony `XAIN_CHECK` (porównanie z wzorcowym w każdej klatce): 0 różnic
 w 3000 klatkach `play1`, sumy kontrolne klatek 1600–2900 identyczne z PC.
 
