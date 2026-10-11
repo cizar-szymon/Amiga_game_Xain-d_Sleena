@@ -1,0 +1,12 @@
+# Only the port is tracked here; the MiSTer core, documentation sources (doc/), ROMs and build
+# results stay outside the repository.
+/*
+!/.gitignore
+!/.gitattributes
+!/port/
+!/tools/
+!/docs/
+__pycache__/
+*.exe
+*.o
+port/src/m6809_68k_trace.s

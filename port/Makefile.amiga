@@ -1,0 +1,69 @@
+# Xain'd Sleena port - AmigaOS build with vbcc (cross compiled on Windows)
+#
+#   make -f Makefile.amiga        -> ../build/amiga/XainSleena (AmigaOS 3.1+, built for the 68060)
+#
+# Needs (as for Vastar / Wizard of Wor): vbcc 0.9h with the m68k-amigaos target and the config
+# file aos68k_win (without -Rshort), NDK 3.2, the AHI and Picasso96 developer includes.
+
+AMIGA_DEV ?= C:/amiga-dev
+NDK       ?= $(AMIGA_DEV)/NDK3.2/Include_H
+AHI       ?= $(AMIGA_DEV)/ahidev/AHI/Developer/include/C
+
+export VBCC := $(AMIGA_DEV)/vbcc
+export PATH := $(shell cygpath -u "$(AMIGA_DEV)")/vbcc/bin:$(PATH)
+
+OUT      := ../build/amiga
+
+# 68060: no 64 bit MULU/DIVU (they would trap to 68060.library)
+CFLAGS   := +aos68k_win -c99 -cpu=68060 -O3 -speed \
+            -Isrc -I$(NDK) -I$(AHI) -I$(AMIGA_DEV)/p96inc
+
+CORE     := src/m6809.c src/m6809_68k.s src/m6805.c src/mcu68705.c src/ym2203.c src/ym2203_68k.s src/xain.c src/video.c src/video_68k.s src/romload.c
+HEADERS  := $(wildcard src/*.h)
+
+all: $(OUT)/XainSleena $(OUT)/XainTest $(OUT)/Lockstep $(OUT)/YmBench $(OUT)/CpuTest6809 $(OUT)/RenderBench
+
+$(OUT)/XainSleena: $(CORE) src/main_amiga.c src/amiga_68k.s $(HEADERS)
+	mkdir -p $(OUT)
+	vc $(CFLAGS) $(CORE) src/main_amiga.c src/amiga_68k.s -o $@ -lamiga
+
+# headless run for comparing with the PC build (same screens, memory and sound)
+$(OUT)/XainTest: $(CORE) tests/xain_test.c $(HEADERS)
+	mkdir -p $(OUT)
+	vc $(CFLAGS) $(CORE) tests/xain_test.c -o $@ -lamiga
+
+# the 6809 assembler core against the C core
+$(OUT)/Lockstep: $(CORE) tests/lockstep.c $(HEADERS)
+	mkdir -p $(OUT)
+	vc $(CFLAGS) $(CORE) tests/lockstep.c -o $@ -lamiga
+
+# Lockstep with the trace variant of the asm core (prints the asm instructions of a different slice)
+$(OUT)/LockstepT: $(CORE) src/m6809_68k_trace.s tests/lockstep.c $(HEADERS)
+	mkdir -p $(OUT)
+	vc $(CFLAGS) -DLOCKSTEP_TRACE $(filter-out src/m6809_68k.s,$(CORE)) src/m6809_68k_trace.s tests/lockstep.c -o $@ -lamiga
+
+src/m6809_68k_trace.s: ../tools/gen_6809_68k.py
+	python ../tools/gen_6809_68k.py --trace
+
+# the fast renderer alone (time per frame, checksum)
+$(OUT)/RenderBench: $(CORE) tests/renderbench.c $(HEADERS)
+	mkdir -p $(OUT)
+	vc $(CFLAGS) $(CORE) tests/renderbench.c -o $@ -lamiga
+
+# random instructions: the 6809 assembler core against the C core
+$(OUT)/CpuTest6809: src/m6809.c src/m6809_68k.s tests/cputest6809.c src/m6809.h
+	mkdir -p $(OUT)
+	vc $(CFLAGS) src/m6809.c src/m6809_68k.s tests/cputest6809.c -o $@ -lamiga
+
+# YM2203 synthesis alone, replaying a call log (xain_test XAIN_YMLOG)
+$(OUT)/YmBench: src/ym2203.c src/ym2203_68k.s tests/ymbench.c src/ym2203.h
+	mkdir -p $(OUT)
+	vc $(CFLAGS) src/ym2203.c src/ym2203_68k.s tests/ymbench.c -o $@ -lamiga
+
+src/m6809_68k.s: ../tools/gen_6809_68k.py
+	python ../tools/gen_6809_68k.py
+
+.PHONY: all
+
+src/video_68k.s: ../tools/gen_video_68k.py
+	python ../tools/gen_video_68k.py
