@@ -200,7 +200,12 @@ static uint16_t pending(C6809 *c)
 {
     if (c->nmi_pending) return VEC_NMI;
     if (!(c->cc & CC_F) && c->firq_line) return VEC_FIRQ;
-    if (!(c->cc & CC_I) && c->irq_line) return VEC_IRQ;
+    if (!(c->cc & CC_I) && c->irq_line) {
+        int i;
+        for (i = 0; i < c->nirq_hold; i++)
+            if (c->pc == c->irq_hold[i]) return 0;
+        return VEC_IRQ;
+    }
     return 0;
 }
 

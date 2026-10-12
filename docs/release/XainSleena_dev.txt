@@ -1,0 +1,228 @@
+XAIN'D SLEENA - opis techniczny parametrow (dla programistow)
+=============================================================
+
+Program jest emulatorem automatu Xain'd Sleena (Technos 1986) wedlug
+sterownika MAME 0.289 (xain.cpp) i rdzenia FPGA MiSTer. Wykonuje oryginalne
+ROM-y zestawu MAME "xsleena":
+  - 3x 6809 1,5 MHz (glowny, pomocniczy, dzwiekowy): rdzen w C (m6809.c,
+    lockstep ze sladami MAME: 1,16 mln instrukcji, 0 roznic) i rdzen w asm
+    68k generowany skryptem (tools/gen_6809_68k.py, Lockstep z rdzeniem C);
+  - MC68705P5 (ochrona, 3 MHz) z interfejsem Taito;
+  - 2x YM2203 (FM + SSG, port ymfm z MAME na liczbach calkowitych);
+  - obraz: tekst 8x8, dwa tla 16x16 z przewijaniem, sprite'y, 8 trybow
+    priorytetu, paleta 512 x 12 bit; renderer wzorcowy linia po linii
+    i szybki renderer calej klatki (Amiga: przyrostowy w blokach).
+Tempo automatu: 57,44 Hz (6 MHz / 384 / 272), 272 linie po 96 cykli 6809.
+Pelny opis budowy, pomiarow i decyzji: docs/PORTING.md w repozytorium portu.
+
+Parametry: argumenty Shella albo Tool Types ikony (wpis w nawiasach jest
+wylaczony). Wielkosc liter bez znaczenia. W [ ] wartosc domyslna.
+
+
+ROM-Y
+-----
+
+ROMPATH=katalog   (do 4 razy)
+  Gdzie szukac ROM-ow. Zawsze tez PROGDIR:, PROGDIR:rom, PROGDIR:roms,
+  PROGDIR:ROM. Przyjmowany jest zip z MAME (xsleena.zip, inflate wbudowany),
+  katalog xsleena albo luzne pliki; sprawdzane CRC jak w MAME (pb-0.ic24
+  albo pb-01.ic24). Potrzebny kod MCU pz-0.113; bootstrap.bin niepotrzebny.
+
+
+OBRAZ
+-----
+
+SCREEN=WINDOW|FULL   [WINDOW; ikona: FULL]
+  FULL: wlasny ekran w najlepszym trybie dla obrazu (na RTG tryb karty,
+  najchetniej 16 bit), okno backdrop bez ramki, obraz wysrodkowany.
+
+SCALE=1|2|3   [2; ikona: 1]
+  Powiekszenie obrazu 256x240 (piksel powielany).
+
+VIDEO=BLIT|WPA|WCP   [16/8 bit: BLIT, 32 bit: WPA, bez Picasso96: WCP]
+  BLIT: obraz na karcie (friend bitmap), zmienione bloki zapisywane tylko
+        dlugimi slowami, potem BltBitMapRastPort prostokata zmian.
+  WPA:  obraz w Fast RAM w formacie ekranu, p96WritePixelArray.
+  WCP:  WriteChunkyPixels z piorami. NORTG = VIDEO=WCP.
+
+FRAMESKIP=AUTO|n   [AUTO]
+  Logika automatu zawsze 57,44 Hz. AUTO: obraz pomijany, gdy Amiga nie
+  nadaza (najwyzej 3 pod rzad); n: rysowany 1 obraz z n+1.
+
+RENDER=LINE   (test)  renderer wzorcowy linia po linii w czasie klatki.
+REDRAW        (pomiary) kazdy rysowany obraz wysylany w calosci.
+MOVE16=OFF    (pomiary) kopie do VRAM dlugimi slowami zamiast MOVE16.
+
+
+DZWIEK
+------
+
+SOUND=PAULA|AHI   [PAULA]
+  PAULA: audio.device, 8 bit, okres 161 (22 030 Hz), bufory w Chip RAM
+         napelniane na biezaco.
+  AHI:   AHI_AllocAudio, 16 bit.
+
+NOSOUND
+  Bez dzwieku: procesor dzwieku i YM2203 nie sa emulowane wcale (nic
+  innego ich nie czyta, wiec reszta jest dokladna).
+
+FMDIV=1|2   [2; PC: 1]
+  2: FM wyliczane co druga probke (fazy i obwiednie w pelnym tempie).
+
+SAMPLES=plik | EMUSOUND
+  Dzwiek z sampli zamiast emulacji: plik XainSleena.snd (szukany jako
+  SAMPLES, w PROGDIR: i katalogach ROM-ow, ladowany w calosci do Fast RAM).
+  Gra wysyla polecenia do zatrzasku dzwieku (3A08), sndplay.c gra
+  odpowiadajace im nagrania (1 glos muzyki + 5 efektow, petle). Plik
+  powstaje z wlasnych ROM-ow na PC narzedziami z repozytorium:
+    sh tools/mksndrip.sh                        -> build/sndrip.exe
+    build/sndrip.exe -rate 22030 -max 150 KATALOG   (kazde polecenie
+                                                osobno, tools/sndrip.c)
+    python tools/snd_loop.py KATALOG            (wykrycie petli muzyki)
+    python tools/make_sndpack.py KATALOG XainSleena.snd
+  (szczegoly: docs/PORTING.md, rozdzial 13). Ok. 26 MB, 22 030 Hz.
+  Pliku nie wolno rozpowszechniac (pochodzi z ROM-ow). EMUSOUND wymusza
+  emulacje mimo pliku. SNDLOG (test): polecenia dzwieku do
+  RAM:XainSleena-snd.txt.
+
+
+STEROWANIE
+----------
+
+CONTROL=JOY1|JOY2|KEYBOARD   [JOY1]
+  JOY1: joystick z jednym przyciskiem; do gory = skok, ale tylko gdy
+        gracz idzie na piechote (RAM: $0039 gra trwa, $0041 = 1 scena gry,
+        $0053 bit 7 = statek, $0052 & 0F = 2 ruch). W lotach do gory
+        tylko rusza, przycisk 2 (Spacja) = dodatkowa bron.
+  JOY2: drugi przycisk joysticka / pada = przycisk 2 automatu.
+  KEYBOARD: port joysticka nie jest czytany.
+  Pad CD32: czerwony ogien, niebieski przycisk 2, play start 1,
+  zielony moneta, zolty start 2.
+  ReadJoyPort raz na klatke.
+
+JOYPORT=BOTH
+  Takze joystick w porcie myszy.
+
+Klawiatura zawsze: strzalki, Ctrl / Z = przycisk 1, Spacja / Alt / X =
+przycisk 2, 1 / 2 start, 5 / 6 moneta, P pauza, F3 reset, F10 zapis
+stanu maszyny, Esc / zamkniecie okna / Ctrl-C koniec.
+
+
+GRA (opcje poza oryginalem)
+---------------------------
+
+START=EASY|ARCADE   [EASY]
+  EASY: monety wrzucane same, gdy gra nie trwa i jest mniej niz 2 kredyty
+        (przez wejscie monety, 6 klatek wcisniete / 24 nie); na ekranie
+        startu napis LEFT 1P OR RIGHT 2P i joystick w lewo / prawo = start
+        1 / 2. Ekran kontynuacji: PRESS FIRE TO CONTINUE, nowe nacisniecie
+        ognia trzyma start, na ktory gra czeka ($003B bit 0), brak kredytu
+        -> moneta. Teksty zmieniane w pamieci (tylko gdy sa oryginalne
+        bajty); zmiana w kodzie 841B/8421 zachowuje sume bajtow ROM-u
+        4000-EFFF (gra liczy ja przy starcie, przy zlej sumie ustawia $1C1B
+        i w lotach po smierci nie ma przeciwnikow).
+  ARCADE: jak automat (monety 5 / 6, start 1 / 2).
+
+LIVES=3|4|6|INF
+  Przelaczniki DIP (DSW1 bity 7-6: C0, 80, 40, 00 = nieskonczone).
+
+DIFFICULTY=NORMAL|EASY   [NORMAL]
+  EASY: na piechote polowa obrazen. Zdrowie $0056 (bity 0-5, pelne 10,
+  bit 7 przerysuj pasek, bit 6 strona odrzutu) zmniejsza pomocniczy CPU
+  w banku 1 7015 (przez FE36 -> FF00: STB $3000, JSR $7000, STB $3000).
+  Przy zapisie banku z PC FF05 emulator dodaje 16 do zdrowia, przy
+  zapisie z PC FF0D liczy obrazenia z roznicy i odejmuje polowe (przy 1
+  co drugie trafienie; przy 0 sam ustawia smierc: $1073 bit 0). ROM bez
+  zmian. W lotach (zdrowie 0, jedno trafienie zabija) bez zmian.
+
+DSW0=hh DSW1=hh   [3F FF jak MAME]
+  Przelaczniki DIP. DSW0: bity 0-1 / 2-3 monety B / A, 4 dzwieki w demo,
+  5 kontynuacja (1 = tak), 6 obudowa, 7 odwrocenie ekranu. DSW1: bity
+  0-1 trudnosc automatu (3 Easy, 2 Normal, 1 Hard, 0 Hardest), 2-3 tempo
+  czasu, 4-5 bonusowe zycia, 6-7 zycia.
+
+
+POPRAWKA WYSCIGU PROCESOROW
+---------------------------
+
+Petla glowna glownego CPU zmienia bajt $3D przez LDA <$3D / ORA #n /
+STA <$3D (8703, 8743, 879B, 87C0) przy wlaczonych przerwaniach, a IRQ od
+pomocniczego CPU (80B9) ustawia w nim bity 2 i 3 (potwierdzenie
+polecenia). IRQ miedzy LDA i STA kasowalo te bity i oba procesory czekaly
+w nieskonczonosc (obraz stoi, muzyka gra; zdarzalo sie raz na kilkadziesiat
+tysiecy klatek). Emulator nie przyjmuje IRQ glownego CPU na adresach
+8705 8707 8745 8747 879D 879F 87C2 87C4 (1-2 instrukcje pozniej).
+
+
+NUMER WYDANIA
+-------------
+
+XAIN_VERSION w port/src/xain.h: $VER programu, tytul okna PC i (START=EASY)
+napis RELEASE x.y.z na ekranie startu zamiast CREDIT n (tekst 07 przeniesiony
+do nieuzywanych zer banku 1 7790, liczba kredytow 8188 LDA #$04 / JSR $A154
+-> LDA #$9E / JSR $80DB (RTS), suma ROM-u bez zmian). Kazde wydanie podnosi
+numer i dopisuje zmiany do XainSleena_release.txt.
+
+
+POMIARY I TESTY
+---------------
+
+STATS | STATS=FULL
+  Tytul okna co 2 s: "Xain 57.4 fps (drawn 40) CPU 80% ..."
+    fps     klatki logiki automatu (pelne tempo 57,44)
+    drawn   narysowane obrazy na sekunde
+    CPU     zajetosc procesora
+  STATS=FULL dodatkowo czasy: emu (emulacja), render, present (wysylanie
+  do karty), bloki, snd i podzial emulacji A/B/S/YM/MCU (glowny,
+  pomocniczy, dzwiekowy, YM2203, MCU). Na pelnym ekranie tytul nie jest
+  widoczny (czyta go AmiAgent).
+VERIFY       (test) odczyt obrazu z karty i porownanie blokow z wzorcem.
+CPU=C        rdzen 6809 w C zamiast asm (ok. 11x wolniej).
+MEMO=OFF     bez odtwarzania kwantow czekajacego glownego CPU.
+SUBFAST=OFF  czekajacy pomocniczy CPU przez rdzen.
+HLE=ON       procedura listy sprite'ow DCEC-DE88 przetlumaczona na C.
+SLICE=n      kwant przeplotu procesorow w cyklach (dzielnik 96) [96].
+Wszystkie szybkie sciezki sa dokladne (porownanie z wolnymi: memocheck,
+Lockstep).
+
+F10: zapis calego stanu maszyny (3x 6809, MCU, RAM, rejestry, liczniki
+YM, tablica memo; przenosny format big endian, ok. 21 KB) do
+RAM:XainSleena-state.bin i krotkiego opisu (PC procesorow, opcje) do
+RAM:XainSleena-state.txt. Na PC: XainSleena.exe -loadstate PLIK.
+Straznik: gdy przez 3 s nie ma nowej klatki, stan zadania programu
+trafia do RAM:XainSleena-hang.txt.
+
+Pomiary na A1200 (68060 100 MHz, Warp 1260, RTG 16 bit, SCALE=1, demo):
+logika 57 kl./s (pelne tempo) bez dzwieku i z samplami, z emulowanym
+dzwiekiem (Paula) 25-41 kl./s. Przy 50 MHz ok. 2 razy wolniej.
+
+
+WERSJA NA PC (Windows, SDL2)
+----------------------------
+
+  XainSleena.exe [opcje]   (obok SDL2.dll; tylko klawiatura)
+  -rompath DIR        gdzie szukac ROM-ow (mozna kilka razy); zawsze tez
+                      . roms rom ROM i katalog programu
+  -scale N            powiekszenie okna [3]
+  -lives N            3, 4, 6 albo inf
+  -easy               jak DIFFICULTY=EASY
+  -arcade             jak START=ARCADE
+  -dsw0 HH -dsw1 HH   przelaczniki DIP
+  -nosound            bez dzwieku
+  -samples PLIK       dzwiek z sampli (domyslnie XainSleena.snd obok
+                      programu); -emusound wymusza emulacje
+  -fmdiv N            FM co N-ta probke [1]
+  -rate HZ            czestotliwosc wyjscia dzwieku [44100]
+  -wav PLIK           zapis dzwieku do WAV
+  -loadstate PLIK     start ze stanu maszyny (Amiga F10)
+  -frames N           koniec po N klatkach
+  -fast               bez czekania na 57,44 Hz
+  -headless           bez okna i dzwieku (testy)
+  -shots DIR LISTA    zrzuty ekranu DIR/frame_NNNNN.bmp (LISTA:
+                      100,200,1000-1100/10)
+  -dump DIR LISTA     zrzuty pamieci (format tools/mame_capture.lua)
+  -script LISTA       wejscia w czasie, np. "1200:+coin1,1206:-coin1"
+                      (coin1 coin2 start1 start2 up down left right fire
+                      jump p2...)
+  -slice N            kwant przeplotu w cyklach
+  -stats              czas emulacji na klatke co 2 s

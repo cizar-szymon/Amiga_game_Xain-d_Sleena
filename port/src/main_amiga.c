@@ -16,6 +16,8 @@
  *         [START=EASY|ARCADE] [LIVES=3|4|6|INF]: EASY (default) inserts coins while no game
  *         runs and shows LEFT 1P OR RIGHT 2P (joystick left / right start 1 or 2 players);
  *         ARCADE as the machine (coins 5 / 6, start 1 / 2). LIVES: the DIP switch.
+ *         [DIFFICULTY=NORMAL|EASY]: EASY (not the original) halves the damage on foot (the
+ *         DAMAGE GAGE bar: a hit of 4 takes 2, a hit of 1 counts every second time)
  *         [CONTROL=JOY1|JOY2|KEYBOARD]: see below
  *         [SAMPLES=file] [EMUSOUND]: the sound comes from samples (XainSleena.snd, made on the
  *         PC with tools/make_sndpack.py, looked for as SAMPLES, in PROGDIR: and the ROM
@@ -28,7 +30,8 @@
  * CONTROL=KEYBOARD: keyboard only (the joystick port is not read)
  *   (CD32 pad with JOY1 / JOY2: red fire, blue jump, play = start 1, green = coin, yellow = start 2)
  * Keyboard (always): cursor keys, Ctrl / Z = fire, Space / Alt / X = jump, 5 / 6 = coin,
- *           1 / 2 = start, P = pause, F3 = reset, Esc / close / Ctrl-C = quit
+ *           1 / 2 = start, P = pause, F3 = reset, F10 = save the machine state (diagnostics,
+ *           RAM:XainSleena-state.bin), Esc / close / Ctrl-C = quit
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,7 +73,7 @@
 #include "romload.h"
 #include "sndplay.h"
 
-const char version[] = "$VER: XainSleena 0.1 (11.10.2026) arcade emulation";
+const char version[] = "$VER: XainSleena " XAIN_VERSION " (12.10.2026) arcade emulation";
 
 struct IntuitionBase *IntuitionBase;
 struct GfxBase *GfxBase;
@@ -117,6 +120,7 @@ static int memo_off;                  /* MEMO=OFF: no replay of the main CPU's w
 static int subfast_off;               /* SUBFAST=OFF: waiting sub CPU slices on the core */
 static int start_arcade;              /* START=ARCADE: coins and start as the arcade */
 static int lives = -1;                /* LIVES=3|4|6|INF (0) */
+static int easy_damage;               /* DIFFICULTY=EASY */
 enum { CTL_KEYBOARD, CTL_JOY1, CTL_JOY2 };
 static int control = CTL_JOY1;         /* CONTROL=KEYBOARD / JOY1 (up jumps) / JOY2 */
 static int hle_on;                    /* HLE=ON: the sprite list routine translated to C (slower) */
@@ -1232,9 +1236,39 @@ static void audio_push(const int16_t *samples, int count)
 #define RAW_RIGHT  0x4E
 #define RAW_LEFT   0x4F
 #define RAW_F3     0x52
+#define RAW_F10    0x59
 #define RAW_CTRL   0x63
 #define RAW_LALT   0x64
 #define RAW_RALT   0x65
+
+/* F10: the machine state to RAM:XainSleena-state.bin (load on the PC: xainsleena -loadstate) and
+   a line to RAM:XainSleena-state.txt; for hangs of the game */
+static void save_state(void)
+{
+    uint32_t len = xain_save_state(&machine, NULL);
+    UBYTE *buf = AllocVec(len, MEMF_ANY);
+    BPTR fh;
+    char text[256];
+    if (!buf)
+        return;
+    xain_save_state(&machine, buf);
+    fh = Open((STRPTR)"RAM:XainSleena-state.bin", MODE_NEWFILE);
+    if (fh) {
+        Write(fh, buf, (LONG)len);
+        Close(fh);
+    }
+    FreeVec(buf);
+    sprintf(text, "frame %lu paused %d main pc %04x sub pc %04x mcu pc %03x memo %d subfast %d hle %d"
+            " mcu idle %d control %d start_arcade %d\n",
+            (unsigned long)machine.frame, paused, machine.main.pc, machine.sub.pc, machine.mcu.cpu.pc,
+            machine.slice_memo, machine.sub_fast, machine.hle_sprites, machine.mcu.idle, control, start_arcade);
+    fh = Open((STRPTR)"RAM:XainSleena-state.txt", MODE_NEWFILE);
+    if (fh) {
+        Write(fh, text, (LONG)strlen(text));
+        Close(fh);
+    }
+    DisplayBeep(NULL);
+}
 
 static void handle_messages(void)
 {
@@ -1258,6 +1292,8 @@ static void handle_messages(void)
                 xain_reset(&machine);
                 sndplay_reset(&snd);
             }
+            else if (code == RAW_F10)
+                save_state();
         } else if (cls == IDCMP_INACTIVEWINDOW)
             memset(keys, 0, sizeof keys);
         else if (cls == IDCMP_ACTIVEWINDOW)
@@ -1363,6 +1399,10 @@ static void parse_option(const char *opt)
         start_arcade = 1;
     else if (same_text(opt, "START=EASY"))
         start_arcade = 0;
+    else if (same_text(opt, "DIFFICULTY=EASY"))
+        easy_damage = 1;
+    else if (same_text(opt, "DIFFICULTY=NORMAL"))
+        easy_damage = 0;
     else if (same_text(name, "LIVES") && val)
         lives = same_text(val, "INF") ? 0 : atoi(val);
     else if (same_text(opt, "CONTROL=KEYBOARD"))
@@ -1684,6 +1724,7 @@ int main(int argc, char **argv)
     if (subfast_off) machine.sub_fast = 0;
     if (lives >= 0)                                     /* DSW1 bits 7-6: 3 C0, 4 80, 6 40, infinite 00 */
         machine.dsw1 = (uint8_t)((machine.dsw1 & 0x3f) | (lives == 0 ? 0x00 : lives == 4 ? 0x80 : lives == 6 ? 0x40 : 0xc0));
+    machine.easy_damage = easy_damage;
     if (!start_arcade) {
         machine.autocoin = machine.joystart = 1;
         xain_patch_texts(&machine);

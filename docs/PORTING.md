@@ -20,7 +20,7 @@ Plan ogólny: `C:\Workprojects\AmigaGAMES\PORTING_PLAN.md`.
 | 8 | Wersja na Amigę (`main_amiga.c` z Vastar) | ✅ działa na A1200, wynik identyczny z PC co do bajtu (rozdział 11); 2,3 kl./s przy 68060/50 – punkt wyjścia fazy 4; ⏳ joystick i dźwięk do oceny po przyspieszeniu |
 | 9 | Optymalizacja: rdzeń 6809 w asm 68k (generator wzorem `gen_z80_68k.py`), renderer przyrostowy, FM | ⏳ 2,3 → 13–17 kl./s z dźwiękiem, ok. 20 bez (rozdział 12); rdzeń asm: Lockstep 5000 klatek identyczny |
 | 9b | Dźwięk z sampli zamiast emulacji (rozdział 13): polecenia z zatrzasku `3A08` → sample (`sndplay.c`) przez Paulę/AHI | ✅ pierwsza wersja PC i A1200: 060/50 tempo jak bez dźwięku (33–54 kl./s); ⏳ odsłuch przez użytkownika |
-| 10 | Wydanie: ikona, Tool Types, opisy PL/EN | ⏳ |
+| 10 | Wydanie: ikona, Tool Types, opisy PL/EN | ✅ 0.9 i 0.9.2 (12.10.2026; numer `XAIN_VERSION` widoczny jako `RELEASE x.y.z` na ekranie startu, lista zmian `XainSleena_release.txt` / `_release_en.txt` w paczce, uzupełniana przy każdym wydaniu): `releases/XainSleena_Amiga.lha` (LhA 2.15 na A1200), `releases/XainSleena_PC.zip`, opisy `XainSleena.txt` / `_en` / `_dev` / `_dev_en` (źródła `docs/release`); bez ROM-ów i bez `XainSleena.snd` (z ROM-ów) |
 
 ## 2. Materiały (skąd co jest)
 
@@ -833,17 +833,46 @@ cała klatka w grze 6 800 → 6 266 µs, w demie 5 133 → 4 866 µs.
   oba naraz się nie liczą). Rekordy tekstu: kolor, adres, znaki, `00` koniec, `01` nowy adres,
   `03` nowy kolor (drukarka `A02E`). Zmiana w pamięci (tylko przy oryginalnych bajtach): tekst 09
   = `PRESS FIRE TO CONTINUE` (wiersz 8, kolumna 5, kolor 01, mieści się w miejscu starego),
-  tekst 26 = `TIME` (kolor 03) i `CREDIT`, w `841B` `LDA #$0B` → `#$26` (oba warianty piszą
-  tekst 26; tekst 0B na ekranie startu bez zmian). `xain_assist`: gdy w wierszu 8 jest ten
+  tekst 26 = `TIME` (kolor 03) i `CREDIT`, a kod zawsze pisze tekst 26: `841B` `LDA #$0B` →
+  `#$0D` i `8421` `BNE $8425` → `BNE $8423` (oba warianty dochodzą do `LDA #$26`; tekst 0B na
+  ekranie startu bez zmian). **Suma ROM-u musi zostać ta sama:** gra przy starcie dodaje bajty
+  `4000`–`EFFF` (bank 0, `8045` → `FFA7`, wynik musi być `01`), a przy złej sumie ustawia
+  `$1C1B`. Pierwsza wersja (`841B` → `#$26`, +1B) zmieniała sumę, a skutkiem było to, że
+  w etapach lotu po śmierci nie było już przeciwników i etap kończył się sam (zgłoszone
+  z A1200; odtworzone sondą `build/probe/shipdeath.c`: lot wymuszony wpisem `$49`/`$4A`/`$53`
+  w `828A`, nieskończone życia; tylko zmiana `841B` to powoduje, zmiany w banku 1 nie). Teraz
+  +2 −2, suma `01` (sonda `romsum.c`). Pomocniczy CPU ma podobny test (`FFBA`), jego ROM-u
+  nie zmieniamy. `xain_assist`: gdy w wierszu 8 jest ten
   napis – brak kredytu → moneta; nowe naciśnięcie ognia (nie przytrzymany z gry) trzyma
   właściwy START. Sprawdzone na PC: ogień kontynuuje (kredyt 1 → 0), bez ognia po `TIME 0`
   koniec gry i ekran startu z `CREDIT 2`.
+**Wersja na ekranie startu (START=EASY, od 0.9.1):** zamiast `CREDIT n` napis `RELEASE` + `XAIN_VERSION`
+(`xain.h`; ta sama wartość w `$VER` Amigi i tytule okna PC). Tekst 07 (start przy kredytach ≥ 2, wskaźnik
+bank 1 `77CE` → `7885`) przeniesiony do nieużywanych zer przed tablicą wskaźników (bank 1 `7790`;
+`build/probe/freecheck.c`: 40 000 klatek identycznych ze zmienionymi `778B`–`77BF`), liczba kredytów
+(`8188 LDA #$04 / JSR $A154`) wyłączona: `LDA #$9E / JSR $80DB` (RTS), suma ROM-u bez zmian (`romsum`:
+`01`). Przy 1 kredycie (tekst 0B) zostaje `CREDIT` bez liczby – z monetami EASY tylko na chwilę.
+
 `START=ARCADE` (PC `-arcade`): jak automat. Gracze w trybie 2P grają na zmianę tymi samymi
 kontrolerami (wejścia P2 automatu są tylko dla obudowy cocktail), klawiatura i joystick działają
 jednocześnie.
 
 **`LIVES=3|4|6|INF`** (PC `-lives`): przełączniki DIP (DSW1 bity 7–6: C0, 80, 40, 00 =
 nieskończone życia, w MAME „Infinite (Cheat)”).
+
+**`DIFFICULTY=NORMAL|EASY`** (PC `-easy`, domyślnie NORMAL, nie z oryginału): EASY = połowa
+obrażeń na piechotę (pasek `DAMAGE GAGE`). Zdrowie to `$0056`: bity 0–5 (pełne `10`, start
+`849F`, w etapach lotu `0`, tam jedno trafienie zabija), bit 7 = przerysuj pasek, bit 6 = strona
+odrzutu. Obrażenia zadaje pomocniczy CPU w banku 1 `7015` (wejście `FE36` → `FF00`: `STB $3000`
+bank 1, `JSR $7000`, `STB $3000` bank 0): przy styku z obiektem odejmuje wartość ze stosu
+(widziane 1 i 4), przy 0 ustawia `$1073` bit 0 (śmierć, obsługa `82A0`). Sondy:
+`build/probe/damage.c` (pasek = tekst `08D`–`094`, znaki `BB`/`BC`/`BD`), `hpwrite.c` (kto pisze
+`$56`). Bez zmiany ROM-u (sumy kontrolne, patrz wyżej): `easy_damage` w `xain.c` przy zapisie
+banku z PC `FF05` dodaje 16 do zdrowia (procedura sama nigdy nie zabija), przy zapisie z PC
+`FF0D` liczy obrażenia z różnicy i odejmuje połowę (`dmg_acc`: przy 1 co drugie trafienie),
+przy 0 sama ustawia `$56 = 0` i `$1073` bit 0. Oba rdzenie zapisują PC za instrukcją (asm:
+`wr_slow`). Sprawdzenie: `hpwrite` z EASY – 1 → 0, 1, 0…, 4 → 2, gracz w `play1` żyje dłużej;
+`memocheck` z `EASYDMG=1` 9000 klatek identycznych.
 
 **Ikona** `port/amiga/XainSleena.info` (Makefile kopiuje do `build/amiga`): 64×56 z kadru PC
 (klatka 1900, ekran MISSION, Xain), obraz 4-kolorowy i ColorIcon w 22 kolorach gry
@@ -880,3 +909,37 @@ Klawiatura działa zawsze: strzałki, Ctrl / Z = strzał, **Spacja** / Alt / X =
 w lotach broń), 1 / 2 = start, 5 / 6 = moneta, P = pauza, F3 = reset, Esc = wyjście. Wersja PC:
 tylko klawiatura (obsługa pada SDL usunięta), te same klawisze. Tool Types ikony: `CONTROL=JOY1`,
 `(CONTROL=JOY2)`, `(CONTROL=KEYBOARD)`.
+
+**Zawieszenia w grze (zgłoszenie 12.10.2026, dwa razy na A1200, start z ikony).** Obraz stoi
+(dżungla, w trakcie gry), muzyka z sampli gra dalej, sterowanie nie działa. Strażnik nie zapisał
+`RAM:XainSleena-hang.txt`, a Esc zamknął grę od razu – pętla programu działała, stanęła emulowana
+gra albo rysowanie. Klawisz P (pauza) obrazu nie ruszył. Przyczyna jeszcze nieznana. Narzędzie:
+`xain_save_state` / `xain_load_state` (`xain.c`) – przenośny stan maszyny (big endian, 21 021 B:
+trzy 6809, MCU z RAM i licznikiem, cały RAM, rejestry, liczniki YM, tablica `memo`); na Amidze
+**F10** zapisuje `RAM:XainSleena-state.bin` i linię z PC procesorów i opcjami do
+`RAM:XainSleena-state.txt` (mignięcie ekranu), na PC `xainsleena -loadstate PLIK` oraz próba
+`build/probe/staterun` (z plikiem: dalsza gra z szybkimi ścieżkami i bez nich). Sprawdzone: stan
+zapisany po 4000 klatkach i wczytany do drugiej maszyny – 5000 dalszych klatek identycznych; stan
+z A1200 (F10 po 382 klatkach) wczytuje się na PC.
+
+**Przyczyna znaleziona (F10 z trzeciego zawieszenia, klatka 26 327):** stan stoi tak samo
+z szybkimi ścieżkami i bez nich – główny CPU w `8727` (czeka na `$3E` bit 0 od pomocniczego),
+pomocniczy w banku 0 `4B91` (czeka na `$3D` bit 3), `$3D = 40`. Protokół: pomocniczy wpisuje
+polecenie do `$42`, `CLR $2000` (IRQ głównego) aż zobaczy `$3D` bit 2, potem czeka na bit 3;
+obsługa IRQ głównego (`80B9`) ustawia bit 2, wykonuje polecenie, kasuje bit 2 i ustawia bit 3.
+Pętla główna zmienia `$3D` przez `LDA <$3D / ORA #n / STA <$3D` (`8703`, `8743`, `879B`, `87C0`)
+przy włączonych przerwaniach: IRQ po `LDA`, a przed `STA` – `STA` kasuje bity 2 i 3 (zostaje `40`
+z `8703`) i oba CPU czekają w nieskończoność. Histogram przerwanych adresów (`build/probe/irqrace.c`,
+20 000 klatek losowej gry): IRQ trafia w kod pętli głównej, raz w `8709` (zaraz za `STA`); w 8 ×
+80 000 klatek 4 trafienia w `8705`/`8707`. **Standardowy przebieg `memocheck` (play1, 9000
+klatek) też się tak zawieszał** (main `8729`, sub `4B95`, `$3D = 40`; stąd 154 zamiast 58
+powtórzonych kwantów na klatkę) – nikt tego nie zauważył, bo porównanie szybkich ścieżek
+z wolnymi wychodziło identyczne. W MAME (`set_perfect_quantum`) przerwania przychodzą
+w innych chwilach, więc może się to nie zdarzać albo zdarza rzadziej; na automacie też jest
+możliwe, ale zależy od faz zegarów. Poprawka (`xain_init`): rdzeń nie przyjmuje IRQ głównego CPU
+na adresach `8705 8707 8745 8747 879D 879F 87C2 87C4` (`M6809.irq_hold`, sprawdzane w `pending()`
+rdzenia C; rdzeń asm przyjmuje przerwania przez krok rdzenia C, więc działa tak samo) – IRQ
+wchodzi 1–2 instrukcje później. Z poprawką `memocheck` 9000 klatek identycznych bez
+zawieszenia (main `A25D`, sub `8014`, `$3D = 43`), `NOHOLD=1` odtwarza stary błąd. Podobny
+zapis-odczyt w `AC3B`–`AC5C` (zapamiętanie i odtworzenie `$3D` wokół dłuższej procedury) nie
+jest chroniony.

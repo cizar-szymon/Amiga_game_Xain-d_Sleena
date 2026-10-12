@@ -1,0 +1,61 @@
+XAIN'D SLEENA - wydania (poprawki i dodatki)
+============================================
+
+Numer wydania widac na ekranie startu gry (RELEASE x.y.z, w miejscu
+liczby kredytow; przy START=ARCADE ekran jest jak w automacie), na
+Amidze tez w Shellu: Version XainSleena, na PC w tytule okna.
+Zglaszajac blad, podaj numer wydania - po nim widac, czy blad nie
+zostal juz poprawiony w nowszym.
+
+Zgloszenie bledu (Amiga): gdy gra sie zawiesi albo dzieje sie cos
+dziwnego, nacisnij F10. Stan automatu zapisuje sie do
+RAM:XainSleena-state.bin (i krotki opis do RAM:XainSleena-state.txt).
+Skopiuj oba pliki, zanim wylaczysz Amige (RAM: znika), i wyslij je
+razem z numerem wydania. Autorzy wczytuja ten stan na PC
+(XainSleena.exe -loadstate PLIK) i widza dokladnie to, co bylo na
+Amidze.
+
+
+RELEASE 0.9.2  (12.10.2026)
+---------------------------
+
+Dodatki:
+- Numer wydania na ekranie startu (RELEASE 0.9.2 zamiast CREDIT 2),
+  w Version na Amidze i w tytule okna na PC.
+- Ten plik: lista poprawek i dodatkow kazdego wydania, w paczce
+  razem z gra.
+
+
+RELEASE 0.9  (12.10.2026) - pierwsze wydanie
+--------------------------------------------
+
+Gra:
+- Emulacja automatu Xain'd Sleena (3x 6809, MCU 68705, 2x YM2203)
+  na Amidze 1200 z 68060 i karta graficzna oraz na PC (Windows).
+- START=EASY (domyslnie): monety wrzucane same, joystick w lewo /
+  w prawo = gra dla 1 / 2 graczy, po utracie zyc PRESS FIRE TO
+  CONTINUE (ogien = gra dalej). START=ARCADE: jak automat.
+- CONTROL=JOY1 (domyslnie): joystick z jednym przyciskiem, do gory =
+  skok na piechote, w lotach Spacja = dodatkowa bron. CONTROL=JOY2:
+  drugi przycisk joysticka / pada. CONTROL=KEYBOARD. PC: tylko
+  klawiatura.
+- DIFFICULTY=EASY: na piechote trafienia zabieraja o polowe mniej
+  z paska DAMAGE GAGE (nie ma tego w oryginale).
+- LIVES=3|4|6|INF.
+- Ikona: pelny ekran (SCREEN=FULL), wszystkie opcje jako Tool Types.
+
+Diagnostyka:
+- F10 (Amiga): zapis calego stanu automatu do RAM:XainSleena-state.bin
+  do analizy bledu; na PC -loadstate PLIK. Opis wyzej.
+- Straznik: gdy gra przez 3 s nie rysuje klatki, stan programu trafia
+  do RAM:XainSleena-hang.txt.
+
+Poprawki (wzgledem wersji testowych):
+- Gra zawieszala sie co jakis czas (obraz stoi, muzyka gra, nic nie
+  dziala): wyscig dwoch procesorow automatu o wspolny bajt
+  synchronizacji. Znalezione dzieki zapisowi F10 z A1200.
+- W lotach po smierci nie bylo juz przeciwnikow i etap konczyl sie
+  sam: zmiana napisu PRESS FIRE TO CONTINUE zmieniala sume kontrolna
+  ROM-u, a gra przy zlej sumie wlacza wlasne zabezpieczenie. Teraz
+  suma zostaje bez zmian.
+- Skok w gore joystickiem (JOY1) nie dzialal na piechote.

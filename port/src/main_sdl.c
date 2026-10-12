@@ -21,6 +21,8 @@
  *   -arcade             start as the arcade: insert coins (5 / 6), PUSH 1P OR 2P BUTTON (1 / 2);
  *                       default: coins are inserted while no game runs, LEFT 1P OR RIGHT 2P
  *   -lives N            lives (DIP switches): 3, 4, 6 or inf
+ *   -easy               DIFFICULTY=EASY: half the damage on foot (not the original)
+ *   -loadstate FILE     start from a machine state (Amiga F10: RAM:XainSleena-state.bin)
  *   -shots DIR LIST     save the screen as DIR/frame_NNNNN.bmp at these frames
  *                       (LIST: 100,200,1000-1100/10); frame N = after N+1 frames, as in MAME
  *   -dump DIR LIST      also save the memory state as DIR/frame_NNNNN.bin (snapinfo.py format)
@@ -57,8 +59,9 @@ static const char *samples_path;
 static SndPlay snd;
 static uint8_t *snd_pack;
 static int use_samples;
-static int arcade, lives = -1;
+static int arcade, lives = -1, easy_damage;
 static const char *wav_path;
+static const char *state_path;
 static FILE *wav_fp;
 static unsigned long wav_bytes;
 static int16_t audio[8192];
@@ -172,6 +175,8 @@ static void parse_args(int argc, char **argv)
         else if (!strcmp(a, "-samples")) samples_path = NEXT();
         else if (!strcmp(a, "-emusound")) emusound = 1;
         else if (!strcmp(a, "-arcade")) arcade = 1;
+        else if (!strcmp(a, "-loadstate")) state_path = NEXT();
+        else if (!strcmp(a, "-easy")) easy_damage = 1;
         else if (!strcmp(a, "-lives")) { const char *v = NEXT(); lives = !strcmp(v, "inf") ? 0 : atoi(v); }
         else if (!strcmp(a, "-script")) parse_script(NEXT());
         else if (!strcmp(a, "-shots")) { shot_dir = NEXT(); shot_count = parse_frames(NEXT(), &shot_frames); }
@@ -439,11 +444,22 @@ int main(int argc, char **argv)
     if (dsw1 >= 0) machine.dsw1 = (uint8_t)dsw1;
     if (lives >= 0)                                     /* DSW1 bits 7-6: 3 C0, 4 80, 6 40, infinite 00 */
         machine.dsw1 = (uint8_t)((machine.dsw1 & 0x3f) | (lives == 0 ? 0x00 : lives == 4 ? 0x80 : lives == 6 ? 0x40 : 0xc0));
+    machine.easy_damage = easy_damage;
     if (!arcade) {
         machine.autocoin = machine.joystart = 1;
         xain_patch_texts(&machine);
     }
     if (slice > 0 && XAIN_LINE_CYCLES % slice == 0) machine.slice = slice;
+    if (state_path) {
+        static uint8_t buf[0x40000];
+        FILE *f = fopen(state_path, "rb");
+        size_t len = f ? fread(buf, 1, sizeof buf, f) : 0;
+        if (f) fclose(f);
+        if (!xain_load_state(&machine, buf, (uint32_t)len)) {
+            fprintf(stderr, "%s: not a machine state\n", state_path);
+            return 1;
+        }
+    }
     if (!video_init(&video, &machine)) {
         fprintf(stderr, "out of memory\n");
         return 1;
@@ -485,7 +501,7 @@ int main(int argc, char **argv)
     }
 
     if (!headless) {
-        window = SDL_CreateWindow("Xain'd Sleena", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        window = SDL_CreateWindow("Xain'd Sleena " XAIN_VERSION, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                   SCREEN_W * scale, SCREEN_H * scale, SDL_WINDOW_RESIZABLE);
         renderer = SDL_CreateRenderer(window, -1, 0);
         SDL_RenderSetLogicalSize(renderer, SCREEN_W, SCREEN_H);

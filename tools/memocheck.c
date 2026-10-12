@@ -41,6 +41,8 @@ int main(int argc, char **argv)
     if (getenv("NO_SUBFAST")) b.sub_fast = 0;
     b.hle_sprites = !getenv("ONLY_MEMO");                /* checked although off by default */
     if (getenv("ONLY_HLE")) b.slice_memo = 0;
+    if (getenv("EASYDMG")) a.easy_damage = b.easy_damage = 1;   /* DIFFICULTY=EASY */
+    if (getenv("NOHOLD")) a.main.nirq_hold = b.main.nirq_hold = 0;  /* without the IRQ hold (xain_init) */
     a.sound_cpu = b.sound_cpu = 0;
     xain_set_sound(&a, 0);
     xain_set_sound(&b, 0);
@@ -74,6 +76,7 @@ int main(int argc, char **argv)
             return 1;
         }
     }
+    printf("main pc %04X sub pc %04X bank %d, $3D %02X\n", b.main.pc, b.sub.pc, b.sub_bank, b.shared[0x3d]);
     printf("OK: %ld frames identical; memo: %lu replayed slices, %lu run (%.1f replayed per frame)\n", frames,
            (unsigned long)b.memo_hits, (unsigned long)b.memo_runs, (double)b.memo_hits / frames);
     printf("sprite routine translated: %.1f slices per frame\n", (double)b.spr_slices / frames);

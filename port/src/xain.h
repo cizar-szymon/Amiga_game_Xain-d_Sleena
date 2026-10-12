@@ -4,6 +4,9 @@
 #ifndef XAIN_H
 #define XAIN_H
 
+/* the version of the port (Amiga $VER, PC window, start screen with START=EASY) */
+#define XAIN_VERSION "0.9.2"
+
 #include <stdint.h>
 #include "m6809.h"
 #include "mcu68705.h"
@@ -98,6 +101,9 @@ struct Xain {
     int autocoin, joystart;
     int coin_phase;
     int cont_fire, prev_fire;
+    /* DIFFICULTY=EASY: half the damage on foot (easy_damage in xain.c; set before the game) */
+    int easy_damage, dmg_acc, dmg_active;
+    uint8_t dmg_entry;
     XainSliceMemo memo[XAIN_MEMO_SIZE];
     int32_t (*cpu_run)(M6809 *cpu, int32_t cycles);   /* m6809_run (C) or m6809_run_asm (68k) */
     uint32_t frame;
@@ -138,12 +144,18 @@ void xain_set_sound(Xain *x, int on);
 void xain_assist(Xain *x);
 /* START=EASY: the start screen text "PUSH 1P OR 2P BUTTON" becomes "LEFT 1P OR RIGHT 2P", the
    continue screen "CONTINUE PLAY?" / "PUSH 1P (2P) BUTTON" becomes "PRESS FIRE TO CONTINUE" (same
-   font and colours; ROM data and code in memory, only if the original bytes are there).
-   Returns the number of texts changed (0..2) */
+   font and colours; ROM data and code in memory, only if the original bytes are there), and
+   "CREDIT n" on the start screen becomes "RELEASE " XAIN_VERSION. Returns the number of texts
+   changed (0..3) */
 int xain_patch_texts(Xain *x);
 /* 1 while a planet is played on foot (button 2 jumps), 0 on the planet map, in the flying
    stages (button 2: the extra weapon) and outside a game; for a joystick with one button */
 int xain_on_foot(const Xain *x);
+/* diagnostics: the machine state (CPUs, MCU, RAM, registers, YM timers, slice memo) in a portable
+   big endian format, between frames; buf NULL = only the size. Load after xain_init + ROMs
+   (and xain_patch_texts if it was used); 1 = ok */
+uint32_t xain_save_state(Xain *x, uint8_t *buf);
+int xain_load_state(Xain *x, const uint8_t *buf, uint32_t len);
 /* FM output rate: 1 = every FM sample (exact, MAME), 2 = every second one (faster; phases and
    envelopes still run at the full rate) */
 void xain_set_fm_div(Xain *x, int div);

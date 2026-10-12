@@ -73,6 +73,11 @@ struct M6809 {
        the handler) */
     uint16_t fast_addr;                     /* 12416 */
     uint8_t fast_val, fast_ok;              /* 12418, 12419 */
+
+    /* addresses where an IRQ is not taken (held until PC leaves them; C core only, which also
+       takes the interrupts for the assembler core): the machine's fix for a race of the game */
+    uint16_t irq_hold[8];
+    uint8_t nirq_hold;
 };
 
 #define M6809_OFS_IDLE_MAP 4224

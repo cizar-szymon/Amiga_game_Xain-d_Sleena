@@ -115,12 +115,51 @@ static uint8_t sub_read(void *ctx, uint16_t a)
     return 0x00;
 }
 
+/* DIFFICULTY=EASY (not the original): half the damage on foot. The sub CPU damages the player in
+   bank 1 7015 (through FE36 -> FF00: STB $3000 bank 1, JSR $7000, STB $3000 bank 0): when the
+   player touches the object it subtracts the damage on the stack from the health <$56 (low 6
+   bits, full = 10; 0 = dead: $1073 bit 0), else sets bit 7 (redraw the bar) and bit 6 (the
+   side). At the bank 1 write (PC FF05) 16 is added to the health, so that the routine itself
+   never kills; at the bank 0 write (PC FF0D) the damage is the difference, and only half of it
+   counts (dmg_acc: 1 point every second hit). Health 0 at the entry (the ship) is left alone */
+#define RAM_HEALTH 0x56
+#define RAM_DEAD 0x1073
+static void easy_damage(Xain *x, uint8_t v)
+{
+    uint8_t *h = &x->shared[RAM_HEALTH];
+    if (v & 1) {
+        if (x->sub.pc == 0xff05 && (*h & 0x3f) && (*h & 0x3f) <= 0x20) {
+            x->dmg_entry = *h;
+            x->dmg_active = 1;
+            *h = (uint8_t)(*h + 16);
+        }
+    } else if (x->dmg_active) {
+        int before = x->dmg_entry & 0x3f, after = *h & 0x3f, d, left;
+        x->dmg_active = 0;
+        if (x->sub.pc != 0xff0d) return;
+        d = before + 16 - after;
+        if (d <= 0) { *h = x->dmg_entry; return; }               /* not touched */
+        left = before - ((x->dmg_acc + d) / 2 - x->dmg_acc / 2);
+        x->dmg_acc = (x->dmg_acc + d) & 0xff;
+        if (after == 0 || left <= 0) {
+            *h = 0;
+            x->shared[RAM_DEAD] |= 1;
+        } else {
+            *h = (uint8_t)((*h & 0xc0) | left);
+        }
+    }
+}
+
 static void sub_write(void *ctx, uint16_t a, uint8_t v)
 {
     Xain *x = ctx;
     if (a == 0x2000) x->main.irq_line = 1;
     else if (a == 0x2800) x->sub.irq_line = 0;
-    else if (a == 0x3000) { x->sub_bank = v & 1; sub_set_bank(x); }
+    else if (a == 0x3000) {
+        if (x->easy_damage) easy_damage(x, v);
+        x->sub_bank = v & 1;
+        sub_set_bank(x);
+    }
 }
 
 /* ---- sound CPU ---- */
@@ -184,6 +223,17 @@ void xain_init(Xain *x)
     x->main.read = main_read; x->main.write = main_write; x->main.ctx = x;
     x->sub.read = sub_read; x->sub.write = sub_write; x->sub.ctx = x;
     x->snd.read = snd_read; x->snd.write = snd_write; x->snd.ctx = x;
+    {
+        /* the main loop sets bits of <$3D with LDA <$3D / ORA #n / STA <$3D (8703, 8743, 879B,
+           87C0); the IRQ from the sub CPU (80B9) sets bit 2 and then bit 3, which the sub waits
+           for (bank 0 4B91). An IRQ after the LDA and before the STA lost bits 2/3 and both CPUs
+           waited for ever (A1200, frame 26327: main 8727, sub 4B91, $3D = 40). The IRQ is held
+           there for one or two instructions */
+        static const uint16_t hold[] = { 0x8705, 0x8707, 0x8745, 0x8747, 0x879d, 0x879f, 0x87c2, 0x87c4 };
+        int i;
+        for (i = 0; i < 8; i++) x->main.irq_hold[i] = hold[i];
+        x->main.nirq_hold = 8;
+    }
     ym2203_init(&x->ym[0]);
     ym2203_init(&x->ym[1]);
     xain_set_sound(x, 1);
@@ -580,7 +630,11 @@ int xain_patch_texts(Xain *x)
     /* continue screen (main 840B-8428): text 09 (78BE, row 8) "CONTINUE PLAY?" and TIME, then
        text 0B (7902, "PUSH 1P BUTTON", also the start screen) or 26 (7D88, "PUSH 2P BUTTON",
        only here) with CREDIT. New: text 09 = "PRESS FIRE TO CONTINUE" (row 8, column 5, colour
-       01), text 26 = TIME (colour 03) and CREDIT, and 841B LDA #$0B -> #$26 */
+       01), text 26 = TIME (colour 03) and CREDIT, and always text 26: 841B LDA #$0B -> #$0D and
+       8421 BNE $8425 -> BNE $8423 (falls into LDA #$26 either way). The byte sum of the main
+       ROM stays the same: the game adds up 4000-EFFF at boot (8045 -> FFA7, must give 01) and
+       with a wrong sum sets $1C1B, after which the flying stages have no enemies after a death */
+    static const uint8_t code_old[] = { 0x86, 0x0b, 0xd6, 0x3b, 0xc5, 0x01, 0x26, 0x02, 0x86, 0x26 };
     static const uint8_t old09[] = { 0x01, 0x21, 0x09, 'C', 'O', 'N', 'T', 'I', 'N', 'U', 'E', ' ', 'P', 'L', 'A',
         'Y', '?', 0x03, 0x03, 0x01, 0x21, 0x6c, 'T', 'I', 'M', 'E', 0x00 };
     static const uint8_t old26[] = { 0x02, 0x22, 0x49, 'P', 'U', 'S', 'H', ' ', '2', 'P', ' ', 'B', 'U', 'T', 'T',
@@ -590,17 +644,46 @@ int xain_patch_texts(Xain *x)
     uint8_t *p = x->main_bank_rom[1] + 0x3885;
     uint8_t *t09 = x->main_bank_rom[1] + 0x38be, *t26 = x->main_bank_rom[1] + 0x3d88;
     uint8_t *lda = x->main_rom + 0x041b;
+    /* the start screen, credits >= 2: text 07 (pointer table bank 1 77C0 + 2 * 7 -> 7885) =
+       the start text and "CREDIT" at 236B; the number (A154 entry 4, 2373) is printed in the
+       loop at 8188 LDA #$04 / JSR $A154. New: text 07 in the unused zeros before the pointer
+       table (bank 1 778B-77BF; build/probe/freecheck.c: 40 000 frames identical with them
+       changed) with RELEASE, and the call made a JSR to an RTS (80DB) with the sum kept */
+    static const uint8_t call_old[] = { 0x86, 0x04, 0xbd, 0xa1, 0x54 };
+    static const uint8_t zeros[0x35] = { 0 };
+    static const char ver_text[] = "RELEASE " XAIN_VERSION;
+    uint8_t *call = x->main_rom + 0x0188, *tab07 = x->main_bank_rom[1] + 0x37ce;
+#define VER_TEXT 0x7790
     int n = 0;
     if (p[0] == 0x02 && p[1] == 0x22 && p[2] == 0x46 && !memcmp(p + 3, old_text, 20) && p[23] == 0x03) {
         memcpy(p + 3, new_text, 20);
         n++;
     }
-    if (!memcmp(t09, old09, sizeof old09) && !memcmp(t26, old26, sizeof old26) && lda[0] == 0x86 && lda[1] == 0x0b) {
+    if (!memcmp(t09, old09, sizeof old09) && !memcmp(t26, old26, sizeof old26) && !memcmp(lda, code_old, sizeof code_old)) {
         t09[2] = 0x05;                                       /* 2109 -> 2105: centred */
         memcpy(t09 + 3, cont_text, 22);
         t09[25] = 0x00;
         memcpy(t26, new26, sizeof new26);
-        lda[1] = 0x26;
+        lda[1] = 0x0d;                                       /* +2 (A is loaded again at 8423) */
+        lda[7] = 0x00;                                       /* -2: BNE $8423, always text 26 */
+        n++;
+    }
+    if (n && !memcmp(x->main_bank_rom[1] + 0x378b, zeros, sizeof zeros) && tab07[0] == 0x78 && tab07[1] == 0x85 &&
+        !memcmp(call, call_old, sizeof call_old)) {
+        /* the start screen: "RELEASE x.y.z" instead of "CREDIT n" (row 27, centred) */
+        uint8_t *r = x->main_bank_rom[1] + (VER_TEXT - 0x4000);
+        int len = (int)strlen(ver_text), k = 0;
+        r[k++] = 0x02; r[k++] = 0x22; r[k++] = 0x46;           /* colour 02, 2246 as text 07 */
+        memcpy(r + k, new_text, 19); k += 19;
+        r[k++] = 0x03; r[k++] = 0x01;                           /* colour 01 */
+        r[k++] = 0x01; r[k++] = 0x23; r[k++] = (uint8_t)(0x60 + (32 - len) / 2);
+        memcpy(r + k, ver_text, (size_t)len); k += len;
+        r[k] = 0x00;
+        tab07[0] = VER_TEXT >> 8;
+        tab07[1] = VER_TEXT & 0xff;
+        call[1] = 0x9e;                                         /* LDA #$04 -> #$9E (-0x66) */
+        call[3] = 0x80;                                         /* JSR $A154 -> JSR $80DB (RTS): */
+        call[4] = 0xdb;                                         /* +0x66, no credit digits */
         n++;
     }
     return n;
@@ -650,4 +733,132 @@ void xain_palette_rgb(const Xain *x, int i, uint8_t rgb[3])
     rgb[0] = (uint8_t)((x->palette[i] & 0x0f) * 0x11);
     rgb[1] = (uint8_t)((x->palette[i] >> 4) * 0x11);
     rgb[2] = (uint8_t)((x->palette_ext[i] & 0x0f) * 0x11);
+}
+
+/* ---- machine state for diagnostics (xain_save_state / xain_load_state) ---- */
+
+typedef struct {
+    uint8_t *p;                         /* NULL: only count */
+    uint32_t n;
+    const uint8_t *r;
+    uint32_t left;
+    int bad;
+} StateIo;
+
+static void st_put(StateIo *s, uint32_t v, int bytes)
+{
+    while (bytes--) {
+        if (s->p) s->p[s->n] = (uint8_t)(v >> (bytes * 8));
+        s->n++;
+    }
+}
+
+static uint32_t st_get(StateIo *s, int bytes)
+{
+    uint32_t v = 0;
+    while (bytes--) {
+        if (!s->left) { s->bad = 1; return 0; }
+        v = (v << 8) | *s->r++;
+        s->left--;
+    }
+    return v;
+}
+
+static void st_mem(StateIo *s, uint8_t *mem, uint32_t len, int load)
+{
+    uint32_t i;
+    for (i = 0; i < len; i++) {
+        if (load) mem[i] = (uint8_t)st_get(s, 1);
+        else st_put(s, mem[i], 1);
+    }
+}
+
+/* one value: written, or read back into *v8 / *v16 / *v32 */
+#define ST8(v)  do { if (load) (v) = (uint8_t)st_get(s, 1); else st_put(s, (uint32_t)(v), 1); } while (0)
+#define ST16(v) do { if (load) (v) = (uint16_t)st_get(s, 2); else st_put(s, (uint32_t)(v), 2); } while (0)
+#define ST32(v) do { if (load) (v) = st_get(s, 4); else st_put(s, (uint32_t)(v), 4); } while (0)
+#define STI32(v) do { if (load) (v) = (int32_t)st_get(s, 4); else st_put(s, (uint32_t)(v), 4); } while (0)
+
+static void st_6809(StateIo *s, M6809 *c, int load)
+{
+    ST8(c->a); ST8(c->b); ST8(c->dp); ST8(c->cc);
+    ST16(c->x); ST16(c->y); ST16(c->u); ST16(c->s); ST16(c->pc); ST16(c->ppc);
+    ST8(c->nmi_line); ST8(c->firq_line); ST8(c->irq_line); ST8(c->nmi_pending);
+    ST8(c->lds_seen); ST8(c->waiting); ST8(c->freerun);
+    STI32(c->icount); ST32(c->total);
+}
+
+static void st_machine(StateIo *s, Xain *x, int load)
+{
+    Mcu68705 *m = &x->mcu;
+    int i;
+    uint32_t magic = 0x58535431UL;      /* "XST1" */
+    ST32(magic);
+    if (load && magic != 0x58535431UL) { s->bad = 1; return; }
+    st_6809(s, &x->main, load);
+    st_6809(s, &x->sub, load);
+    st_6809(s, &x->snd, load);
+    ST8(m->cpu.a); ST8(m->cpu.x); ST8(m->cpu.cc); ST8(m->cpu.s);
+    ST16(m->cpu.pc); ST16(m->cpu.ppc); ST8(m->cpu.pending); ST8(m->cpu.irq_pin); ST32(m->cpu.total);
+    st_mem(s, m->ram, sizeof m->ram, load);
+    st_mem(s, m->port_in, 3, load); st_mem(s, m->port_latch, 3, load); st_mem(s, m->port_ddr, 3, load);
+    ST8(m->tdr); ST8(m->tcr); ST8(m->prescale); ST8(m->divisor); ST8(m->source); ST8(m->timer_line);
+    ST8(m->latch_driven); ST8(m->reset_input); ST8(m->host_flag); ST8(m->mcu_flag);
+    ST8(m->host_latch); ST8(m->mcu_latch); ST8(m->pa_output); ST8(m->pb_output);
+    STI32(m->icount);
+    st_mem(s, x->shared, sizeof x->shared, load);
+    st_mem(s, x->charram, sizeof x->charram, load);
+    st_mem(s, x->bgram1, sizeof x->bgram1, load);
+    st_mem(s, x->bgram0, sizeof x->bgram0, load);
+    st_mem(s, x->spriteram, sizeof x->spriteram, load);
+    st_mem(s, x->palette, sizeof x->palette, load);
+    st_mem(s, x->palette_ext, sizeof x->palette_ext, load);
+    st_mem(s, x->snd_ram, sizeof x->snd_ram, load);
+    st_mem(s, &x->scrollx[0][0], 4, load);
+    st_mem(s, &x->scrolly[0][0], 4, load);
+    ST8(x->pri); ST8(x->main_bank); ST8(x->sub_bank); ST8(x->flip); ST8(x->soundlatch); ST8(x->vblank);
+    ST8(x->in_p1); ST8(x->in_p2); ST8(x->coin3); ST8(x->dsw0); ST8(x->dsw1);
+    STI32(x->line); ST32(x->frame);
+    STI32(x->coin_phase); STI32(x->cont_fire); STI32(x->prev_fire);
+    STI32(x->easy_damage); STI32(x->dmg_acc); STI32(x->dmg_active); ST8(x->dmg_entry);
+    for (i = 0; i < 2; i++) {
+        YM2203 *y = &x->ym[i];
+        st_mem(s, y->regs, sizeof y->regs, load);
+        ST8(y->addr); ST8(y->status); ST8(y->irq); ST8(y->prescale);
+        ST8(y->timer_running[0]); ST8(y->timer_running[1]);
+        STI32(y->timer_left[0]); STI32(y->timer_left[1]);
+        ST32(y->total_samples); STI32(y->fm_phase);
+    }
+    for (i = 0; i < XAIN_MEMO_SIZE; i++) {
+        XainSliceMemo *e = &x->memo[i];
+        ST8(e->used); ST8(e->a); ST8(e->cc); ST8(e->m3d); ST8(e->m3e); ST8(e->nmi);
+        ST16(e->pc); STI32(e->icount); STI32(e->cycles);
+        ST8(e->a2); ST8(e->cc2); ST8(e->nmi2); ST16(e->pc2); ST16(e->ppc2); STI32(e->icount2);
+        ST32(e->dtotal); ST32(e->dskipped);
+    }
+}
+
+uint32_t xain_save_state(Xain *x, uint8_t *buf)
+{
+    StateIo s;
+    memset(&s, 0, sizeof s);
+    s.p = buf;
+    st_machine(&s, x, 0);
+    return s.n;
+}
+
+int xain_load_state(Xain *x, const uint8_t *buf, uint32_t len)
+{
+    StateIo s;
+    memset(&s, 0, sizeof s);
+    s.r = buf;
+    s.left = len;
+    st_machine(&s, x, 1);
+    if (s.bad)
+        return 0;
+    map_pages(x);                       /* the banks */
+    main_fast_update(x);
+    x->main.idle_valid = x->sub.idle_valid = x->snd.idle_valid = 0;
+    x->palette_dirty = 1;
+    return 1;
 }
