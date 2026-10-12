@@ -764,3 +764,6 @@ testów); zysk dałoby dopiero tłumaczenie na asm 68k w stylu rdzenia (`gen_680
 `STATS=FULL` nie pokazał różnic (A 15% w obu wariantach w przewijaniu). Kompilacja: jako część
 `m6809.c` vbcc `-O2`/`-O3` trwał wiele minut (wklejanie funkcji pomocniczych 200 razy) – dlatego
 osobny plik `m6809_spr.c`, funkcje po 24 instrukcje (`-O3` 5 s).
+
+**Koszt dźwięku 22 030 Hz (A1200 060/100, `SCALE=1 STATS=FULL`, demo):** `snd` 1,77–2,67% czasu
+(16 kHz: 1,37–1,96%), więcej w drugiej połowie dema (więcej efektów naraz).
