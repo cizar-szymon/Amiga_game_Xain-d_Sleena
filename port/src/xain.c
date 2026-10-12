@@ -193,6 +193,7 @@ void xain_init(Xain *x)
     x->slice = 96;                                      /* one scanline; see docs/PORTING.md */
     x->idle_skip = 1;
     x->slice_memo = 1;
+    x->sub_fast = 1;
     x->hle_sprites = 0;                                 /* slower than the asm core on the 68060 */
     x->sound_cpu = 1;
     xain_reset(x);
@@ -342,6 +343,34 @@ static int main_in_wait(const Xain *x)
     return 0;
 }
 
+/*
+ * The sub CPU waits for its IRQ in 8014 JMP $8014 most of the time (ca. 174 of 272 slices per
+ * frame in play). A slice that starts there with no interrupt pending (nothing else runs during
+ * the sub CPU's slice) only repeats the 4 cycle JMP until the cycles are used up: done here
+ * without the core (A1200: 13 us per such slice through the asm core). Exact; sub_fast = 0 (Amiga
+ * SUBFAST=OFF) runs them on the core, tools/memocheck.c compares.
+ */
+static void run_sub(Xain *x, int32_t cycles)
+{
+    M6809 *c = &x->sub;
+    if (x->sub_fast && c->pc == 0x8014 && !c->hook && !c->waiting && !c->freerun && !c->nmi_pending &&
+        !(c->firq_line && !(c->cc & M6809_CC_F)) && !(c->irq_line && !(c->cc & M6809_CC_I)) &&
+        c->rpage[0x80] && c->rpage[0x80][0x14] == 0x7e && c->rpage[0x80][0x15] == 0x80 &&
+        c->rpage[0x80][0x16] == 0x14) {
+        c->icount += cycles;
+        if (c->icount > 0) {
+            int32_t n = (c->icount + 3) >> 2;              /* JMP ext: 4 cycles, while icount > 0 */
+            c->icount -= n * 4;
+            c->total += (uint32_t)(n * 4);
+            c->idle_skipped += (uint32_t)(n * 4);
+            c->ppc = 0x8014;
+        }
+        x->sub_fast_slices++;
+        return;
+    }
+    x->cpu_run(c, cycles);
+}
+
 static void run_main(Xain *x, int32_t cycles)
 {
     M6809 *c = &x->main;
@@ -399,7 +428,7 @@ static void run_slice(Xain *x, int32_t cycles)
         main_fast_update(x);
         run_main(x, cycles);
         xain_prof(0);
-        x->cpu_run(&x->sub, cycles);
+        run_sub(x, cycles);
         xain_prof(1);
         if (x->sound_cpu) x->cpu_run(&x->snd, cycles);
         xain_prof(2);
@@ -414,7 +443,7 @@ static void run_slice(Xain *x, int32_t cycles)
     }
     main_fast_update(x);                                /* VBLANK, coin 3, MCU flags since the last slice */
     run_main(x, cycles);
-    x->cpu_run(&x->sub, cycles);
+    run_sub(x, cycles);
     if (x->sound_cpu) {
         /* the sound CPU only receives (sound latch), so it can be left out without sound */
         x->cpu_run(&x->snd, cycles);

@@ -29,6 +29,8 @@ int main(int argc, char **argv)
     xain_init(&b);
     a.slice_memo = 0;
     a.hle_sprites = 0;
+    a.sub_fast = 0;
+    if (getenv("NO_SUBFAST")) b.sub_fast = 0;
     b.hle_sprites = !getenv("ONLY_MEMO");                /* checked although off by default */
     if (getenv("ONLY_HLE")) b.slice_memo = 0;
     a.sound_cpu = b.sound_cpu = 0;
@@ -64,5 +66,6 @@ int main(int argc, char **argv)
     printf("OK: %ld frames identical; memo: %lu replayed slices, %lu run (%.1f replayed per frame)\n", frames,
            (unsigned long)b.memo_hits, (unsigned long)b.memo_runs, (double)b.memo_hits / frames);
     printf("sprite routine translated: %.1f slices per frame\n", (double)b.spr_slices / frames);
+    printf("sub CPU waiting without the core: %.1f slices per frame\n", (double)b.sub_fast_slices / frames);
     return 0;
 }

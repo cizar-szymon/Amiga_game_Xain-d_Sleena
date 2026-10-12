@@ -767,3 +767,23 @@ osobny plik `m6809_spr.c`, funkcje po 24 instrukcje (`-O3` 5 s).
 
 **Koszt dźwięku 22 030 Hz (A1200 060/100, `SCALE=1 STATS=FULL`, demo):** `snd` 1,77–2,67% czasu
 (16 kHz: 1,37–1,96%), więcej w drugiej połowie dema (więcej efektów naraz).
+
+**Koszt przełączania procesorów (A1200 060/100, 12.10.2026, `port/tests/slicecost.c` →
+`SliceCost ROMDIR [KLATKI] [WYWOŁANIA]`).** Każda klatka to 272 kwanty (linie), w każdym główny,
+pomocniczy CPU i MCU. Sonda na PC (`build/probe/slicestat.c`, rozgrywka): MCU w 258 kwantach
+tylko czeka, pomocniczy w ok. 160 zaczyna kwant w `8014 JMP $8014` (czeka na IRQ), główny ok.
+144 kwanty z tablicy. Koszt jednego kwantu na A1200: pomocniczy czekający przez rdzeń 8,4–13,1 µs,
+MCU czekające 6,6–7,3 µs, główny czekający z tablicy 3,9–6,3 µs (przez rdzeń 20,8–24,6 µs),
+`scanline()` 0,8–1,5 µs, `main_fast_update()` 0,2–0,3 µs, samo wejście/wyjście rdzenia asm bez
+instrukcji 3,6–3,7 µs.
+
+**Pomocniczy CPU czekający w `8014` bez rdzenia** (`run_sub` w `xain.c`): kwant zaczynający się
+na `8014` (bajty `7E 80 14` sprawdzane), bez czekającego przerwania, to tylko powtarzanie
+4-cyklowego `JMP` do wyczerpania cykli – liczone wprost (n = (icount+3)/4). Kwant 8,4 → 1,5 µs.
+Wyłączane `sub_fast = 0` (Amiga `SUBFAST=OFF`). Sprawdzenie: `tools/memocheck.c` 12 000 klatek
+identycznych, `Lockstep` na A1200 3000 klatek identycznych. Cała klatka emulacji (demo od
+klatki 1000, bez obrazu): z oboma skrótami 9,2 ms, bez `SUBFAST` 11,0 ms, bez tablicy kwantów
+9,7 ms, bez obu 14,0 ms. Gra (`SCALE=1 STATS`, druga połowa dema): rysowane 22–36 kl./s (było
+19–33), logika pełne 57,4.
+Dalej: MCU czekające (7 µs na kwant, 258 kwantów), druga pętla oczekiwania pomocniczego
+`4B91`–`4B95` (ok. 30 kwantów), koszt wejścia do rdzenia asm (3,7 µs).

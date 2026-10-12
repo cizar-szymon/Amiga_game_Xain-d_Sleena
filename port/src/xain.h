@@ -85,11 +85,13 @@ struct Xain {
     int idle_skip;                      /* skip idle loops (exact; default on, set before reset) */
     int slice_memo;                     /* main CPU in its wait loops: replay whole time slices
                                            (exact; default on, see run_main in xain.c) */
+    int sub_fast;                       /* sub CPU waiting in 8014: slices without the core
+                                           (exact; default on, run_sub in xain.c) */
     int hle_sprites;                    /* main CPU in DCEC-DE88: the routine translated to C
                                            (exact; default off: vbcc's code is slower than
                                            the asm core on the 68060; m6809_run_spr) */
     uint32_t memo_hits, memo_runs;      /* statistics */
-    uint32_t spr_slices;
+    uint32_t spr_slices, sub_fast_slices;
     XainSliceMemo memo[XAIN_MEMO_SIZE];
     int32_t (*cpu_run)(M6809 *cpu, int32_t cycles);   /* m6809_run (C) or m6809_run_asm (68k) */
     uint32_t frame;
