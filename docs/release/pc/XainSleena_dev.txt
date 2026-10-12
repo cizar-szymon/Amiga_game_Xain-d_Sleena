@@ -1,0 +1,119 @@
+XAIN'D SLEENA (PC) - opis techniczny parametrow (dla programistow)
+==================================================================
+
+Program jest emulatorem automatu Xain'd Sleena (Technos 1986) wedlug
+sterownika MAME 0.289 (xain.cpp) i rdzenia FPGA MiSTer. Wykonuje oryginalne
+ROM-y zestawu MAME "xsleena":
+  - 3x 6809 1,5 MHz (glowny, pomocniczy, dzwiekowy): rdzen w C (m6809.c,
+    lockstep ze sladami MAME: 1,16 mln instrukcji, 0 roznic);
+  - MC68705P5 (ochrona, 3 MHz) z interfejsem Taito;
+  - 2x YM2203 (FM + SSG, port ymfm z MAME na liczbach calkowitych);
+  - obraz: tekst 8x8, dwa tla 16x16 z przewijaniem, sprite'y, 8 trybow
+    priorytetu, paleta 512 x 12 bit.
+Tempo automatu: 57,44 Hz (6 MHz / 384 / 272), 272 linie po 96 cykli 6809.
+Wersja PC: C99 + SDL2 (MSYS2 UCRT64), tylko klawiatura. Ta sama emulacja
+co na Amidze, wiec sluzy tez do sprawdzania i do analizy zgloszen.
+Pelny opis budowy, pomiarow i decyzji: docs/PORTING.md w repozytorium portu.
+
+
+OPCJE
+-----
+
+  XainSleena.exe [opcje]   (obok SDL2.dll)
+
+  -rompath DIR        gdzie szukac ROM-ow (mozna kilka razy); zawsze tez
+                      . roms rom ROM i katalog programu. Zip z MAME
+                      (xsleena.zip), katalog xsleena albo luzne pliki; CRC
+                      jak w MAME; potrzebny kod MCU pz-0.113
+  -scale N            powiekszenie okna [3]
+  -lives N            3, 4, 6 albo inf (DSW1 bity 7-6: C0, 80, 40, 00)
+  -easy               polowa obrazen na piechote (patrz nizej)
+  -veryeasy           cwierc obrazen na piechote
+  -arcade             start jak automat (patrz nizej)
+  -dsw0 HH -dsw1 HH   przelaczniki DIP [3F FF jak MAME]. DSW0: bity 0-1 /
+                      2-3 monety B / A, 4 dzwieki w demo, 5 kontynuacja,
+                      6 obudowa, 7 odwrocenie ekranu. DSW1: bity 0-1
+                      trudnosc automatu (3 Easy .. 0 Hardest), 2-3 tempo
+                      czasu, 4-5 bonusowe zycia, 6-7 zycia
+  -nosound            bez dzwieku (procesor dzwieku i YM2203 nie sa
+                      emulowane, reszta dokladna)
+  -samples PLIK       dzwiek z sampli (domyslnie XainSleena.snd obok
+                      programu, katalog wyzej, . albo katalog ROM-ow);
+                      -emusound wymusza emulacje
+  -fmdiv N            FM co N-ta probke [1 = dokladnie]
+  -rate HZ            czestotliwosc wyjscia dzwieku [44100]
+  -wav PLIK           zapis dzwieku do WAV (mono, 16 bit)
+  -loadstate PLIK     start ze stanu maszyny (Amiga F10:
+                      RAM:XainSleena-state.bin)
+  -frames N           koniec po N klatkach
+  -fast               bez czekania na 57,44 Hz
+  -headless           bez okna i dzwieku (testy)
+  -shots DIR LISTA    zrzuty ekranu DIR/frame_NNNNN.bmp (LISTA:
+                      100,200,1000-1100/10; klatka N jak w MAME)
+  -dump DIR LISTA     zrzuty pamieci (format tools/mame_capture.lua)
+  -script LISTA       wejscia w czasie, np. "1200:+coin1,1206:-coin1"
+                      (coin1 coin2 start1 start2 up down left right fire
+                      jump p2up p2down p2left p2right p2fire p2jump)
+  -slice N            kwant przeplotu procesorow w cyklach (dzielnik 96)
+  -stats              czas emulacji na klatke co 2 s
+
+Klawisze (standard klawiszy wszystkich portow): strzalki ruch, Z = przycisk
+1 (strzal), X = przycisk 2 (skok / dodatkowa bron); strzalka w gore na
+piechote = skok (przycisk 2 automatu, gdy xain_on_foot: $0039 gra trwa,
+$0041 = 1, $0053 bit 7 = 0, $0052 & 0F = 2), w lotach tylko ruch; Y =
+przycisk 2 (dodatkowa bron); P pauza, 1 / 2 start,
+5 / 6 moneta, F3 reset, Esc koniec.
+
+
+GRA (opcje poza oryginalem)
+---------------------------
+
+Start domyslny (bez -arcade): monety wrzucane same, gdy gra nie trwa i jest
+mniej niz 2 kredyty (przez wejscie monety, 6 klatek wcisniete / 24 nie); na
+ekranie startu napis LEFT 1P OR RIGHT 2P i strzalka w lewo / prawo = start
+1 / 2. Ekran kontynuacji: PRESS FIRE TO CONTINUE, nowe nacisniecie strzalu
+trzyma start, na ktory gra czeka ($003B bit 0), brak kredytu -> moneta.
+Teksty zmieniane w pamieci (tylko gdy sa oryginalne bajty); zmiana w kodzie
+841B/8421 zachowuje sume bajtow ROM-u 4000-EFFF (gra liczy ja przy starcie,
+przy zlej sumie ustawia $1C1B i w lotach po smierci nie ma przeciwnikow).
+
+-easy / -veryeasy (polowa / cwierc obrazen, przy 1 co drugie / czwarte
+trafienie): zdrowie $0056 (bity 0-5, pelne 10, bit 7 przerysuj pasek, bit 6
+strona odrzutu) zmniejsza pomocniczy CPU w banku 1 7015 (przez FE36 ->
+FF00: STB $3000, JSR $7000, STB $3000). Przy zapisie banku z PC FF05
+emulator dodaje 16 do zdrowia, przy zapisie z PC FF0D liczy obrazenia
+z roznicy i odejmuje polowe (przy 1 co drugie trafienie; przy 0 sam
+ustawia smierc: $1073 bit 0). ROM bez zmian. Loty bez zmian.
+
+
+POPRAWKA WYSCIGU PROCESOROW
+---------------------------
+
+Petla glowna glownego CPU zmienia bajt $3D przez LDA <$3D / ORA #n /
+STA <$3D (8703, 8743, 879B, 87C0) przy wlaczonych przerwaniach, a IRQ od
+pomocniczego CPU (80B9) ustawia w nim bity 2 i 3 (potwierdzenie
+polecenia). IRQ miedzy LDA i STA kasowalo te bity i oba procesory czekaly
+w nieskonczonosc. Emulator nie przyjmuje IRQ glownego CPU na adresach
+8705 8707 8745 8747 879D 879F 87C2 87C4 (1-2 instrukcje pozniej).
+
+
+NUMER WYDANIA
+-------------
+
+XAIN_VERSION w port/src/xain.h: tytul okna i (bez -arcade) napis
+RELEASE x.y.z na ekranie startu zamiast CREDIT n (tekst 07 przeniesiony
+do nieuzywanych zer banku 1 7790, liczba kredytow 8188 LDA #$04 / JSR $A154
+-> LDA #$9E / JSR $80DB (RTS), suma ROM-u bez zmian). Kazde wydanie podnosi
+numer i dopisuje zmiany do XainSleena_release.txt.
+
+
+DZWIEK Z SAMPLI
+---------------
+
+Plik XainSleena.snd: nagrania polecen dzwiekowych (zatrzask 3A08), robione
+z wlasnych ROM-ow narzedziami z repozytorium:
+    sh tools/mksndrip.sh                        -> build/sndrip.exe
+    build/sndrip.exe -rate 22030 -max 150 KATALOG
+    python tools/snd_loop.py KATALOG            (wykrycie petli muzyki)
+    python tools/make_sndpack.py KATALOG XainSleena.snd
+Ok. 26 MB, 22 030 Hz. Pliku nie wolno rozpowszechniac (pochodzi z ROM-ow).

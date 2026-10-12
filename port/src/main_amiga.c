@@ -16,8 +16,9 @@
  *         [START=EASY|ARCADE] [LIVES=3|4|6|INF]: EASY (default) inserts coins while no game
  *         runs and shows LEFT 1P OR RIGHT 2P (joystick left / right start 1 or 2 players);
  *         ARCADE as the machine (coins 5 / 6, start 1 / 2). LIVES: the DIP switch.
- *         [DIFFICULTY=NORMAL|EASY]: EASY (not the original) halves the damage on foot (the
- *         DAMAGE GAGE bar: a hit of 4 takes 2, a hit of 1 counts every second time)
+ *         [DIFFICULTY=NORMAL|EASY|VERYEASY]: not the original: EASY halves the damage on foot
+ *         (the DAMAGE GAGE bar: a hit of 4 takes 2, a hit of 1 counts every second time),
+ *         VERYEASY a quarter (4 takes 1, a hit of 1 counts every fourth time)
  *         [CONTROL=JOY1|JOY2|KEYBOARD]: see below
  *         [SAMPLES=file] [EMUSOUND]: the sound comes from samples (XainSleena.snd, made on the
  *         PC with tools/make_sndpack.py, looked for as SAMPLES, in PROGDIR: and the ROM
@@ -25,13 +26,16 @@
  * Icon:   the same as tool types ("(...)" is switched off)
  *
  * CONTROL=JOY1 (default): joystick in port 2 moves and fires; on foot up jumps, in the flying
- *   stages up only moves and Space (button 2) fires the extra weapon
+ *   stages up only moves; Space is the joystick's second button (the extra weapon)
  * CONTROL=JOY2: joystick with two buttons, the second button jumps
  * CONTROL=KEYBOARD: keyboard only (the joystick port is not read)
  *   (CD32 pad with JOY1 / JOY2: red fire, blue jump, play = start 1, green = coin, yellow = start 2)
- * Keyboard (always): cursor keys, Ctrl / Z = fire, Space / Alt / X = jump, 5 / 6 = coin,
- *           1 / 2 = start, P = pause, F3 = reset, F10 = save the machine state (diagnostics,
- *           RAM:XainSleena-state.bin), Esc / close / Ctrl-C = quit
+ * Keyboard (always; the same keys in every port, PORTING_PLAN.md): cursor keys = move, Z = fire 1,
+ *           X = fire 2 (jump / extra weapon); as the joystick with JOY1: on foot up jumps, in the
+ *           flying stages up only moves and Y fires the extra weapon; P = pause, 1 / 2 = start,
+ *           5 / 6 = coin, F3 = reset,
+ *           F10 = save the machine state (diagnostics, RAM:XainSleena-state.bin),
+ *           Esc / close / Ctrl-C = quit
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -120,7 +124,7 @@ static int memo_off;                  /* MEMO=OFF: no replay of the main CPU's w
 static int subfast_off;               /* SUBFAST=OFF: waiting sub CPU slices on the core */
 static int start_arcade;              /* START=ARCADE: coins and start as the arcade */
 static int lives = -1;                /* LIVES=3|4|6|INF (0) */
-static int easy_damage;               /* DIFFICULTY=EASY */
+static int easy_damage;               /* DIFFICULTY=EASY (1) / VERYEASY (2) */
 enum { CTL_KEYBOARD, CTL_JOY1, CTL_JOY2 };
 static int control = CTL_JOY1;         /* CONTROL=KEYBOARD / JOY1 (up jumps) / JOY2 */
 static int hle_on;                    /* HLE=ON: the sprite list routine translated to C (slower) */
@@ -1227,6 +1231,7 @@ static void audio_push(const int16_t *samples, int count)
 #define RAW_5      0x05
 #define RAW_6      0x06
 #define RAW_P      0x19
+#define RAW_Y      0x15
 #define RAW_Z      0x31
 #define RAW_X      0x32
 #define RAW_SPACE  0x40
@@ -1237,9 +1242,6 @@ static void audio_push(const int16_t *samples, int count)
 #define RAW_LEFT   0x4F
 #define RAW_F3     0x52
 #define RAW_F10    0x59
-#define RAW_CTRL   0x63
-#define RAW_LALT   0x64
-#define RAW_RALT   0x65
 
 /* F10: the machine state to RAM:XainSleena-state.bin (load on the PC: xainsleena -loadstate) and
    a line to RAM:XainSleena-state.txt; for hangs of the game */
@@ -1313,10 +1315,13 @@ static void read_inputs(void)
 
     if (keys[RAW_LEFT]) p1 |= IN_LEFT;
     if (keys[RAW_RIGHT]) p1 |= IN_RIGHT;
-    if (keys[RAW_UP]) p1 |= IN_UP;
+    if (keys[RAW_UP]) {
+        p1 |= IN_UP;
+        if (xain_on_foot(&machine)) p1 |= IN_BUTTON2;   /* as the joystick (JOY1): up jumps on foot */
+    }
     if (keys[RAW_DOWN]) p1 |= IN_DOWN;
-    if (keys[RAW_CTRL] || keys[RAW_Z]) p1 |= IN_BUTTON1;
-    if (keys[RAW_SPACE] || keys[RAW_LALT] || keys[RAW_RALT] || keys[RAW_X]) p1 |= IN_BUTTON2;
+    if (keys[RAW_Z]) p1 |= IN_BUTTON1;
+    if (keys[RAW_X] || keys[RAW_Y] || (control == CTL_JOY1 && keys[RAW_SPACE])) p1 |= IN_BUTTON2;
     if (keys[RAW_1]) p1 |= IN_P1_START1;
     if (keys[RAW_2]) p1 |= IN_P1_START2;
     if (keys[RAW_5]) p2 |= IN_P2_COIN1;
@@ -1401,6 +1406,8 @@ static void parse_option(const char *opt)
         start_arcade = 0;
     else if (same_text(opt, "DIFFICULTY=EASY"))
         easy_damage = 1;
+    else if (same_text(opt, "DIFFICULTY=VERYEASY"))
+        easy_damage = 2;
     else if (same_text(opt, "DIFFICULTY=NORMAL"))
         easy_damage = 0;
     else if (same_text(name, "LIVES") && val)

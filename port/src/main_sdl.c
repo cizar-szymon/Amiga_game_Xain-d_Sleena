@@ -22,6 +22,7 @@
  *                       default: coins are inserted while no game runs, LEFT 1P OR RIGHT 2P
  *   -lives N            lives (DIP switches): 3, 4, 6 or inf
  *   -easy               DIFFICULTY=EASY: half the damage on foot (not the original)
+ *   -veryeasy           DIFFICULTY=VERYEASY: a quarter of the damage on foot
  *   -loadstate FILE     start from a machine state (Amiga F10: RAM:XainSleena-state.bin)
  *   -shots DIR LIST     save the screen as DIR/frame_NNNNN.bmp at these frames
  *                       (LIST: 100,200,1000-1100/10); frame N = after N+1 frames, as in MAME
@@ -32,8 +33,10 @@
  *                       after frame N, as with tools/mame_capture.py
  *   -stats              print the emulation time per frame every 2 seconds
  *
- * Keys: cursor keys = joystick, Left Ctrl / Z = fire, Space / Left Alt / X = jump,
- *       5 / 6 = coin, 1 / 2 = start, P = pause, F3 = reset, Esc = quit.
+ * Keys (the same in every port, PORTING_PLAN.md): cursor keys = move, Z = fire 1, X = fire 2
+ *       (jump / extra weapon); as the Amiga joystick (JOY1): on foot up jumps, in the flying
+ *       stages up only moves and Y fires the extra weapon; P = pause, 5 / 6 = coin,
+ *       1 / 2 = start, F3 = reset, Esc = quit.
  * Keyboard only (no game controller).
  */
 #include <stdio.h>
@@ -74,7 +77,7 @@ typedef struct { long frame; uint8_t *port; uint8_t bit; int press; } ScriptEven
 static ScriptEvent script[4096];
 static int script_count;
 
-static uint8_t kb_p1, kb_p2, script_p1, script_p2;
+static uint8_t kb_p1, kb_p2, kb_y, script_p1, script_p2;   /* kb_y: Y = button 2 (extra weapon) */
 
 static void usage(void)
 {
@@ -177,6 +180,7 @@ static void parse_args(int argc, char **argv)
         else if (!strcmp(a, "-arcade")) arcade = 1;
         else if (!strcmp(a, "-loadstate")) state_path = NEXT();
         else if (!strcmp(a, "-easy")) easy_damage = 1;
+        else if (!strcmp(a, "-veryeasy")) easy_damage = 2;
         else if (!strcmp(a, "-lives")) { const char *v = NEXT(); lives = !strcmp(v, "inf") ? 0 : atoi(v); }
         else if (!strcmp(a, "-script")) parse_script(NEXT());
         else if (!strcmp(a, "-shots")) { shot_dir = NEXT(); shot_count = parse_frames(NEXT(), &shot_frames); }
@@ -401,8 +405,9 @@ static int handle_key(SDL_Keycode k, int down)
     case SDLK_RIGHT: set_bit(&kb_p1, IN_RIGHT, down); break;
     case SDLK_UP: set_bit(&kb_p1, IN_UP, down); break;
     case SDLK_DOWN: set_bit(&kb_p1, IN_DOWN, down); break;
-    case SDLK_LCTRL: case SDLK_z: set_bit(&kb_p1, IN_BUTTON1, down); break;
-    case SDLK_SPACE: case SDLK_LALT: case SDLK_x: set_bit(&kb_p1, IN_BUTTON2, down); break;
+    case SDLK_z: set_bit(&kb_p1, IN_BUTTON1, down); break;
+    case SDLK_x: set_bit(&kb_p1, IN_BUTTON2, down); break;
+    case SDLK_y: set_bit(&kb_y, IN_BUTTON2, down); break;
     case SDLK_5: set_bit(&kb_p2, IN_P2_COIN1, down); break;
     case SDLK_6: set_bit(&kb_p2, IN_P2_COIN2, down); break;
     case SDLK_1: set_bit(&kb_p1, IN_P1_START1, down); break;
@@ -527,7 +532,9 @@ int main(int argc, char **argv)
                 else if (k == SDLK_F3) { xain_reset(&machine); sndplay_reset(&snd); }
             }
         }
-        machine.in_p1 = (uint8_t)(kb_p1 | script_p1);
+        machine.in_p1 = (uint8_t)(kb_p1 | kb_y | script_p1);
+        if ((kb_p1 & IN_UP) && xain_on_foot(&machine))
+            machine.in_p1 |= IN_BUTTON2;                /* up jumps on foot (as the Amiga's JOY1) */
         machine.in_p2 = (uint8_t)(kb_p2 | script_p2);
         xain_assist(&machine);
 

@@ -1,5 +1,5 @@
-XAIN'D SLEENA - the Technos arcade game (1986) on the Amiga and PC
-==================================================================
+XAIN'D SLEENA - the Technos arcade game (1986) on the Amiga
+==========================================================
 
 The bounty hunter Xain sets off for five planets held by the enemy.
 On each planet he fights on foot (jumping, shooting, and at the end
@@ -19,16 +19,14 @@ The arcade ROMs: the MAME set "xsleena" (Xain'd Sleena, World), i.e.
 xsleena.zip or a drawer xsleena with the files. The bootlegs
 (xsleenab, xsleenaba) and the Japanese version are not supported.
 
-Amiga: AmigaOS 3.1 or newer (tested on 3.2), a 68060 CPU, a graphics
-card with Picasso96 (it also runs without one, but slowly), about
-4 MB of free Fast RAM. Full speed needs a 68060 at about 100 MHz
-(e.g. a Warp 1260 clocked at 100 MHz). At 50 MHz the game runs slower.
-
-PC: Windows 10 or newer (64 bit).
+AmigaOS 3.1 or newer (tested on 3.2), a 68060 CPU, a graphics card
+with Picasso96 (it also runs without one, but slowly), about 4 MB of
+free Fast RAM. Full speed needs a 68060 at about 100 MHz (e.g. a Warp
+1260 clocked at 100 MHz). At 50 MHz the game runs slower.
 
 
-GETTING STARTED (AMIGA)
------------------------
+GETTING STARTED
+---------------
 
 1. Unpack XainSleena_Amiga.lha, e.g. to Work:Games.
 2. Put xsleena.zip (or the drawer xsleena) into the XainSleena drawer
@@ -38,31 +36,27 @@ GETTING STARTED (AMIGA)
    inserted automatically).
 
 
-GETTING STARTED (PC)
---------------------
-
-1. Unpack XainSleena_PC.zip.
-2. Put xsleena.zip next to XainSleena.exe (or into a folder roms).
-3. Run XainSleena.exe. Cursor left = 1 player, right = 2 players.
-
-
 CONTROLS
 --------
 
-  Amiga - joystick in the joystick port (setting CONTROL=JOY1):
+  Joystick in the joystick port (setting CONTROL=JOY1, as in the icon):
     joystick          move
     fire              shoot
     up                on foot: jump, in the ship: move up
-    Space             in the ship: extra weapon (on foot: jump)
+    Space             the joystick's second button (as X): in the ship
+                      the extra weapon (on foot jump)
 
-  Keyboard (Amiga and PC):
-    cursor keys       move
-    left Ctrl or Z    shoot
-    Space, Alt, X     jump (on foot) / extra weapon (in the ship)
+  Keyboard:
+    cursor keys       move; up on foot = jump, in the ship it only
+                      moves up (as the joystick)
+    Z                 fire 1: shoot
+    Y                 in the ship: extra weapon
+    X                 fire 2: jump / extra weapon (spare)
     1 / 2             start 1 / 2 players
     5 / 6             coin (with START=ARCADE)
-    P                 pause
+    P                 pause (P again = go on)
     F3                reset the arcade board
+    F10               save the game state for a bug report (see below)
     Esc               quit
 
 When the last life is lost, PRESS FIRE TO CONTINUE appears: fire =
@@ -70,8 +64,8 @@ go on from there.
 With two players, they take turns on the same joystick.
 
 
-SETTINGS (AMIGA)
-----------------
+SETTINGS
+--------
 
 Settings are changed in the icon: select the XainSleena icon, choose
 Icon -> Information and edit the "Tool types" list. An entry in
@@ -89,7 +83,10 @@ Save and start the game again.
   DIFFICULTY=NORMAL    as the arcade (as in the icon)
   DIFFICULTY=EASY      on foot, hits take half as much from the
                        DAMAGE GAGE bar (not in the original)
-  CONTROL=JOY1         joystick with one button (as in the icon)
+  DIFFICULTY=VERYEASY  on foot, hits take a quarter as much (not in
+                       the original)
+  CONTROL=JOY1         joystick with one button, the second button
+                       is SPACE; up = jump on foot (as in the icon)
   CONTROL=JOY2         joystick / pad with two buttons: the second
                        button jumps and fires the extra weapon, up
                        only moves
@@ -103,48 +100,36 @@ Save and start the game again.
 From the Shell too, e.g.:   XainSleena SCREEN=WINDOW SCALE=2 LIVES=6
 
 
-SETTINGS (PC)
--------------
-
-Command line options (or in a shortcut to the program), e.g.:
-
-    XainSleena.exe -scale 4 -lives 6 -easy
-
-  -scale N     window size (default 3)
-  -lives N     3, 4, 6 or inf
-  -easy        as DIFFICULTY=EASY
-  -arcade      as START=ARCADE
-  -nosound     no sound
-
-
 SOUND
 -----
 
 The sound is emulated (two YM2203 and the sound CPU), which costs a
-lot of CPU time on the Amiga: on a 68060/100 MHz with sound the game
-runs at about 25-40 frames/s instead of 57. Sound from samples is
-faster: the file XainSleena.snd (recorded from your own ROMs with a
-tool from the port's repository, see XainSleena_dev_en.txt). It is
-not included because it comes from the ROMs. If it is next to the
-game, the game uses it by itself. Without the file the fastest is
-NOSOUND.
+lot of CPU time: on a 68060/100 MHz with sound the game runs at about
+25-40 frames/s instead of 57. Sound from samples is faster: the file
+XainSleena.snd (recorded from your own ROMs with a tool from the
+port's repository, see XainSleena_dev_en.txt). It is not included
+because it comes from the ROMs. If it is next to the game, the game
+uses it by itself. Without the file the fastest is NOSOUND.
 
 
 TROUBLESHOOTING
 ---------------
 
-- "Cannot load the ROMs" (the game does not start): check that xsleena.zip
-  is next to the program or in a subdrawer rom / roms, or give
-  ROMPATH=. It must be the MAME xsleena set (with the file pz-0.113).
+- "Cannot load the ROMs" (the game does not start): check that
+  xsleena.zip is next to the program or in a subdrawer rom / roms, or
+  give ROMPATH=. It must be the MAME xsleena set (with the file
+  pz-0.113).
 - Too slow: SCALE=1, NOSOUND, a 100 MHz CPU.
 - No sound: add SOUND=AHI (or the other way round: remove it).
-- The game froze (picture stands still, music plays), Amiga: press F10 and
-  quit with Esc. The file RAM:XainSleena-state.bin describes the state
-  of the arcade board - it helps the authors find the bug.
+- The game froze (picture stands still, music plays) or something odd
+  happens: press F10 and quit with Esc. The file
+  RAM:XainSleena-state.bin describes the state of the arcade board - it
+  helps the authors find the bug. Copy it before switching the Amiga
+  off.
 
 
 Release number: on the start screen (RELEASE x.y.z). What changed in
 each release: XainSleena_release_en.txt. When reporting a bug, give the
-release number and (Amiga) the F10 files.
+release number and the F10 files.
 
 For programmers: all parameters are described in XainSleena_dev_en.txt.

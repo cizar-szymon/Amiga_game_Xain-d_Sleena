@@ -2,26 +2,55 @@ XAIN'D SLEENA - wydania (poprawki i dodatki)
 ============================================
 
 Numer wydania widac na ekranie startu gry (RELEASE x.y.z, w miejscu
-liczby kredytow; przy START=ARCADE ekran jest jak w automacie), na
-Amidze tez w Shellu: Version XainSleena, na PC w tytule okna.
+liczby kredytow; przy START=ARCADE ekran jest jak w automacie) i
+w Shellu: Version XainSleena.
 Zglaszajac blad, podaj numer wydania - po nim widac, czy blad nie
 zostal juz poprawiony w nowszym.
 
-Zgloszenie bledu (Amiga): gdy gra sie zawiesi albo dzieje sie cos
+Zgloszenie bledu: gdy gra sie zawiesi albo dzieje sie cos
 dziwnego, nacisnij F10. Stan automatu zapisuje sie do
 RAM:XainSleena-state.bin (i krotki opis do RAM:XainSleena-state.txt).
 Skopiuj oba pliki, zanim wylaczysz Amige (RAM: znika), i wyslij je
-razem z numerem wydania. Autorzy wczytuja ten stan na PC
-(XainSleena.exe -loadstate PLIK) i widza dokladnie to, co bylo na
-Amidze.
+razem z numerem wydania. Autorzy wczytuja ten stan i widza
+dokladnie to, co bylo na Amidze.
+
+
+RELEASE 0.9.5  (12.10.2026)
+---------------------------
+
+Dodatki:
+- Poziom trudnosci VERY EASY (DIFFICULTY=VERYEASY): na piechote trafienia
+  zabieraja 4 razy mniej z paska DAMAGE GAGE (EASY: 2 razy mniej).
+
+
+RELEASE 0.9.4  (12.10.2026)
+---------------------------
+
+Zmiany:
+- Klawiatura jak joystick: strzalka w gore na piechote = skok, w statku
+  tylko ruch w gore; Y = dodatkowa bron w statku. Z = strzal, X dalej
+  dziala jako ogien 2 (zapasowo).
+
+
+RELEASE 0.9.3  (12.10.2026)
+---------------------------
+
+Zmiany:
+- Klawiatura wedlug wspolnego standardu: strzalki = ruch, Z = ogien 1
+  (strzal), X = ogien 2 (skok / dodatkowa bron), P = pauza. Usuniete
+  zamienniki Ctrl, Alt i Spacja.
+  Spacja zostaje jako drugi przycisk joysticka przy CONTROL=JOY1.
 
 
 RELEASE 0.9.2  (12.10.2026)
 ---------------------------
 
 Dodatki:
-- Numer wydania na ekranie startu (RELEASE 0.9.2 zamiast CREDIT 2),
-  w Version na Amidze i w tytule okna na PC.
+- Numer wydania na ekranie startu (RELEASE 0.9.2 zamiast CREDIT 2)
+  i w Version.
+- Opis CONTROL=JOY1: drugi przycisk joysticka to Spacja.
+- Opisy osobno dla wersji Amigi i PC (w paczce Amigi tylko
+  ustawienia Amigi).
 - Ten plik: lista poprawek i dodatkow kazdego wydania, w paczce
   razem z gra.
 
@@ -31,22 +60,21 @@ RELEASE 0.9  (12.10.2026) - pierwsze wydanie
 
 Gra:
 - Emulacja automatu Xain'd Sleena (3x 6809, MCU 68705, 2x YM2203)
-  na Amidze 1200 z 68060 i karta graficzna oraz na PC (Windows).
+  na Amidze 1200 z 68060 i karta graficzna.
 - START=EASY (domyslnie): monety wrzucane same, joystick w lewo /
   w prawo = gra dla 1 / 2 graczy, po utracie zyc PRESS FIRE TO
   CONTINUE (ogien = gra dalej). START=ARCADE: jak automat.
 - CONTROL=JOY1 (domyslnie): joystick z jednym przyciskiem, do gory =
   skok na piechote, w lotach Spacja = dodatkowa bron. CONTROL=JOY2:
-  drugi przycisk joysticka / pada. CONTROL=KEYBOARD. PC: tylko
-  klawiatura.
+  drugi przycisk joysticka / pada. CONTROL=KEYBOARD.
 - DIFFICULTY=EASY: na piechote trafienia zabieraja o polowe mniej
   z paska DAMAGE GAGE (nie ma tego w oryginale).
 - LIVES=3|4|6|INF.
 - Ikona: pelny ekran (SCREEN=FULL), wszystkie opcje jako Tool Types.
 
 Diagnostyka:
-- F10 (Amiga): zapis calego stanu automatu do RAM:XainSleena-state.bin
-  do analizy bledu; na PC -loadstate PLIK. Opis wyzej.
+- F10: zapis calego stanu automatu do RAM:XainSleena-state.bin do
+  analizy bledu. Opis wyzej.
 - Straznik: gdy gra przez 3 s nie rysuje klatki, stan programu trafia
   do RAM:XainSleena-hang.txt.
 

@@ -5,7 +5,7 @@
 #define XAIN_H
 
 /* the version of the port (Amiga $VER, PC window, start screen with START=EASY) */
-#define XAIN_VERSION "0.9.2"
+#define XAIN_VERSION "0.9.5"
 
 #include <stdint.h>
 #include "m6809.h"
@@ -101,7 +101,8 @@ struct Xain {
     int autocoin, joystart;
     int coin_phase;
     int cont_fire, prev_fire;
-    /* DIFFICULTY=EASY: half the damage on foot (easy_damage in xain.c; set before the game) */
+    /* DIFFICULTY: 0 NORMAL, 1 EASY (half the damage on foot), 2 VERYEASY (a quarter); easy_damage
+       in xain.c; set before the game */
     int easy_damage, dmg_acc, dmg_active;
     uint8_t dmg_entry;
     XainSliceMemo memo[XAIN_MEMO_SIZE];

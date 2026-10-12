@@ -66,7 +66,7 @@ NOSOUND
   Bez dzwieku: procesor dzwieku i YM2203 nie sa emulowane wcale (nic
   innego ich nie czyta, wiec reszta jest dokladna).
 
-FMDIV=1|2   [2; PC: 1]
+FMDIV=1|2   [2]
   2: FM wyliczane co druga probke (fazy i obwiednie w pelnym tempie).
 
 SAMPLES=plik | EMUSOUND
@@ -90,7 +90,8 @@ STEROWANIE
 ----------
 
 CONTROL=JOY1|JOY2|KEYBOARD   [JOY1]
-  JOY1: joystick z jednym przyciskiem; do gory = skok, ale tylko gdy
+  JOY1: joystick z jednym przyciskiem, drugi przycisk to Spacja (klawisz
+        przycisku 2 automatu); do gory = skok, ale tylko gdy
         gracz idzie na piechote (RAM: $0039 gra trwa, $0041 = 1 scena gry,
         $0053 bit 7 = statek, $0052 & 0F = 2 ruch). W lotach do gory
         tylko rusza, przycisk 2 (Spacja) = dodatkowa bron.
@@ -103,9 +104,14 @@ CONTROL=JOY1|JOY2|KEYBOARD   [JOY1]
 JOYPORT=BOTH
   Takze joystick w porcie myszy.
 
-Klawiatura zawsze: strzalki, Ctrl / Z = przycisk 1, Spacja / Alt / X =
-przycisk 2, 1 / 2 start, 5 / 6 moneta, P pauza, F3 reset, F10 zapis
-stanu maszyny, Esc / zamkniecie okna / Ctrl-C koniec.
+Klawiatura zawsze (standard klawiszy wszystkich portow): strzalki ruch,
+Z = przycisk 1 (strzal), X = przycisk 2 (skok / dodatkowa bron), jak
+joystick przy JOY1: strzalka w gore na piechote = skok (przycisk 2 automatu,
+gdy xain_on_foot), w lotach tylko ruch, Y = przycisk 2 (dodatkowa bron),
+P pauza,
+1 / 2 start, 5 / 6 moneta, F3 reset, F10 zapis stanu maszyny, Esc /
+zamkniecie okna / Ctrl-C koniec. Spacja = przycisk 2 tylko przy
+CONTROL=JOY1 (drugi przycisk joysticka z jednym przyciskiem).
 
 
 GRA (opcje poza oryginalem)
@@ -126,8 +132,9 @@ START=EASY|ARCADE   [EASY]
 LIVES=3|4|6|INF
   Przelaczniki DIP (DSW1 bity 7-6: C0, 80, 40, 00 = nieskonczone).
 
-DIFFICULTY=NORMAL|EASY   [NORMAL]
-  EASY: na piechote polowa obrazen. Zdrowie $0056 (bity 0-5, pelne 10,
+DIFFICULTY=NORMAL|EASY|VERYEASY   [NORMAL]
+  EASY: na piechote polowa obrazen, VERYEASY: cwierc (4 -> 1, przy 1 co
+  czwarte trafienie). Zdrowie $0056 (bity 0-5, pelne 10,
   bit 7 przerysuj pasek, bit 6 strona odrzutu) zmniejsza pomocniczy CPU
   w banku 1 7015 (przez FE36 -> FF00: STB $3000, JSR $7000, STB $3000).
   Przy zapisie banku z PC FF05 emulator dodaje 16 do zdrowia, przy
@@ -157,7 +164,7 @@ tysiecy klatek). Emulator nie przyjmuje IRQ glownego CPU na adresach
 NUMER WYDANIA
 -------------
 
-XAIN_VERSION w port/src/xain.h: $VER programu, tytul okna PC i (START=EASY)
+XAIN_VERSION w port/src/xain.h: $VER programu i (START=EASY)
 napis RELEASE x.y.z na ekranie startu zamiast CREDIT n (tekst 07 przeniesiony
 do nieuzywanych zer banku 1 7790, liczba kredytow 8188 LDA #$04 / JSR $A154
 -> LDA #$9E / JSR $80DB (RTS), suma ROM-u bez zmian). Kazde wydanie podnosi
@@ -188,41 +195,10 @@ Lockstep).
 F10: zapis calego stanu maszyny (3x 6809, MCU, RAM, rejestry, liczniki
 YM, tablica memo; przenosny format big endian, ok. 21 KB) do
 RAM:XainSleena-state.bin i krotkiego opisu (PC procesorow, opcje) do
-RAM:XainSleena-state.txt. Na PC: XainSleena.exe -loadstate PLIK.
+RAM:XainSleena-state.txt. Autorzy wczytuja go do wersji testowej.
 Straznik: gdy przez 3 s nie ma nowej klatki, stan zadania programu
 trafia do RAM:XainSleena-hang.txt.
 
 Pomiary na A1200 (68060 100 MHz, Warp 1260, RTG 16 bit, SCALE=1, demo):
 logika 57 kl./s (pelne tempo) bez dzwieku i z samplami, z emulowanym
 dzwiekiem (Paula) 25-41 kl./s. Przy 50 MHz ok. 2 razy wolniej.
-
-
-WERSJA NA PC (Windows, SDL2)
-----------------------------
-
-  XainSleena.exe [opcje]   (obok SDL2.dll; tylko klawiatura)
-  -rompath DIR        gdzie szukac ROM-ow (mozna kilka razy); zawsze tez
-                      . roms rom ROM i katalog programu
-  -scale N            powiekszenie okna [3]
-  -lives N            3, 4, 6 albo inf
-  -easy               jak DIFFICULTY=EASY
-  -arcade             jak START=ARCADE
-  -dsw0 HH -dsw1 HH   przelaczniki DIP
-  -nosound            bez dzwieku
-  -samples PLIK       dzwiek z sampli (domyslnie XainSleena.snd obok
-                      programu); -emusound wymusza emulacje
-  -fmdiv N            FM co N-ta probke [1]
-  -rate HZ            czestotliwosc wyjscia dzwieku [44100]
-  -wav PLIK           zapis dzwieku do WAV
-  -loadstate PLIK     start ze stanu maszyny (Amiga F10)
-  -frames N           koniec po N klatkach
-  -fast               bez czekania na 57,44 Hz
-  -headless           bez okna i dzwieku (testy)
-  -shots DIR LISTA    zrzuty ekranu DIR/frame_NNNNN.bmp (LISTA:
-                      100,200,1000-1100/10)
-  -dump DIR LISTA     zrzuty pamieci (format tools/mame_capture.lua)
-  -script LISTA       wejscia w czasie, np. "1200:+coin1,1206:-coin1"
-                      (coin1 coin2 start1 start2 up down left right fire
-                      jump p2...)
-  -slice N            kwant przeplotu w cyklach
-  -stats              czas emulacji na klatke co 2 s

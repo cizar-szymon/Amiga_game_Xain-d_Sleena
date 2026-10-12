@@ -20,7 +20,7 @@ Plan ogólny: `C:\Workprojects\AmigaGAMES\PORTING_PLAN.md`.
 | 8 | Wersja na Amigę (`main_amiga.c` z Vastar) | ✅ działa na A1200, wynik identyczny z PC co do bajtu (rozdział 11); 2,3 kl./s przy 68060/50 – punkt wyjścia fazy 4; ⏳ joystick i dźwięk do oceny po przyspieszeniu |
 | 9 | Optymalizacja: rdzeń 6809 w asm 68k (generator wzorem `gen_z80_68k.py`), renderer przyrostowy, FM | ⏳ 2,3 → 13–17 kl./s z dźwiękiem, ok. 20 bez (rozdział 12); rdzeń asm: Lockstep 5000 klatek identyczny |
 | 9b | Dźwięk z sampli zamiast emulacji (rozdział 13): polecenia z zatrzasku `3A08` → sample (`sndplay.c`) przez Paulę/AHI | ✅ pierwsza wersja PC i A1200: 060/50 tempo jak bez dźwięku (33–54 kl./s); ⏳ odsłuch przez użytkownika |
-| 10 | Wydanie: ikona, Tool Types, opisy PL/EN | ✅ 0.9 i 0.9.2 (12.10.2026; numer `XAIN_VERSION` widoczny jako `RELEASE x.y.z` na ekranie startu, lista zmian `XainSleena_release.txt` / `_release_en.txt` w paczce, uzupełniana przy każdym wydaniu): `releases/XainSleena_Amiga.lha` (LhA 2.15 na A1200), `releases/XainSleena_PC.zip`, opisy `XainSleena.txt` / `_en` / `_dev` / `_dev_en` (źródła `docs/release`); bez ROM-ów i bez `XainSleena.snd` (z ROM-ów) |
+| 10 | Wydanie: ikona, Tool Types, opisy PL/EN | ✅ 0.9 i 0.9.2 (12.10.2026; numer `XAIN_VERSION` widoczny jako `RELEASE x.y.z` na ekranie startu, lista zmian `XainSleena_release.txt` / `_release_en.txt` w paczce, uzupełniana przy każdym wydaniu): `releases/XainSleena_Amiga.lha` (LhA 2.15 na A1200), `releases/XainSleena_PC.zip`, opisy `XainSleena.txt` / `_en` / `_dev` / `_dev_en` (źródła `docs/release/amiga` i `docs/release/pc`, osobno dla każdej platformy); bez ROM-ów i bez `XainSleena.snd` (z ROM-ów) |
 
 ## 2. Materiały (skąd co jest)
 
@@ -860,7 +860,8 @@ jednocześnie.
 **`LIVES=3|4|6|INF`** (PC `-lives`): przełączniki DIP (DSW1 bity 7–6: C0, 80, 40, 00 =
 nieskończone życia, w MAME „Infinite (Cheat)”).
 
-**`DIFFICULTY=NORMAL|EASY`** (PC `-easy`, domyślnie NORMAL, nie z oryginału): EASY = połowa
+**`DIFFICULTY=NORMAL|EASY|VERYEASY`** (PC `-easy`, `-veryeasy`; domyślnie NORMAL, nie z oryginału;
+VERYEASY od 0.9.5 = ćwierć obrażeń, `easy_damage = 2`, dzielnik 4 w `dmg_acc`): EASY = połowa
 obrażeń na piechotę (pasek `DAMAGE GAGE`). Zdrowie to `$0056`: bity 0–5 (pełne `10`, start
 `849F`, w etapach lotu `0`, tam jedno trafienie zabija), bit 7 = przerysuj pasek, bit 6 = strona
 odrzutu. Obrażenia zadaje pomocniczy CPU w banku 1 `7015` (wejście `FE36` → `FF00`: `STB $3000`
@@ -905,8 +906,12 @@ skacze w JOY1 dla każdego typu urządzenia (wcześniej tylko `JP_TYPE_JOYSTK`).
   zgłasza go jako `JPF_BUTTON_BLUE`) = przycisk 2 (skok / broń), góra tylko ruch;
 - `CONTROL=KEYBOARD`: port joysticka nie jest czytany (bez `ReadJoyPort`).
 
-Klawiatura działa zawsze: strzałki, Ctrl / Z = strzał, **Spacja** / Alt / X = przycisk 2 (skok,
-w lotach broń), 1 / 2 = start, 5 / 6 = moneta, P = pauza, F3 = reset, Esc = wyjście. Wersja PC:
+Klawiatura działa zawsze, od 0.9.3 według **standardu klawiszy** z `PORTING_PLAN.md`: strzałki =
+ruch, **Z** = przycisk 1 (strzał), **X** = przycisk 2 (skok, w lotach broń), **P** = pauza; do tego
+1 / 2 = start, 5 / 6 = moneta, F3 = reset, F10 = zapis stanu, Esc = wyjście. Zamienniki Ctrl / Alt /
+Spacja usunięte; Spacja zostaje tylko przy `CONTROL=JOY1` jako drugi przycisk joysticka. Od 0.9.4
+klawiatura jak joystick przy JOY1: strzałka w górę na piechotę = skok (`xain_on_foot`), w lotach tylko
+ruch; **Y** = przycisk 2 (dodatkowa broń); X dalej przycisk 2. Wersja PC:
 tylko klawiatura (obsługa pada SDL usunięta), te same klawisze. Tool Types ikony: `CONTROL=JOY1`,
 `(CONTROL=JOY2)`, `(CONTROL=KEYBOARD)`.
 

@@ -115,13 +115,15 @@ static uint8_t sub_read(void *ctx, uint16_t a)
     return 0x00;
 }
 
-/* DIFFICULTY=EASY (not the original): half the damage on foot. The sub CPU damages the player in
+/* DIFFICULTY=EASY / VERYEASY (not the original): half / a quarter of the damage on foot
+   (easy_damage 1 / 2). The sub CPU damages the player in
    bank 1 7015 (through FE36 -> FF00: STB $3000 bank 1, JSR $7000, STB $3000 bank 0): when the
    player touches the object it subtracts the damage on the stack from the health <$56 (low 6
    bits, full = 10; 0 = dead: $1073 bit 0), else sets bit 7 (redraw the bar) and bit 6 (the
    side). At the bank 1 write (PC FF05) 16 is added to the health, so that the routine itself
    never kills; at the bank 0 write (PC FF0D) the damage is the difference, and only half of it
-   counts (dmg_acc: 1 point every second hit). Health 0 at the entry (the ship) is left alone */
+   (a quarter) counts (dmg_acc: a damage of 1 counts every second (fourth) hit). Health 0 at the
+   entry (the ship) is left alone */
 #define RAM_HEALTH 0x56
 #define RAM_DEAD 0x1073
 static void easy_damage(Xain *x, uint8_t v)
@@ -134,12 +136,13 @@ static void easy_damage(Xain *x, uint8_t v)
             *h = (uint8_t)(*h + 16);
         }
     } else if (x->dmg_active) {
-        int before = x->dmg_entry & 0x3f, after = *h & 0x3f, d, left;
+        int before = x->dmg_entry & 0x3f, after = *h & 0x3f, d, left, div;
         x->dmg_active = 0;
         if (x->sub.pc != 0xff0d) return;
         d = before + 16 - after;
         if (d <= 0) { *h = x->dmg_entry; return; }               /* not touched */
-        left = before - ((x->dmg_acc + d) / 2 - x->dmg_acc / 2);
+        div = x->easy_damage >= 2 ? 4 : 2;
+        left = before - ((x->dmg_acc + d) / div - x->dmg_acc / div);
         x->dmg_acc = (x->dmg_acc + d) & 0xff;
         if (after == 0 || left <= 0) {
             *h = 0;

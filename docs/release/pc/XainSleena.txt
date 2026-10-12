@@ -1,0 +1,86 @@
+XAIN'D SLEENA - automat Technos (1986) na PC (Windows)
+======================================================
+
+Lowca nagrod Xain wyrusza na piec planet opanowanych przez wroga.
+Na kazdej planecie walczy na piechote (skacze, strzela, na koncu
+pokonuje straznika bazy), miedzy planetami leci statkiem przez kosmos.
+Na mapie wybiera sie, na ktora planete leciec.
+
+To nie jest przerobka, tylko emulator automatu: program wykonuje
+oryginalne ROM-y (trzy procesory 6809, mikrokontroler 68705, dwa uklady
+dzwieku YM2203), wiec gra zachowuje sie dokladnie jak automat.
+ROM-ow nie ma w paczce - trzeba je miec samemu (patrz nizej).
+
+
+CO JEST POTRZEBNE
+-----------------
+
+ROM-y automatu: zestaw MAME "xsleena" (Xain'd Sleena, World), czyli
+plik xsleena.zip albo katalog xsleena z plikami. Wersje bootleg
+(xsleenab, xsleenaba) i japonska nie sa obslugiwane.
+
+Windows 10 lub nowszy (64 bit).
+
+
+JAK ZACZAC
+----------
+
+1. Rozpakuj XainSleena_PC.zip.
+2. Poloz xsleena.zip obok XainSleena.exe (albo w podkatalogu roms
+   lub rom).
+3. Uruchom XainSleena.exe.
+4. Strzalka w lewo = gra dla 1 gracza, w prawo = gra dla 2 graczy
+   (monety wrzucaja sie same).
+
+
+STEROWANIE (tylko klawiatura)
+-----------------------------
+
+    strzalki          ruch; strzalka w gore na piechote = skok,
+                      w statku tylko ruch w gore (jak joystick)
+    Z                 ogien 1: strzal
+    Y                 w statku: dodatkowa bron
+    X                 ogien 2: skok / dodatkowa bron (zapasowo)
+    1 / 2             start 1 / 2 graczy
+    5 / 6             moneta (przy -arcade)
+    P                 pauza (P jeszcze raz = gra dalej)
+    F3                reset automatu
+    Esc               koniec
+
+Po utracie ostatniego zycia pojawia sie napis PRESS FIRE TO CONTINUE:
+strzal = gra dalej od tego miejsca.
+Gdy gra dwoch graczy, graja na zmiane ta sama klawiatura.
+
+
+USTAWIENIA
+----------
+
+Opcje w linii polecen (albo w skrocie do programu: Wlasciwosci ->
+Element docelowy), np.:
+
+    XainSleena.exe -scale 4 -lives 6 -easy
+
+  -scale N     wielkosc okna (domyslnie 3)
+  -lives N     liczba zyc: 3, 4, 6 albo inf (nieskonczone)
+  -easy        na piechote trafienia zabieraja o polowe mniej z paska
+               DAMAGE GAGE (nie ma tego w oryginale)
+  -veryeasy    na piechote trafienia zabieraja 4 razy mniej
+  -arcade      jak automat: monety klawiszami 5 / 6, start 1 / 2
+  -nosound     bez dzwieku
+  -rompath DIR gdzie szukac ROM-ow (gdy nie leza przy grze)
+
+
+GDY COS NIE DZIALA
+------------------
+
+- Okienko "Cannot load the ROMs": sprawdz, czy xsleena.zip lezy obok
+  programu albo w podkatalogu roms / rom, albo podaj -rompath. Musi to
+  byc zestaw xsleena z MAME (z plikiem pz-0.113).
+- Program sie nie uruchamia: obok XainSleena.exe musi lezec SDL2.dll.
+
+
+Numer wydania: w tytule okna i na ekranie startu (RELEASE x.y.z). Co
+sie zmienilo w kolejnych wydaniach: XainSleena_release.txt. Zglaszajac
+blad, podaj numer wydania.
+
+Dla programistow: opis wszystkich parametrow w XainSleena_dev.txt.

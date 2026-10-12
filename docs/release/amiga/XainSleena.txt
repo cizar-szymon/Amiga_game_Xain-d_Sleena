@@ -1,5 +1,5 @@
-XAIN'D SLEENA - automat Technos (1986) na Amige i PC
-====================================================
+XAIN'D SLEENA - automat Technos (1986) na Amige
+===============================================
 
 Lowca nagrod Xain wyrusza na piec planet opanowanych przez wroga.
 Na kazdej planecie walczy na piechote (skacze, strzela, na koncu
@@ -19,16 +19,14 @@ ROM-y automatu: zestaw MAME "xsleena" (Xain'd Sleena, World), czyli
 plik xsleena.zip albo katalog xsleena z plikami. Wersje bootleg
 (xsleenab, xsleenaba) i japonska nie sa obslugiwane.
 
-Amiga: AmigaOS 3.1 lub nowszy (sprawdzone na 3.2), procesor 68060,
-karta graficzna z Picasso96 (dziala tez bez karty, ale wolno), ok.
-4 MB wolnej pamieci Fast. Pelne tempo gry: 68060 ok. 100 MHz (np. Warp
-1260 przyspieszony do 100 MHz). Przy 50 MHz gra chodzi wolniej.
-
-PC: Windows 10 lub nowszy (64 bit).
+AmigaOS 3.1 lub nowszy (sprawdzone na 3.2), procesor 68060, karta
+graficzna z Picasso96 (dziala tez bez karty, ale wolno), ok. 4 MB
+wolnej pamieci Fast. Pelne tempo gry: 68060 ok. 100 MHz (np. Warp 1260
+przyspieszony do 100 MHz). Przy 50 MHz gra chodzi wolniej.
 
 
-JAK ZACZAC (AMIGA)
-------------------
+JAK ZACZAC
+----------
 
 1. Rozpakuj XainSleena_Amiga.lha, np. do Work:Games.
 2. Poloz xsleena.zip (albo katalog xsleena) w szufladzie XainSleena
@@ -38,32 +36,27 @@ JAK ZACZAC (AMIGA)
    (monety wrzucaja sie same).
 
 
-JAK ZACZAC (PC)
----------------
-
-1. Rozpakuj XainSleena_PC.zip.
-2. Poloz xsleena.zip obok XainSleena.exe (albo w podkatalogu roms).
-3. Uruchom XainSleena.exe. Strzalka w lewo = 1 gracz, w prawo =
-   2 graczy.
-
-
 STEROWANIE
 ----------
 
-  Amiga - joystick w porcie joysticka (ustawienie CONTROL=JOY1):
+  Joystick w porcie joysticka (ustawienie CONTROL=JOY1, jak w ikonie):
     joystick          ruch
     ogien             strzal
     do gory           na piechote: skok, w statku: ruch w gore
-    Spacja            w statku: dodatkowa bron (na piechote: skok)
+    Spacja            drugi przycisk joysticka (jak X): w statku
+                      dodatkowa bron (na piechote skok)
 
-  Klawiatura (Amiga i PC):
-    strzalki          ruch
-    lewy Ctrl albo Z  strzal
-    Spacja, Alt, X    skok (na piechote) / dodatkowa bron (w statku)
+  Klawiatura:
+    strzalki          ruch; strzalka w gore na piechote = skok,
+                      w statku tylko ruch w gore (jak joystick)
+    Z                 ogien 1: strzal
+    Y                 w statku: dodatkowa bron
+    X                 ogien 2: skok / dodatkowa bron (zapasowo)
     1 / 2             start 1 / 2 graczy
     5 / 6             moneta (przy START=ARCADE)
-    P                 pauza
+    P                 pauza (P jeszcze raz = gra dalej)
     F3                reset automatu
+    F10               zapis stanu gry do zgloszenia bledu (patrz nizej)
     Esc               koniec
 
 Po utracie ostatniego zycia pojawia sie napis PRESS FIRE TO CONTINUE:
@@ -71,8 +64,8 @@ ogien = gra dalej od tego miejsca.
 Gdy gra dwoch graczy, graja na zmiane tym samym joystickiem.
 
 
-USTAWIENIA (AMIGA)
-------------------
+USTAWIENIA
+----------
 
 Ustawienia zmienia sie w ikonie: zaznacz ikone XainSleena, z menu
 wybierz Ikona -> Informacje i popraw liste "Tool types". Wpis
@@ -90,7 +83,11 @@ i uruchom gre od nowa.
   DIFFICULTY=NORMAL    jak automat (tak jest w ikonie)
   DIFFICULTY=EASY      na piechote trafienia zabieraja o polowe mniej
                        z paska DAMAGE GAGE (nie ma tego w oryginale)
-  CONTROL=JOY1         joystick z jednym przyciskiem (tak jest w ikonie)
+  DIFFICULTY=VERYEASY  na piechote trafienia zabieraja 4 razy mniej
+                       (nie ma tego w oryginale)
+  CONTROL=JOY1         joystick z jednym przyciskiem, drugi przycisk
+                       to SPACJA; do gory = skok na piechote (tak jest
+                       w ikonie)
   CONTROL=JOY2         joystick / pad z dwoma przyciskami: drugi
                        przycisk = skok i dodatkowa bron, do gory
                        tylko rusza
@@ -104,47 +101,35 @@ i uruchom gre od nowa.
 Mozna tez z Shella, np.:   XainSleena SCREEN=WINDOW SCALE=2 LIVES=6
 
 
-USTAWIENIA (PC)
----------------
-
-Opcje w linii polecen (albo w skrocie do programu), np.:
-
-    XainSleena.exe -scale 4 -lives 6 -easy
-
-  -scale N     wielkosc okna (domyslnie 3)
-  -lives N     3, 4, 6 albo inf
-  -easy        jak DIFFICULTY=EASY
-  -arcade      jak START=ARCADE
-  -nosound     bez dzwieku
-
-
 DZWIEK
 ------
 
-Dzwiek jest emulowany (dwa YM2203 i procesor dzwieku), co na Amidze
-zabiera sporo czasu procesora: przy 68060/100 MHz z dzwiekiem gra
-chodzi ok. 25-40 klatek/s zamiast 57. Szybszy jest dzwiek z sampli:
-plik XainSleena.snd (nagrany z wlasnych ROM-ow narzedziem z
-repozytorium portu, opis w XainSleena_dev.txt). Nie ma go w paczce,
-bo pochodzi z ROM-ow. Gdy lezy przy grze, gra uzywa go sama.
-Bez pliku najszybciej: NOSOUND.
+Dzwiek jest emulowany (dwa YM2203 i procesor dzwieku), co zabiera
+sporo czasu procesora: przy 68060/100 MHz z dzwiekiem gra chodzi
+ok. 25-40 klatek/s zamiast 57. Szybszy jest dzwiek z sampli: plik
+XainSleena.snd (nagrany z wlasnych ROM-ow narzedziem z repozytorium
+portu, opis w XainSleena_dev.txt). Nie ma go w paczce, bo pochodzi
+z ROM-ow. Gdy lezy przy grze, gra uzywa go sama. Bez pliku
+najszybciej: NOSOUND.
 
 
 GDY COS NIE DZIALA
 ------------------
 
-- "Cannot load the ROMs" (gra sie nie uruchamia): sprawdz, czy xsleena.zip
-  lezy przy programie albo w podkatalogu rom / roms, albo podaj
-  ROMPATH=. Musi to byc zestaw xsleena z MAME (z plikiem pz-0.113).
+- "Cannot load the ROMs" (gra sie nie uruchamia): sprawdz, czy
+  xsleena.zip lezy przy programie albo w podkatalogu rom / roms, albo
+  podaj ROMPATH=. Musi to byc zestaw xsleena z MAME (z plikiem
+  pz-0.113).
 - Gra za wolna: SCALE=1, NOSOUND, procesor 100 MHz.
 - Brak dzwieku: wpisz SOUND=AHI (albo odwrotnie: usun SOUND=AHI).
-- Gra sie zawiesila (obraz stoi, muzyka gra), Amiga: nacisnij F10 (ekran
-  moze mignac) i wyjdz klawiszem Esc. Plik RAM:XainSleena-state.bin opisuje
-  stan automatu - przyda sie autorom do znalezienia bledu.
+- Gra sie zawiesila (obraz stoi, muzyka gra) albo dzieje sie cos
+  dziwnego: nacisnij F10 (ekran moze mignac) i wyjdz klawiszem Esc.
+  Plik RAM:XainSleena-state.bin opisuje stan automatu - przyda sie
+  autorom do znalezienia bledu. Skopiuj go, zanim wylaczysz Amige.
 
 
 Numer wydania: na ekranie startu (RELEASE x.y.z). Co sie zmienilo
 w kolejnych wydaniach: XainSleena_release.txt. Zglaszajac blad, podaj
-numer wydania i (Amiga) pliki z F10.
+numer wydania i pliki z F10.
 
 Dla programistow: opis wszystkich parametrow w XainSleena_dev.txt.

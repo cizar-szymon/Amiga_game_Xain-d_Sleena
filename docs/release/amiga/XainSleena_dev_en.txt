@@ -70,7 +70,7 @@ NOSOUND
   No sound: the sound CPU and the YM2203 are not emulated at all (nothing
   else reads them, so the rest stays exact).
 
-FMDIV=1|2   [2; PC: 1]
+FMDIV=1|2   [2]
   2: FM output computed every second sample (phases and envelopes at the
   full rate).
 
@@ -96,7 +96,8 @@ CONTROLS
 --------
 
 CONTROL=JOY1|JOY2|KEYBOARD   [JOY1]
-  JOY1: a one button joystick; up = jump, but only while the player is on
+  JOY1: a one button joystick, the second button is Space (the key of
+        arcade button 2); up = jump, but only while the player is on
         foot (RAM: $0039 game running, $0041 = 1 play scene, $0053 bit 7 =
         the ship, $0052 & 0F = 2 moving). In the flying stages up only
         moves, button 2 (Space) = the extra weapon.
@@ -108,9 +109,13 @@ CONTROL=JOY1|JOY2|KEYBOARD   [JOY1]
 JOYPORT=BOTH
   A joystick in the mouse port too.
 
-Keyboard always: cursor keys, Ctrl / Z = button 1, Space / Alt / X =
-button 2, 1 / 2 start, 5 / 6 coin, P pause, F3 reset, F10 save the machine
-state, Esc / close window / Ctrl-C quit.
+Keyboard always (the key standard of all ports): cursor keys move, Z =
+button 1 (shoot), X = button 2 (jump / extra weapon), as the joystick with
+JOY1: up on foot = jump (arcade button 2 while xain_on_foot), in the flying
+stages it only moves, Y = button 2 (extra weapon), P pause, 1 / 2 start,
+5 / 6 coin, F3 reset, F10 save the machine state, Esc / close window /
+Ctrl-C quit. Space = button 2 only with CONTROL=JOY1 (the second button of a
+one button joystick).
 
 
 GAME (options not in the original)
@@ -131,8 +136,9 @@ START=EASY|ARCADE   [EASY]
 LIVES=3|4|6|INF
   DIP switches (DSW1 bits 7-6: C0, 80, 40, 00 = infinite).
 
-DIFFICULTY=NORMAL|EASY   [NORMAL]
-  EASY: half the damage on foot. The health $0056 (bits 0-5, full 10, bit 7
+DIFFICULTY=NORMAL|EASY|VERYEASY   [NORMAL]
+  EASY: half the damage on foot, VERYEASY: a quarter (4 -> 1, a damage of
+  1 counts every fourth hit). The health $0056 (bits 0-5, full 10, bit 7
   redraw the bar, bit 6 the knock-back side) is lowered by the sub CPU in
   bank 1 7015 (through FE36 -> FF00: STB $3000, JSR $7000, STB $3000). At
   the bank write from PC FF05 the emulator adds 16 to the health; at the
@@ -163,7 +169,7 @@ thousands of frames). The emulator does not take the main CPU's IRQ at
 RELEASE NUMBER
 --------------
 
-XAIN_VERSION in port/src/xain.h: the program's $VER, the PC window title and
+XAIN_VERSION in port/src/xain.h: the program's $VER and
 (START=EASY) RELEASE x.y.z on the start screen instead of CREDIT n (text 07
 moved to unused zeros of bank 1 at 7790, the credit count 8188 LDA #$04 /
 JSR $A154 -> LDA #$9E / JSR $80DB (RTS), the ROM sum unchanged). Every release
@@ -194,41 +200,10 @@ All fast paths are exact (compared with the slow ones: memocheck, Lockstep).
 F10: saves the whole machine state (3x 6809, MCU, RAM, registers, YM timers,
 the memo table; portable big endian format, about 21 KB) to
 RAM:XainSleena-state.bin and a short description (CPU PCs, options) to
-RAM:XainSleena-state.txt. On the PC: XainSleena.exe -loadstate FILE.
+RAM:XainSleena-state.txt. The authors load it into the test version.
 Watchdog: when no new frame comes for 3 s, the state of the program's task
 goes to RAM:XainSleena-hang.txt.
 
 Measured on an A1200 (68060 100 MHz, Warp 1260, RTG 16 bit, SCALE=1, demo):
 logic at 57 frames/s (full speed) without sound and with samples, with
 emulated sound (Paula) 25-41 frames/s. At 50 MHz about 2 times slower.
-
-
-PC VERSION (Windows, SDL2)
---------------------------
-
-  XainSleena.exe [options]   (next to SDL2.dll; keyboard only)
-  -rompath DIR        where to look for the ROMs (repeatable); always also
-                      . roms rom ROM and the program's folder
-  -scale N            window magnification [3]
-  -lives N            3, 4, 6 or inf
-  -easy               as DIFFICULTY=EASY
-  -arcade             as START=ARCADE
-  -dsw0 HH -dsw1 HH   DIP switches
-  -nosound            no sound
-  -samples FILE       sound from samples (default XainSleena.snd next to
-                      the program); -emusound forces the emulation
-  -fmdiv N            FM every Nth sample [1]
-  -rate HZ            sound output rate [44100]
-  -wav FILE           also write the sound to a WAV file
-  -loadstate FILE     start from a machine state (Amiga F10)
-  -frames N           quit after N frames
-  -fast               no 57.44 Hz pacing
-  -headless           no window and no sound (tests)
-  -shots DIR LIST     screenshots DIR/frame_NNNNN.bmp (LIST:
-                      100,200,1000-1100/10)
-  -dump DIR LIST      memory dumps (tools/mame_capture.lua format)
-  -script LIST        timed inputs, e.g. "1200:+coin1,1206:-coin1"
-                      (coin1 coin2 start1 start2 up down left right fire
-                      jump p2...)
-  -slice N            interleave quantum in cycles
-  -stats              emulation time per frame every 2 s
