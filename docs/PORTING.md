@@ -735,3 +735,32 @@ każdej maszyny – `Lockstep`), następne są odtwarzane bez rdzenia. Wyłącza
 głównego i pomocniczego CPU oraz RAM MCU identyczne po każdej klatce. Odtwarzanych kwantów:
 **144 z 272 na klatkę** (98% trafień w tablicy). ⏳ Pomiar na A1200 (100 MHz, `STATS=FULL`
 z `MEMO=OFF` i bez) i `Lockstep` – Amiga niedostępna.
+
+**Lista sprite'ów głównego CPU przetłumaczona na C (punkt 2, 12.10.2026).** `DCEC`/`DD48`
+(ok. 27% instrukcji głównego CPU) działa przy włączonych przerwaniach (FIRQ co 16 linii, NMI)
+i trwa ok. 25 kwantów, a CPU pomocniczy w tym czasie zmienia obiekty we wspólnym RAM – wersja
+„natywna na raz” zmieniłaby przeplot i grę. Dlatego tłumaczenie instrukcja po instrukcji:
+`tools/gen_sprites_c.py` czyta ROM (`DCEC`–`DE88`) i tworzy `port/src/m6809_spr.inc`
+(dołączany na końcu `m6809.c`): jeden `case` na adres, argumenty i adresy wyliczone, flagi i
+stos przez te same funkcje co rdzeń C (`f8`/`f16`, `push_regs`, `pull_regs`, `tfr_read`/
+`tfr_write`, `cond`, `gosub`, `RD`/`WR`), po instrukcji `icount`/`total` o zmierzoną liczbę cykli
+(`tools/spritecyc.c` → `tools/sprites_cycles.txt`, para adres → następny adres, bez rozrzutu;
+brakujący wariant skoku warunkowego wyliczany jak w rdzeniu: `Bcc` tak samo, `LBcc` +1 przy
+skoku). Zatrzymanie na granicy każdej instrukcji (koniec kwantu), zapis pod adres bez pamięci
+i instrukcja bez zmierzonych cykli oddają sterowanie rdzeniowi (4 z 205 nigdy niewykonane).
+`run_main`: kwant zaczynający się w `DCEC`–`DE88` bez czekającego przerwania idzie przez
+`m6809_run_spr`, reszta kwantu po wyjściu z procedury – rdzeń. Wyłączane `hle_sprites = 0`
+(Amiga `HLE=OFF`). Sprawdzenie `tools/memocheck.c` (maszyna bez obu skrótów kontra z nimi,
+także `ONLY_HLE=1`): 12 000 klatek identycznych po każdej klatce. W rozgrywce ok. 23 kwanty na
+klatkę przez kod przetłumaczony.
+
+**Pomiar obu zmian na A1200 (060/100 MHz, `SCALE=1`, demo, 12.10.2026).** `Lockstep` 3000 klatek
+(rdzeń C kontra asm, oba ze skrótami) identyczny. Tempo (`STATS`, logika / rysowane w drugiej
+połowie dema): bez obu 57,2–57,7 / 17–29; tylko kwanty z tablicy (`HLE=OFF`) 57,1–57,7 / 19–33;
+z przetłumaczoną listą sprite'ów 50,9–59,3 / 13–23 – **wolniej**. Kod C z vbcc (rejestry 6809 w
+pamięci, wywołania `f8`/`RD`/`WR`) jest wolniejszy od rdzenia asm (rejestry 6809 w rejestrach
+68060). Tłumaczenie zostaje, ale domyślnie wyłączone (`hle_sprites = 0`, Amiga `HLE=ON` do
+testów); zysk dałoby dopiero tłumaczenie na asm 68k w stylu rdzenia (`gen_6809_68k.py`).
+`STATS=FULL` nie pokazał różnic (A 15% w obu wariantach w przewijaniu). Kompilacja: jako część
+`m6809.c` vbcc `-O2`/`-O3` trwał wiele minut (wklejanie funkcji pomocniczych 200 razy) – dlatego
+osobny plik `m6809_spr.c`, funkcje po 24 instrukcje (`-O3` 5 s).

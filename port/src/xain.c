@@ -193,6 +193,7 @@ void xain_init(Xain *x)
     x->slice = 96;                                      /* one scanline; see docs/PORTING.md */
     x->idle_skip = 1;
     x->slice_memo = 1;
+    x->hle_sprites = 0;                                 /* slower than the asm core on the 68060 */
     x->sound_cpu = 1;
     xain_reset(x);
 }
@@ -346,6 +347,16 @@ static void run_main(Xain *x, int32_t cycles)
     M6809 *c = &x->main;
     XainSliceMemo *e;
     uint32_t total0, skipped0;
+    if (x->hle_sprites && c->pc >= 0xdcec && c->pc < 0xde89 && !c->hook && !c->waiting && !c->freerun &&
+        !c->nmi_pending && !(c->firq_line && !(c->cc & M6809_CC_F)) && !(c->irq_line && !(c->cc & M6809_CC_I))) {
+        /* in the sprite list routine: the translated code, the rest of the slice on the core */
+        c->icount += cycles;
+        m6809_run_spr(c);
+        x->spr_slices++;
+        if (c->icount > 0)
+            x->cpu_run(c, 0);
+        return;
+    }
     if (!x->slice_memo || !main_in_wait(x)) {
         x->cpu_run(c, cycles);
         return;

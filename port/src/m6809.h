@@ -94,6 +94,9 @@ int m6809_layout_ok(void);
 
 /* the assembler core (68k): the same as m6809_run */
 int32_t m6809_run_asm(M6809 *cpu, int32_t cycles);
+/* Xain'd Sleena main CPU: runs the translated sprite list routine DCEC-DE88 while PC is in it and
+   cycles are left (icount > 0); no interrupt may be pending (the caller checks). Exact. */
+void m6809_run_spr(M6809 *cpu);
 /* used by the assembler core */
 uint32_t m6809_rd_slow(M6809 *cpu, uint32_t addr);
 void m6809_wr_slow(M6809 *cpu, uint32_t addr, uint32_t data);

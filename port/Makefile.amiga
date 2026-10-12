@@ -18,7 +18,7 @@ OUT      := ../build/amiga
 CFLAGS   := +aos68k_win -c99 -cpu=68060 -O3 -speed \
             -Isrc -I$(NDK) -I$(AHI) -I$(AMIGA_DEV)/p96inc
 
-CORE     := src/m6809.c src/m6809_68k.s src/m6805.c src/mcu68705.c src/ym2203.c src/ym2203_68k.s src/xain.c src/video.c src/video_68k.s src/romload.c src/sndplay.c
+CORE     := src/m6809.c src/m6809_spr.c src/m6809_68k.s src/m6805.c src/mcu68705.c src/ym2203.c src/ym2203_68k.s src/xain.c src/video.c src/video_68k.s src/romload.c src/sndplay.c
 HEADERS  := $(wildcard src/*.h)
 
 all: $(OUT)/XainSleena $(OUT)/XainTest $(OUT)/Lockstep $(OUT)/YmBench $(OUT)/CpuTest6809 $(OUT)/RenderBench $(OUT)/CpuBench

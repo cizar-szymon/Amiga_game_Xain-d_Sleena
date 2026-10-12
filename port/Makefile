@@ -11,7 +11,7 @@ SDL_CFLAGS := $(shell pkg-config --cflags sdl2)
 SDL_LIBS   := $(shell pkg-config --libs sdl2) -mconsole
 HEADERS  := $(wildcard src/*.h)
 
-CORE     := src/m6809.c src/m6805.c src/mcu68705.c src/ym2203.c src/xain.c src/video.c src/romload.c src/sndplay.c
+CORE     := src/m6809.c src/m6809_spr.c src/m6805.c src/mcu68705.c src/ym2203.c src/xain.c src/video.c src/romload.c src/sndplay.c
 
 all: $(OUT)/xainsleena.exe $(OUT)/SDL2.dll $(OUT)/trace6809.exe $(OUT)/trace6805.exe $(OUT)/xain_test.exe $(OUT)/ymbench.exe $(OUT)/renderbench.exe
 
