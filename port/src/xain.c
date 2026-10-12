@@ -82,6 +82,7 @@ static void main_write_io(Xain *x, uint16_t a, uint8_t v)
     case 0x3a08:
         x->soundlatch = v;
         x->snd.irq_line = 1;                            /* data pending -> sound IRQ */
+        if (x->sound_cmd) x->sound_cmd(x->sound_ctx, v);
         break;
     case 0x3a09: m6809_set_nmi(&x->main, 0); break;
     case 0x3a0a: x->main.firq_line = 0; break;
@@ -410,8 +411,9 @@ int xain_take_audio(Xain *x, int16_t *dst, int max, int rate)
     uint32_t end = x->ym[0].out_pos;
     int n = 0;
     if (!x->sound) return 0;
-    if (end - x->audio_pos > XAIN_YMBUF / 2) x->audio_pos = end - XAIN_YMBUF / 2;   /* overrun */
-    while (n < max && end - x->audio_pos >= 2) {
+    /* signed distances: below rate FM/2 one output sample can step past `end` (by one) */
+    if ((int32_t)(end - x->audio_pos) > XAIN_YMBUF / 2) x->audio_pos = end - XAIN_YMBUF / 2;   /* overrun */
+    while (n < max && (int32_t)(end - x->audio_pos) >= 2) {
         uint32_t i0 = x->audio_pos & (XAIN_YMBUF - 1), i1 = (x->audio_pos + 1) & (XAIN_YMBUF - 1);
         int32_t a = x->ymbuf[0][i0] + x->ymbuf[1][i0];
         int32_t b = x->ymbuf[0][i1] + x->ymbuf[1][i1];

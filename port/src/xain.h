@@ -81,6 +81,9 @@ struct Xain {
     int sound;                          /* 0 = timers only (no synthesis) */
     int sound_cpu;                      /* 0 = the sound CPU and the YM2203 not emulated at all (no
                                            sound; nothing else reads them, so the rest is exact) */
+    /* every write to the sound latch (3A08), e.g. for sound from samples (sndplay.c); NULL = off */
+    void (*sound_cmd)(void *ctx, uint8_t cmd);
+    void *sound_ctx;
 
     /* renderer callback: draw scanline y (MAME screen y, 8..247) with the current state */
     void (*render_line)(void *ctx, Xain *x, int y);

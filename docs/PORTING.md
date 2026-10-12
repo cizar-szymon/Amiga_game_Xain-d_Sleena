@@ -19,6 +19,7 @@ Plan ogólny: `C:\Workprojects\AmigaGAMES\PORTING_PLAN.md`.
 | 7 | Wersja na PC (SDL2, `main_sdl.c`): od tytułu do game over, zgodna ze wzorcem | ✅ obraz i dźwięk; ok. 1,4 ms na klatkę; ⏳ gra przez użytkownika |
 | 8 | Wersja na Amigę (`main_amiga.c` z Vastar) | ✅ działa na A1200, wynik identyczny z PC co do bajtu (rozdział 11); 2,3 kl./s przy 68060/50 – punkt wyjścia fazy 4; ⏳ joystick i dźwięk do oceny po przyspieszeniu |
 | 9 | Optymalizacja: rdzeń 6809 w asm 68k (generator wzorem `gen_z80_68k.py`), renderer przyrostowy, FM | ⏳ 2,3 → 13–17 kl./s z dźwiękiem, ok. 20 bez (rozdział 12); rdzeń asm: Lockstep 5000 klatek identyczny |
+| 9b | Dźwięk z sampli zamiast emulacji (rozdział 13): polecenia z zatrzasku `3A08` → sample (`sndplay.c`) przez Paulę/AHI | ✅ pierwsza wersja PC i A1200: 060/50 tempo jak bez dźwięku (33–54 kl./s); ⏳ odsłuch przez użytkownika |
 | 10 | Wydanie: ikona, Tool Types, opisy PL/EN | ⏳ |
 
 ## 2. Materiały (skąd co jest)
@@ -441,6 +442,48 @@ nadal przez `idx_XX` (`jsr`/`rts`). `CpuBench`: mieszanka 5,43 → **6,41 MHz** 
 `Lockstep` 5000 klatek bez różnic. W grze (demo) w granicach rozrzutu pomiaru: bez dźwięku
 28–34,5 kl./s, z dźwiękiem 16,7–20 (6809 to tylko ok. 25–40% czasu klatki).
 
+**Pomiar po trybach indeksowych (12.10.2026, AmiAgent, demo 4–50 s, okno `SCALE=2`, BLIT+M16,
+`FRAMESKIP` automatyczne).** W tytule `fps` = klatki logiki/s, `drawn` = klatki narysowane/s:
+
+| Zegar | Opcje | logika kl./s | narysowane/s |
+|---|---|---|---|
+| 100 MHz | `STATS NOSOUND` | **56–58,6 (pełne tempo)** | 14–44 (przewijanie 14–16) |
+| 100 MHz | `STATS=FULL NOSOUND` | 41,6–57,4 | 10–21 |
+| 100 MHz | `STATS` (Paula) | 24,8–40,9 | 6–10 |
+| 50 MHz | `STATS NOSOUND` | 32,9–54 (przewijanie ok. 37) | 9–13 |
+| 50 MHz | `STATS=FULL NOSOUND` | 26,9–37,5 | 7–10 |
+| 50 MHz | `STATS=FULL` (Paula) | 14,0–16,4 | 5 |
+
+Podział przy 50 MHz w przewijaniu (`STATS=FULL`, % czasu):
+- bez dźwięku: emu 53 (A16 B9 S1–2 YM1–2 MCU11), render 11, present 30;
+- z dźwiękiem: emu 68 (A9 B5 **S11 YM26–27** MCU7), render 7, present 19.
+
+Present na narysowaną klatkę: porównanie 5–6 ms (ok. 7–8 ms także przy 0 zmienionych blokach),
+przeliczenie 16–18 ms, zapis do VRAM 13–15 ms, blit 1 ms.
+
+Wnioski:
+- `STATS=FULL` sam zabiera dużo czasu (przy 100 MHz: 57 → 42–57 kl./s), więc do porównywania
+  tempa używać `STATS`, a `STATS=FULL` tylko do podziału czasu.
+- Z dźwiękiem procesor dźwięku i YM2203 zajmują ok. 40% czasu. To największa pozycja.
+- Bez dźwięku przy przewijaniu największe jest wysyłanie obrazu `SCALE=2` (ok. 37 ms na klatkę).
+
+**Okno czy pełny ekran (50 MHz, `STATS NOSOUND`, demo).** Przy przewijaniu (ok. 10–15 s):
+
+| Wariant | logika kl./s | narysowane/s |
+|---|---|---|
+| okno `SCALE=2` (512×480) | ok. 37 | 10 |
+| `SCREEN=FULL SCALE=2` (tryb 640×480 16 bit) | 37,1–37,9 | 10 |
+| okno `SCALE=1` (256×240) | 42,3–43,7 | 11 |
+| `SCREEN=FULL SCALE=1` (tryb 320×240 16 bit) | 42,5 | 11 |
+
+Pełny ekran nie daje nic ponad okno, bo droga obrazu jest ta sama (bitmapa na karcie i blit).
+Liczy się tylko ilość danych: `SCALE=1` jest o ok. 15% szybsze. `SCREEN=FULL SCALE=1` w trybie
+320×240 daje duży obraz (powiększa monitor albo scaler) przy koszcie `SCALE=1`.
+
+Przy 100 MHz `SCREEN=FULL SCALE=1 STATS NOSOUND`: logika **57,0–57,7 kl./s (pełne tempo)**,
+narysowane 19–32/s (okno `SCALE=2`: 14–23/s w tych samych miejscach dema), w początkowej scenie
+bez przewijania 50/s.
+
 Renderer na A1200 sprawdzony `XAIN_CHECK` (porównanie z wzorcowym w każdej klatce): 0 różnic
 w 3000 klatkach `play1`, sumy kontrolne klatek 1600–2900 identyczne z PC.
 
@@ -545,3 +588,116 @@ YM 37%, MCU 10%; bez dźwięku A 19%, B 14%, dźwięk 13%, YM (liczniki) 8%, MCU
 Dalej: synteza YM2203 (największy koszt), rdzeń MCU, koszt wywołań C przy pętlach oczekiwania,
 pętla opóźnienia CPU dźwięku `8810`. Wariant „próbki zamiast YM2203” odłożony; gdyby powstał –
 tylko przez AHI (decyzja użytkownika).
+
+## 13. Dźwięk z sampli (zamiast emulacji procesora dźwięku i YM2203)
+
+Decyzja użytkownika (12.10.2026): emulacja dźwięku zabiera ok. 40% czasu 68060/50 (S 11% + YM
+26–27%), więc procesor dźwięku i oba YM2203 nie będą emulowane. Gra pisze polecenie do
+zatrzasku `3A08`; port odgrywa dla niego gotowy sampel na kanałach Pauli (AHI jako opcja).
+Muzyka w kółko, efekty jako sample. Sample 8 bit, **15 977 Hz** (okres Pauli 222), generowane
+**na PC** z ROM-ów użytkownika (nie do rozpowszechniania, jak ROM-y). Emulacja zostaje jako opcja
+(`SOUND=EMU`) do porównań. Koszt na Amidze: Paula przez DMA, procesor tylko przy poleceniach
+i dopisywaniu muzyki do Chip RAM – poniżej 1%.
+
+**Program dźwiękowy** (ROM `p2-0.ic49`, disassembly `unidasm -arch m6809`): IRQ `8816` czyta
+zatrzask (`$1000`), FIRQ `8E62` to tik z timera YM #1 (ok. 868/s), pętla główna `800B`.
+- Polecenia `01`–`3B` (bit 7 = 0) to muzyka (tablica `8F7B`), `80`–`BC` efekty, `FF` / `FE` /
+  `FD` / `F0`–`FE` zatrzymanie (wszystko / efekty / oba / jeden kanał). `3C`–`7F` i `BD`–`EF`
+  są ignorowane.
+- `$02`–`$0D`: polecenie grające na każdym z 12 kanałów (6 FM + 6 SSG). Polecenie równe `$02`
+  jest pomijane – dlatego gra może wysyłać `09` w każdej klatce (muzyka już gra).
+- Kanał c: wskaźnik sekwencji = baza `$0F+2c` + przesunięcie `$27+2c`, liczniki `$3F+4c`.
+  Kanały nieużywane liczą bez końca (`$4F`–`$6E`), osobne odliczanie `$ED`, `$102`–`$104`, więc
+  stan RAM całego programu nigdy się nie powtarza – pętli szuka się po kanałach.
+- Demo + rozgrywka (`build/probe/sndcmd.c`, 9000 klatek): `FD` (start), `01`, `81` (moneta),
+  `FF`, `0F` (start etapu), `09` (muzyka etapu, co klatkę), `8A` (strzał, przycisk 1), `88`
+  (druga broń), `89` (jej wybuch), `85`, `8B`, `8C`, `90`, `97`, `A8`, `B5`, `B8`, `19`.
+
+**Nagrania (`tools/sndrip.c`, budowa `sh tools/mksndrip.sh`):** tylko procesor dźwięku i YM2203,
+reset, 60 klatek ciszy, polecenie, nagranie do 3 s ciszy albo 300 s; obok WAV stan RAM przy
+każdej zmianie wskaźników (`cmd_XX.state`). Wszystkie 121 poleceń w 8 min. Efekty 0,1–7 s;
+utwory i część efektów (`86`, `97`, `99`, `9C`, `A2`, `A4`, `AA`, `AE`, `AF`, `B1`, `B9`, `BA`)
+grają dłużej niż 300 s.
+
+**Pętle (`tools/snd_loop.py`):** kanały mają pętle różnej długości (np. `02`: bas/perkusja co
+3,98 s, melodia co 14,56 s – nie jest to wielokrotność, więc dokładna pętla całości nie istnieje).
+Pętlę wyznaczają kanały, które skaczą wstecz najrzadziej (melodia): para tików z tym samym
+wskaźnikiem i licznikami tych kanałów, potwierdzona tym, że energia dźwięku w blokach 20 ms po
+końcu pętli powtarza tę po początku aż do końca nagrania (błąd bliski najmniejszemu, potem
+najkrótszy okres). Wyniki m.in.: `09` 0,31–37,47 s (błąd 0,04), `03` 52,17 s, `02` 60,0–103,7 s
+(43,67 s; bas na złączeniu przesunięty o ok. 0,1 s), `07` 39,81 s, `0A` 58,83 s. Do sprawdzenia:
+pętle zaczynające się późno (`04` 95 s, `0E` 242 s, `11` 125 s, `A2` 193 s) i długie efekty bez
+pętli (ciągły dźwięk – pętla krótkiego wycinka).
+
+**Polecenia używane przez grę (`tools/snd_calls.py`, listingi `unidasm` w `build/snddis`):**
+główny procesor pisze do zatrzasku wprost (`$9F81`, w demie tylko gdy DIP „dźwięk w demie”) albo
+wysyła kolejkę `$7E`/`$80` (do 4 poleceń, `$9D04`), do której dopisuje procesor pomocniczy
+(`$4741`, wektor `$FE45`). Wartości wpisane w kod i tabele:
+- muzyka: `01`, `02`–`09`, `0B` (tabele `$8203`: `06 09 08 04 02 05 01 0B` i `$8235`:
+  `07 04 …` według etapu `<$48`), `0C`, `0D`, `0F`, `12`, `15`, `16`, `17`, `19`, `1A`,
+  `1C`, `1D`;
+- efekty: `81`, `82`, `85`, `88`, `89`, `8A`, `8B`, `8D`, `8E` (strzały według broni, tabela
+  `$5614` w banku 0), `8C`, `8F`, `90` (widziane w grze), `91`, `94`, `96`, `97`, `98`, `99`, `9F`,
+  `A1`, `A2`, `A3`, `A5`, `A8`, `AC`, `B4`, `B5`, `B8`, `BC`; zatrzymanie `FD`, `FE`, `FF`.
+
+Pozostałe polecenia (np. `B9`, `AA`, `AE`) gra najpewniej nie wysyła; odegrane osobno dają
+dziwne dźwięki albo trzymaną nutę bez końca (użytkownik: „sam dziwny szum”). Efekty ciągłe
+używane przez grę (`97`, `99`, `A2`, `86`?) trwają, aż zastąpi je inny efekt na tych samych
+kanałach albo `FE`/`FF`/`FD` – odtwarzacz ma przydzielać kanały według kanałów YM, których
+dany efekt używa (komórki `$02`–`$0D`).
+
+Poprawka przy okazji: `xain_take_audio` przy częstotliwości poniżej połowy FM (41,7 kHz / 2)
+wyprzedzała zapis o próbkę, różnica bez znaku zawijała się i funkcja cofała się o 2048 próbek.
+Przy 22 030 Hz nie występowało; porównania są teraz ze znakiem.
+
+**Pierwsza wersja (12.10.2026).**
+- `tools/snd_loop.py` (nowa wersja): pętla z budowy utworu – okres wzoru skoków każdego kanału
+  grającego do końca (od najwcześniejszego skoku, co najmniej 3 powtórzenia), okres całości =
+  najmniejsza wielokrotność okresu melodii zgodna z pozostałymi kanałami do 0,15 s (do 130 s),
+  początek = najpóźniejszy początek wzoru; gdy to zawiedzie albo pętla kończy się po 150 s –
+  zapasowo okres z energii dźwięku (efekty ciągłe `97`, `99`, `9C`, `A2`, `A4`…). Np. `09`
+  0,17–37,33 s, `02` 74,30–117,98 s, `12` 29,2–138,9 s (melodia 27,43 s × 4 = perkusja 3,54 s × 31).
+- `tools/make_sndpack.py` → `XainSleena.snd`: polecenia używane przez grę + krótkie (do 10 s)
+  pozostałe, 71 poleceń, **18,5 MB** (najdłuższe utwory 110–139 s); filtr górnoprzepustowy
+  ok. 13 Hz (stała składowa SSG), przenikanie 32 ms na złączeniu pętli, 8 bit znormalizowane do
+  szczytu + głośność 0–64 (odtwarza poziom oryginału), wspólne dane identycznych poleceń.
+- `port/src/sndplay.c`: 1 głos muzyki + 5 efektów, mieszane programowo do tej samej ścieżki co
+  emulacja (Paula: okres **222** = 15 977 Hz, 1:1 bez przeliczania; AHI 22 050 Hz z krokiem
+  16.16). Reguły programu dźwiękowego: muzyka, która już gra, jest pomijana; `FF` zatrzymuje
+  muzykę, `FE` efekty, `FD` oba, `F0`–`FB` jeden kanał YM; efekt zastępuje efekty na tych samych
+  kanałach YM (maska z `$02`–`$0D`), inaczej wolny głos albo najstarszy. Muzyka gra dalej pod
+  efektami (w oryginale efekt zabiera muzyce kanały) – świadoma różnica.
+- `xain.c`: `sound_cmd` wywoływane przy każdym zapisie `3A08`; z samplami `sound_cpu = 0`.
+- PC: domyślnie sample, jeśli jest `XainSleena.snd` (obok programu, katalog wyżej, `.`, katalogi
+  ROM), `-samples PLIK`, `-emusound`. Amiga: `SAMPLES=plik`, `EMUSOUND`, plik szukany w
+  `ROMPATH` i `PROGDIR:` (+ `rom`, `roms`, `ROM`), ładowany w całości do Fast RAM.
+- Porównanie `play1` (78 s, PC, sample vs emulacja): obwiednie skorelowane w **0,933**,
+  przesunięcie 10 ms, poziom 81–95%, spektrogramy prawie identyczne. Różnica: po melodii
+  startu etapu (`0F`, ok. 41 s) sampel wybrzmiewa ok. 1 s dłużej.
+- A1200 060/50, okno `SCALE=2`, `STATS`, demo: **32,9–53,9 kl./s z dźwiękiem** (tytuł
+  `Paula smp`) – tyle co bez dźwięku (33–54), wcześniej z emulacją ok. 14–16 (`STATS=FULL`).
+
+Do zrobienia: odsłuch na Amidze przez użytkownika, mniejszy plik (np. ADPCM 4 bit albo krótsze
+pętle), wybrzmiewanie po zatrzymaniu, opcja głośności muzyki względem efektów.
+
+**Koszt dźwięku z sampli (A1200 060/100 MHz, `SCALE=1 STATS=FULL`, demo):** miksowanie
+(`sndplay_mix`, C) + zamiana na 8 bit + wysyłanie do Pauli = **1,4–2,0% czasu** (pomiar `snd` w
+tytule). Emulacja dźwięku zajmowała ok. 40% (przy 50 MHz). Od 12.10.2026 pomiary tylko przy
+100 MHz (decyzja użytkownika).
+
+Poprawki po pierwszym odsłuchu: bufory Pauli napełniane z miksera w czasie rzeczywistym (nie
+„na klatkę” – przy grze wolniejszej niż 57,44 Hz były przerwy), wzmocnienie 3× przed 8 bit
+(muzyka miała ok. 34 poziomy), interpolacja liniowa przy innej częstotliwości (AHI, PC); błąd:
+`sndplay_reset` przy każdym klawiszu (brak klamer przy F3) – muzyka startowała od nowa przy
+ruchu i strzale z klawiatury (znalezione opcją `SNDLOG`, zapis `RAM:XainSleena-snd.txt`).
+
+**Częstotliwość sampli: 22 030 Hz (12.10.2026, decyzja użytkownika).** Porównanie pasma (rozgrywka
+`play1` 48–78 s, udział energii powyżej 8 kHz): emulacja 48 kHz 8,5%, sample 15 977 Hz 1%
+(granica ok. 8 kHz), sample 22 030 Hz 3,4% (8–12 kHz: 2,7% wobec 3,9% w emulacji). Film z
+YouTube (gra, od 2:45) ma ponad 8 kHz 22% i mniej basu – inny tor nagrania, nie wzorzec.
+Odsłuch 8 bit wobec 16 bit (`tools/snd_compare8.py`): bez słyszalnej różnicy; ograniczeniem było
+pasmo, nie bity. Zmiany: skrypty czytają częstotliwość z `sndrip.txt`, Paula gra z okresem
+liczonym z częstotliwości w pliku (22 030 Hz → 161, ten sam co emulacja), bufor 25 ms;
+`snd_loop.py` w metodzie zapasowej bierze najkrótszy okres z błędem bliskim najlepszemu
+(trzymany ton: `97` 3,9 s zamiast 113 s). `XainSleena.snd` 25,6 MB (było 18,5 MB). PC `play1`:
+obwiednie zgodne z emulacją w 0,935. Na A1200 jeszcze nie sprawdzone (Amiga niedostępna).

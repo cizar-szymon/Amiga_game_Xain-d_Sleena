@@ -15,6 +15,9 @@
  *   -wav FILE           also write the sound to a WAV file (mono, 16 bit)
  *   -rate HZ            sample rate of the sound output and the WAV file (default 44100)
  *   -fmdiv N            FM output every Nth sample: 1 = exact (default), 2 = as on the Amiga
+ *   -samples FILE       sound from samples (tools/make_sndpack.py); default: XainSleena.snd
+ *                       next to the program, one or two folders up, in . or in a ROM folder
+ *   -emusound           sound from the emulated sound CPU and YM2203 even if samples exist
  *   -shots DIR LIST     save the screen as DIR/frame_NNNNN.bmp at these frames
  *                       (LIST: 100,200,1000-1100/10); frame N = after N+1 frames, as in MAME
  *   -dump DIR LIST      also save the memory state as DIR/frame_NNNNN.bin (snapinfo.py format)
@@ -35,6 +38,7 @@
 #include "xain.h"
 #include "video.h"
 #include "romload.h"
+#include "sndplay.h"
 
 static Xain machine;
 static Video video;
@@ -45,7 +49,11 @@ static uint32_t rgb[SCREEN_W * SCREEN_H];
 static const char *rompaths[16];
 static int nrompaths;
 static int scale = 3, fast, headless, stats, dsw0 = -1, dsw1 = -1, slice = 0;
-static int nosound, rate = 44100, fmdiv = 1;
+static int nosound, rate = 44100, fmdiv = 1, emusound;
+static const char *samples_path;
+static SndPlay snd;
+static uint8_t *snd_pack;
+static int use_samples;
 static const char *wav_path;
 static FILE *wav_fp;
 static unsigned long wav_bytes;
@@ -157,6 +165,8 @@ static void parse_args(int argc, char **argv)
         else if (!strcmp(a, "-wav")) wav_path = NEXT();
         else if (!strcmp(a, "-rate")) rate = atoi(NEXT());
         else if (!strcmp(a, "-fmdiv")) fmdiv = atoi(NEXT());
+        else if (!strcmp(a, "-samples")) samples_path = NEXT();
+        else if (!strcmp(a, "-emusound")) emusound = 1;
         else if (!strcmp(a, "-script")) parse_script(NEXT());
         else if (!strcmp(a, "-shots")) { shot_dir = NEXT(); shot_count = parse_frames(NEXT(), &shot_frames); }
         else if (!strcmp(a, "-dump")) { dump_dir = NEXT(); dump_count = parse_frames(NEXT(), &dump_frames); }
@@ -214,6 +224,60 @@ static int load_roms(void)
         return 0;
     }
     return 1;
+}
+
+/* ---- sound from samples ---- */
+
+static void snd_cmd(void *ctx, uint8_t cmd)
+{
+    sndplay_command((SndPlay *)ctx, cmd);
+}
+
+static int try_samples(const char *path)
+{
+    FILE *fp = fopen(path, "rb");
+    long size;
+    if (!fp) return 0;
+    fseek(fp, 0, SEEK_END);
+    size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    snd_pack = (uint8_t *)malloc((size_t)size);
+    if (!snd_pack || fread(snd_pack, 1, (size_t)size, fp) != (size_t)size ||
+        sndplay_init(&snd, snd_pack, (uint32_t)size)) {
+        fclose(fp);
+        free(snd_pack);
+        snd_pack = 0;
+        fprintf(stderr, "%s: not a sample file\n", path);
+        return 0;
+    }
+    fclose(fp);
+    printf("sound from samples: %s (%lu commands)\n", path, (unsigned long)snd.ncmds);
+    return 1;
+}
+
+static int load_samples(void)
+{
+    char path[512];
+    int i;
+    if (samples_path)
+        return try_samples(samples_path);
+    {
+        char *base = SDL_GetBasePath();
+        if (base) {
+            static const char *const rel[3] = { "XainSleena.snd", "../XainSleena.snd", "../../XainSleena.snd" };
+            for (i = 0; i < 3; i++) {
+                path_join(path, sizeof path, base, rel[i]);
+                if (try_samples(path)) { SDL_free(base); return 1; }
+            }
+            SDL_free(base);
+        }
+    }
+    if (try_samples("XainSleena.snd")) return 1;
+    for (i = 0; i < nrompaths; i++) {
+        path_join(path, sizeof path, rompaths[i], "XainSleena.snd");
+        if (try_samples(path)) return 1;
+    }
+    return 0;
 }
 
 /* ---- files ---- */
@@ -394,6 +458,14 @@ int main(int argc, char **argv)
     machine.render_ctx = &video;
     if (nosound && !wav_path)
         xain_set_sound(&machine, 0);
+    else if (!emusound && load_samples()) {
+        /* no sound CPU / YM2203: the commands start samples */
+        use_samples = 1;
+        xain_set_sound(&machine, 0);
+        machine.sound_cpu = 0;
+        machine.sound_cmd = snd_cmd;
+        machine.sound_ctx = &snd;
+    }
     xain_set_fm_div(&machine, fmdiv);
     if (rate < 8000 || rate > 96000)
         rate = 44100;
@@ -445,7 +517,7 @@ int main(int argc, char **argv)
                 if (!down || ev.key.repeat) continue;
                 if (k == SDLK_ESCAPE) running = 0;
                 else if (k == SDLK_p) paused = !paused;
-                else if (k == SDLK_F3) xain_reset(&machine);
+                else if (k == SDLK_F3) { xain_reset(&machine); sndplay_reset(&snd); }
             } else if (ev.type == SDL_CONTROLLERDEVICEADDED && !pad) {
                 pad = SDL_GameControllerOpen(ev.cdevice.which);
             }
@@ -460,7 +532,8 @@ int main(int argc, char **argv)
             if (machine.palette_dirty)
                 video_update_palette(&video, &machine);
             {
-                int n = xain_take_audio(&machine, audio, (int)(sizeof audio / sizeof audio[0]), rate);
+                int n = use_samples ? sndplay_frame(&snd, audio, (int)(sizeof audio / sizeof audio[0]), (uint32_t)rate)
+                                    : xain_take_audio(&machine, audio, (int)(sizeof audio / sizeof audio[0]), rate);
                 if (audio_dev && SDL_GetQueuedAudioSize(audio_dev) < (Uint32)rate / 5 * 2)
                     SDL_QueueAudio(audio_dev, audio, (Uint32)n * 2);   /* drop if far ahead */
                 if (wav_fp) {

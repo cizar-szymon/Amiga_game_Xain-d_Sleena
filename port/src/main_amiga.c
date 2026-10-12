@@ -13,6 +13,9 @@
  *         when the Amiga falls behind, n draws one picture of n+1
  *         the ROMs (xsleena.zip from MAME, an xsleena drawer or the loose files) are looked
  *         for in ROMPATH, PROGDIR:, PROGDIR:rom, PROGDIR:roms and PROGDIR:ROM
+ *         [SAMPLES=file] [EMUSOUND]: the sound comes from samples (XainSleena.snd, made on the
+ *         PC with tools/make_sndpack.py, looked for as SAMPLES, in PROGDIR: and the ROM
+ *         drawers); without the file or with EMUSOUND the sound CPU and the YM2203 are emulated
  * Icon:   the same as tool types ("(...)" is switched off)
  *
  * Joystick in port 2: move, fire = fire, second button = jump
@@ -58,6 +61,7 @@
 #include "xain.h"
 #include "video.h"
 #include "romload.h"
+#include "sndplay.h"
 
 const char version[] = "$VER: XainSleena 0.1 (11.10.2026) arcade emulation";
 
@@ -98,6 +102,13 @@ static UBYTE keys[128];
 static int stats, paused, sound = 1;
 static int cpu_c;                     /* CPU=C: 6809 core in C instead of assembler */
 static int fmdiv = 2;                 /* FMDIV=1: FM output at every sample (exact, slower) */
+static int emusound;                  /* EMUSOUND: the sound CPU and YM2203 emulated, not samples */
+static const char *samples_path;      /* SAMPLES=file */
+static int use_samples;               /* sound from XainSleena.snd (sndplay.c) */
+static int sndlog;                    /* SNDLOG: log of the sound commands (testing) */
+static SndPlay snd;
+static UBYTE *snd_pack;
+static ULONG snd_pack_size;
 static int redraw;                    /* REDRAW: every drawn frame sent whole (measurements) */
 static int use_move16 = 1;            /* copies to VRAM in 16 byte bursts (MOVE16=OFF: long moves) */
 static int render_lines;              /* RENDER=LINE: reference renderer during the frame */
@@ -114,6 +125,7 @@ static UWORD *blank_pointer;
 static int ox, oy;                    /* where the picture starts in the window */
 
 static void close_sound(void);
+static void sndlog_write(void);
 static void close_rtg(void);
 static void prof_stage(int stage);
 static uint64_t eclock_now(void);
@@ -235,6 +247,11 @@ static void cleanup(void)
 {
     stop_watchdog();
     close_sound();
+    sndlog_write();
+    if (snd_pack) {
+        FreeVec(snd_pack);
+        snd_pack = NULL;
+    }
     if (timer_req) {
         CloseDevice((struct IORequest *)timer_req);
         DeleteIORequest((struct IORequest *)timer_req);
@@ -974,7 +991,9 @@ static int open_paula(void)
 {
     static UBYTE channels[] = { 3, 5, 10, 12 };
     const ULONG clock = (GfxBase->DisplayFlags & PAL) ? 3546895 : 3579545;
-    const UWORD period = 161;             /* 22030 Hz on PAL, 22233 Hz on NTSC */
+    /* emulation: 161 = 22030 Hz on PAL, 22233 Hz on NTSC; samples: the period of their rate
+       (22030 Hz: 161 on PAL), so they play 1:1 */
+    const UWORD period = use_samples ? (UWORD)((clock + snd.rate / 2) / snd.rate) : 161;
     ULONG units;
     int b, c;
 
@@ -1067,6 +1086,45 @@ static void paula_push(void)
         for (i = 0; i < n; i++)
             aud_buf[b][i] = (BYTE)(snd_ring[ring_r++ % SND_RING] >> 8);
         paula_send(b, n);
+    }
+}
+
+/*
+ * Sound from samples: the buffers are filled straight from the mixer when the hardware has
+ * played them, not per emulated frame, so the sound keeps its pace when the game is slower
+ * than 57.44 Hz. Paula: buffers of SMP_BUF samples (25 ms, 3 queued = 75 ms latency at most);
+ * 8 bit with gain SMP_GAIN and clipping (the music peaks at ca. 1/4 of the 16 bit range, so >> 8
+ * alone would leave ca. 34 levels).
+ */
+#define SMP_BUF ((int)(audio_rate / 40) & ~1)     /* 25 ms, at most SND_BUF */
+#define SMP_GAIN 3
+
+static void samples_fill(void)
+{
+    static int16_t mix[SND_BUF];
+    int i;
+    if (sound_mode == SND_PAULA) {
+        struct IOAudio *io;
+        int b, c;
+        while ((io = (struct IOAudio *)GetMsg(aud_port)))
+            for (b = 0; b < PAULA_BUFS; b++)
+                for (c = 0; c < 2; c++)
+                    if (aud_io[b][c] == io && aud_busy[b])
+                        aud_busy[b]--;
+        for (b = 0; b < PAULA_BUFS; b++) {
+            if (aud_busy[b])
+                continue;
+            sndplay_mix(&snd, mix, SMP_BUF, audio_rate);
+            for (i = 0; i < SMP_BUF; i++) {
+                LONG v = ((LONG)mix[i] * SMP_GAIN) >> 8;
+                aud_buf[b][i] = (BYTE)(v > 127 ? 127 : v < -128 ? -128 : v);
+            }
+            paula_send(b, SMP_BUF);
+        }
+    } else if (sound_mode == SND_AHI && snd_swaps != snd_handled) {
+        snd_handled = snd_swaps;
+        SetSignal(0, 1UL << snd_signal);
+        sndplay_mix(&snd, snd_buf[snd_to_fill], SND_BUF, audio_rate);
     }
 }
 
@@ -1182,8 +1240,10 @@ static void handle_messages(void)
                 quit = 1;
             else if (code == RAW_P)
                 paused = !paused;
-            else if (code == RAW_F3)
+            else if (code == RAW_F3) {
                 xain_reset(&machine);
+                sndplay_reset(&snd);
+            }
         } else if (cls == IDCMP_INACTIVEWINDOW)
             memset(keys, 0, sizeof keys);
         else if (cls == IDCMP_ACTIVEWINDOW)
@@ -1275,6 +1335,15 @@ static void parse_option(const char *opt)
         sound_request = SND_AHI;
     else if (same_text(opt, "SOUND=PAULA"))
         sound_request = SND_PAULA;
+    else if (same_text(opt, "EMUSOUND"))
+        emusound = 1;
+    else if (same_text(opt, "SNDLOG"))
+        sndlog = 1;                                      /* testing */
+    else if (same_text(name, "SAMPLES") && val) {
+        static char sp[256];
+        snprintf(sp, sizeof sp, "%s", val);
+        samples_path = sp;
+    }
     else if (same_text(opt, "NORTG") || same_text(opt, "VIDEO=WCP"))
         video_request = VID_WCP;
     else if (same_text(opt, "VIDEO=BLIT"))
@@ -1366,9 +1435,106 @@ static void load_roms(void)
              "Put xsleena.zip or the ROM files into\nthe program drawer, its rom drawer\nor give ROMPATH=dir.");
 }
 
+/* ------------------------------------------------------------------ samples */
+
+/* SNDLOG (testing): every sound command with the frame and what the player did, written to
+   RAM:XainSleena-snd.txt at the end (repeats of the same command in a row are counted) */
+static char *sndlog_buf;
+static ULONG sndlog_len, sndlog_rep;
+static uint8_t sndlog_last = 0xff;
+#define SNDLOG_SIZE 200000
+
+static void sndlog_flush_rep(void)
+{
+    if (sndlog_rep && sndlog_len < SNDLOG_SIZE - 64)
+        sndlog_len += sprintf(sndlog_buf + sndlog_len, "        (x%lu more)\n", sndlog_rep);
+    sndlog_rep = 0;
+}
+
+static void snd_cmd(void *ctx, uint8_t cmd)
+{
+    SndPlay *p = (SndPlay *)ctx;
+    uint32_t age0 = p->voice[0].age;
+    int i;
+    sndplay_command(p, cmd);
+    if (!sndlog || !sndlog_buf || sndlog_len > SNDLOG_SIZE - 128)
+        return;
+    if (cmd == sndlog_last && p->voice[0].age == age0) {
+        sndlog_rep++;
+        return;
+    }
+    sndlog_flush_rep();
+    sndlog_last = cmd;
+    sndlog_len += sprintf(sndlog_buf + sndlog_len, "%6lu %02X%s  voices:", (ULONG)machine.frame, cmd,
+                          p->voice[0].age != age0 ? " MUSIC START" : "");
+    for (i = 0; i <= SFX_VOICES; i++)
+        if (p->voice[i].active)
+            sndlog_len += sprintf(sndlog_buf + sndlog_len, " %d:%02X@%lu", i, p->voice[i].cmd, (ULONG)p->voice[i].pos);
+    sndlog_buf[sndlog_len++] = '\n';
+}
+
+static void sndlog_write(void)
+{
+    BPTR fh;
+    if (!sndlog_buf)
+        return;
+    sndlog_flush_rep();
+    fh = Open((STRPTR)"RAM:XainSleena-snd.txt", MODE_NEWFILE);
+    if (fh) {
+        Write(fh, sndlog_buf, (LONG)sndlog_len);
+        Close(fh);
+    }
+    FreeVec(sndlog_buf);
+    sndlog_buf = NULL;
+}
+
+/* the whole sample file into (fast) memory */
+static int try_samples(const char *path)
+{
+    BPTR fh = Open((STRPTR)path, MODE_OLDFILE);
+    LONG size;
+    if (!fh)
+        return 0;
+    Seek(fh, 0, OFFSET_END);
+    size = Seek(fh, 0, OFFSET_BEGINNING);
+    if (size > 12) {
+        snd_pack = AllocVec((ULONG)size, MEMF_ANY);
+        if (snd_pack && Read(fh, snd_pack, size) == size && sndplay_init(&snd, snd_pack, (ULONG)size) == 0) {
+            snd_pack_size = (ULONG)size;
+            Close(fh);
+            return 1;
+        }
+        if (snd_pack)
+            FreeVec(snd_pack);
+        snd_pack = NULL;
+    }
+    Close(fh);
+    return 0;
+}
+
+static int load_samples(void)
+{
+    static const char *const dirs[] = { "PROGDIR:", "PROGDIR:rom", "PROGDIR:roms", "PROGDIR:ROM" };
+    char path[256];
+    int d;
+    if (samples_path)
+        return try_samples(samples_path);
+    for (d = 0; d < nrompaths; d++) {
+        path_join(path, sizeof path, rompaths[d], "XainSleena.snd");
+        if (try_samples(path))
+            return 1;
+    }
+    for (d = 0; d < 4; d++) {
+        path_join(path, sizeof path, dirs[d], "XainSleena.snd");
+        if (try_samples(path))
+            return 1;
+    }
+    return 0;
+}
+
 /* ------------------------------------------------------------------ main */
 
-static uint64_t stat_start, stat_emu, stat_render, stat_present, stat_busy;
+static uint64_t stat_start, stat_emu, stat_render, stat_present, stat_busy, stat_snd;
 static int stat_frames;
 static char stat_title[260];
 
@@ -1416,31 +1582,32 @@ static void update_stats(uint64_t t_end)
             /* the present stages in microseconds per drawn frame: compare, convert, write, blit */
             ULONG dr = stat_drawn ? (ULONG)stat_drawn : 1;
 #define US(t) ((ULONG)((t) * 1000000 / eclock_freq / dr))
-            sprintf(stat_title, "Xain %lu.%lu fps (drawn %lu) CPU %lu%%: emu %lu render %lu present(%s%s) %lu [us c%lu v%lu w%lu b%lu] blocks %lu %s",
+            sprintf(stat_title, "Xain %lu.%lu fps (drawn %lu) CPU %lu%%: emu %lu render %lu present(%s%s) %lu [us c%lu v%lu w%lu b%lu] blocks %lu %s%s",
                     fps10 / 10, fps10 % 10, (ULONG)((uint64_t)stat_drawn * eclock_freq / elapsed), busy,
                     (ULONG)(stat_emu * 100 / elapsed), (ULONG)(stat_render * 100 / elapsed), video_names[video_mode],
                     use_move16 ? ",M16" : "", (ULONG)(stat_present * 100 / elapsed), US(stat_stage[3]),
                     US(stat_stage[6]), US(stat_stage[4]), US(stat_stage[5]),
-                    prof_blocks / (ULONG)stat_frames, sound_names[sound_mode]);
+                    prof_blocks / (ULONG)stat_frames, sound_names[sound_mode], use_samples ? " smp" : "");
 #undef US
         }
         if (stats > 1)
-            sprintf(stat_title + strlen(stat_title), " [A%lu B%lu S%lu YM%lu MCU%lu]",
+            sprintf(stat_title + strlen(stat_title), " snd %lu.%02lu%% [A%lu B%lu S%lu YM%lu MCU%lu]",
+                    (ULONG)(stat_snd * 10000 / elapsed) / 100, (ULONG)(stat_snd * 10000 / elapsed) % 100,
                     (ULONG)(prof_part[0] * 100 * stat_frames / prof_frames / elapsed),
                     (ULONG)(prof_part[1] * 100 * stat_frames / prof_frames / elapsed),
                     (ULONG)(prof_part[2] * 100 * stat_frames / prof_frames / elapsed),
                     (ULONG)(prof_part[3] * 100 * stat_frames / prof_frames / elapsed),
                     (ULONG)(prof_part[4] * 100 * stat_frames / prof_frames / elapsed));
         else
-            sprintf(stat_title, "Xain %lu.%lu fps (drawn %lu)  CPU %lu%%  %s", fps10 / 10, fps10 % 10,
-                    (ULONG)((uint64_t)stat_drawn * eclock_freq / elapsed), busy, sound_names[sound_mode]);
+            sprintf(stat_title, "Xain %lu.%lu fps (drawn %lu)  CPU %lu%%  %s%s", fps10 / 10, fps10 % 10,
+                    (ULONG)((uint64_t)stat_drawn * eclock_freq / elapsed), busy, sound_names[sound_mode], use_samples ? " smp" : "");
     }
     if (verify)
         sprintf(stat_title + strlen(stat_title), "  verify: %lu bad blocks in %lu checks (last %d,%d)",
                 verify_bad, verify_checks, verify_bx, verify_by);
     SetWindowTitles(win, (UBYTE *)stat_title, (UBYTE *)~0);
     stat_frames = 0;
-    stat_emu = stat_render = stat_present = stat_busy = 0;
+    stat_emu = stat_render = stat_present = stat_busy = stat_snd = 0;
     stat_drawn = 0;
     memset(stat_stage, 0, sizeof stat_stage);
     memset(prof_part, 0, sizeof prof_part);
@@ -1484,10 +1651,21 @@ int main(int argc, char **argv)
     open_window();
     open_rtg();
     open_timer();
+    if (sound && !emusound)
+        use_samples = load_samples();
     if (sound)
         open_sound();
-    xain_set_sound(&machine, sound_mode != SND_NONE);
-    machine.sound_cpu = sound_mode != SND_NONE;         /* no sound: no sound CPU / YM2203 at all */
+    if (sound_mode == SND_NONE)
+        use_samples = 0;
+    /* no sound or samples: no sound CPU / YM2203 at all; samples: the commands start samples */
+    xain_set_sound(&machine, sound_mode != SND_NONE && !use_samples);
+    machine.sound_cpu = sound_mode != SND_NONE && !use_samples;
+    if (use_samples) {
+        if (sndlog)
+            sndlog_buf = AllocVec(SNDLOG_SIZE, MEMF_ANY);
+        machine.sound_cmd = snd_cmd;
+        machine.sound_ctx = &snd;
+    }
     xain_set_fm_div(&machine, fmdiv);
     start_watchdog();
     if (stats > 1)
@@ -1517,7 +1695,14 @@ int main(int argc, char **argv)
                 if (xain_prof) prof_frames++;
             }
             xain_run_frame(&machine);
-            if (sound_mode != SND_NONE)
+            if (use_samples)
+            {
+                uint64_t ts = stats > 1 ? eclock_now() : 0;
+                samples_fill();
+                if (stats > 1)
+                    stat_snd += eclock_now() - ts;   /* mixing + Paula, inside "emu" */
+            }
+            else if (sound_mode != SND_NONE)
                 audio_push(audio, xain_take_audio(&machine, audio, (int)(sizeof audio / sizeof audio[0]),
                                                   (int)audio_rate));
             if (stats) {
