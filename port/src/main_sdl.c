@@ -30,9 +30,9 @@
  *                       after frame N, as with tools/mame_capture.py
  *   -stats              print the emulation time per frame every 2 seconds
  *
- * Keys: cursor keys = joystick, Left Ctrl / Z / Space = fire, Left Alt / X = jump,
+ * Keys: cursor keys = joystick, Left Ctrl / Z = fire, Space / Left Alt / X = jump,
  *       5 / 6 = coin, 1 / 2 = start, P = pause, F3 = reset, Esc = quit.
- * A game controller works too (A = fire, B = jump, Back = coin, Start = start).
+ * Keyboard only (no game controller).
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,7 +71,7 @@ typedef struct { long frame; uint8_t *port; uint8_t bit; int press; } ScriptEven
 static ScriptEvent script[4096];
 static int script_count;
 
-static uint8_t kb_p1, kb_p2, pad_p1, pad_p2, script_p1, script_p2;
+static uint8_t kb_p1, kb_p2, script_p1, script_p2;
 
 static void usage(void)
 {
@@ -396,8 +396,8 @@ static int handle_key(SDL_Keycode k, int down)
     case SDLK_RIGHT: set_bit(&kb_p1, IN_RIGHT, down); break;
     case SDLK_UP: set_bit(&kb_p1, IN_UP, down); break;
     case SDLK_DOWN: set_bit(&kb_p1, IN_DOWN, down); break;
-    case SDLK_LCTRL: case SDLK_z: case SDLK_SPACE: set_bit(&kb_p1, IN_BUTTON1, down); break;
-    case SDLK_LALT: case SDLK_x: set_bit(&kb_p1, IN_BUTTON2, down); break;
+    case SDLK_LCTRL: case SDLK_z: set_bit(&kb_p1, IN_BUTTON1, down); break;
+    case SDLK_SPACE: case SDLK_LALT: case SDLK_x: set_bit(&kb_p1, IN_BUTTON2, down); break;
     case SDLK_5: set_bit(&kb_p2, IN_P2_COIN1, down); break;
     case SDLK_6: set_bit(&kb_p2, IN_P2_COIN2, down); break;
     case SDLK_1: set_bit(&kb_p1, IN_P1_START1, down); break;
@@ -405,23 +405,6 @@ static int handle_key(SDL_Keycode k, int down)
     default: return 0;
     }
     return 1;
-}
-
-static void read_pad(SDL_GameController *pad)
-{
-    int ax, ay;
-    pad_p1 = pad_p2 = 0;
-    if (!pad) return;
-    ax = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX);
-    ay = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY);
-    if (SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_LEFT) || ax < -16000) pad_p1 |= IN_LEFT;
-    if (SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) || ax > 16000) pad_p1 |= IN_RIGHT;
-    if (SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_UP) || ay < -16000) pad_p1 |= IN_UP;
-    if (SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN) || ay > 16000) pad_p1 |= IN_DOWN;
-    if (SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_A)) pad_p1 |= IN_BUTTON1;
-    if (SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_B)) pad_p1 |= IN_BUTTON2;
-    if (SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_BACK)) pad_p2 |= IN_P2_COIN1;
-    if (SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_START)) pad_p1 |= IN_P1_START1;
 }
 
 static void apply_script(long frame)
@@ -439,14 +422,13 @@ int main(int argc, char **argv)
     SDL_Window *window = 0;
     SDL_Renderer *renderer = 0;
     SDL_Texture *texture = 0;
-    SDL_GameController *pad = 0;
     SDL_AudioDeviceID audio_dev = 0;
     Uint64 freq, next, t0, t_emu = 0;
     long frame = 0;
     int running = 1, paused = 0, i;
 
     parse_args(argc, argv);
-    if (SDL_Init(headless ? SDL_INIT_TIMER : SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0) {
+    if (SDL_Init(headless ? SDL_INIT_TIMER : SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
         fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
         return 1;
     }
@@ -509,9 +491,6 @@ int main(int argc, char **argv)
         SDL_RenderSetLogicalSize(renderer, SCREEN_W, SCREEN_H);
         texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
                                     SCREEN_W, SCREEN_H);
-        for (i = 0; i < SDL_NumJoysticks(); i++)
-            if (SDL_IsGameController(i) && (pad = SDL_GameControllerOpen(i)) != 0)
-                break;
     }
 
     apply_script(0);
@@ -530,13 +509,10 @@ int main(int argc, char **argv)
                 if (k == SDLK_ESCAPE) running = 0;
                 else if (k == SDLK_p) paused = !paused;
                 else if (k == SDLK_F3) { xain_reset(&machine); sndplay_reset(&snd); }
-            } else if (ev.type == SDL_CONTROLLERDEVICEADDED && !pad) {
-                pad = SDL_GameControllerOpen(ev.cdevice.which);
             }
         }
-        read_pad(pad);
-        machine.in_p1 = (uint8_t)(kb_p1 | pad_p1 | script_p1);
-        machine.in_p2 = (uint8_t)(kb_p2 | pad_p2 | script_p2);
+        machine.in_p1 = (uint8_t)(kb_p1 | script_p1);
+        machine.in_p2 = (uint8_t)(kb_p2 | script_p2);
         xain_assist(&machine);
 
         if (!paused) {
@@ -611,7 +587,6 @@ int main(int argc, char **argv)
         fclose(wav_fp);
     }
     if (audio_dev) SDL_CloseAudioDevice(audio_dev);
-    if (pad) SDL_GameControllerClose(pad);
     video_free(&video);
     SDL_Quit();
     return 0;

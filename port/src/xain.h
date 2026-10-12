@@ -94,9 +94,10 @@ struct Xain {
     uint32_t spr_slices, sub_fast_slices;
 
     /* front end help (xain_assist, START=EASY): coins inserted when not playing, joystick
-       left / right = start 1P / 2P on the start screen */
+       left / right = start 1P / 2P on the start screen, fire = continue */
     int autocoin, joystart;
     int coin_phase;
+    int cont_fire, prev_fire;
     XainSliceMemo memo[XAIN_MEMO_SIZE];
     int32_t (*cpu_run)(M6809 *cpu, int32_t cycles);   /* m6809_run (C) or m6809_run_asm (68k) */
     uint32_t frame;
@@ -131,11 +132,18 @@ void xain_run_frame(Xain *x);
 void xain_set_sound(Xain *x, int on);
 /* START=EASY (not the original): call after the inputs of a frame are set. Inserts coins (through
    the coin input, as the coin slot) while no game runs and fewer than 2 credits are left, and on
-   the start screen joystick left / right press start 1P / 2P. */
+   the start screen joystick left / right press start 1P / 2P. On the continue screen (patched
+   text, xain_patch_texts) a coin is inserted when there is no credit and a new press of fire
+   presses the start button the game waits for. */
 void xain_assist(Xain *x);
-/* START=EASY: the start screen text "PUSH 1P OR 2P BUTTON" becomes "LEFT 1P OR RIGHT 2P" (same
-   place, colour and font; ROM data in memory, only if the original bytes are there). 1 = done */
+/* START=EASY: the start screen text "PUSH 1P OR 2P BUTTON" becomes "LEFT 1P OR RIGHT 2P", the
+   continue screen "CONTINUE PLAY?" / "PUSH 1P (2P) BUTTON" becomes "PRESS FIRE TO CONTINUE" (same
+   font and colours; ROM data and code in memory, only if the original bytes are there).
+   Returns the number of texts changed (0..2) */
 int xain_patch_texts(Xain *x);
+/* 1 while a planet is played on foot (button 2 jumps), 0 on the planet map, in the flying
+   stages (button 2: the extra weapon) and outside a game; for a joystick with one button */
+int xain_on_foot(const Xain *x);
 /* FM output rate: 1 = every FM sample (exact, MAME), 2 = every second one (faster; phases and
    envelopes still run at the full rate) */
 void xain_set_fm_div(Xain *x, int div);

@@ -506,6 +506,21 @@ void xain_set_fm_div(Xain *x, int div)
 #define RAM_CREDIT_MODE 0x36
 #define RAM_PLAYING 0x39
 
+#define RAM_PLAYER 0x3B
+
+/* the patched continue text (row 8, column 5) is on the screen */
+static const char cont_text[] = "PRESS FIRE TO CONTINUE";
+
+static int on_continue_screen(const Xain *x)
+{
+    const uint8_t *p = x->charram + 8 * 32 + 5;
+    int i;
+    for (i = 0; i < 10; i++)
+        if (p[i] != (uint8_t)(cont_text[i] - 0x20))
+            return 0;
+    return 1;
+}
+
 void xain_assist(Xain *x)
 {
     int playing = x->shared[RAM_PLAYING] != 0;
@@ -523,6 +538,34 @@ void xain_assist(Xain *x)
         if (x->in_p1 & IN_LEFT) x->in_p1 |= IN_P1_START1;
         if (x->in_p1 & IN_RIGHT) x->in_p1 |= IN_P1_START2;
     }
+    if (x->joystart) {
+        /* the continue screen (main 840B-8467): waits for start 1 when <$3B bit 0 is set, else
+           start 2 (both pressed do not count); a new fire press holds the right one */
+        int fire = (x->in_p1 & IN_BUTTON1) != 0;
+        if (on_continue_screen(x)) {
+            /* no credit: a coin (not after the continue: the text stays a few frames) */
+            if (!x->shared[RAM_CREDITS] && !x->coin_phase && x->autocoin && !x->cont_fire)
+                x->coin_phase = 30;
+            if (fire && !x->prev_fire)
+                x->cont_fire = 1;
+            if (x->cont_fire && fire)
+                x->in_p1 |= (x->shared[RAM_PLAYER] & 1) ? IN_P1_START1 : IN_P1_START2;
+        } else {
+            x->cont_fire = 0;
+        }
+        x->prev_fire = fire;
+    }
+}
+
+/* main 84DD-84F3 (stage start): <$53 bit 7 = the ship (sub 823D -> 82CC/8A75/8AAB: button 2 =
+   object 7), clear = on foot (sub 8355: button 2 = jump); <$48 = the stage type, 0 on the planet
+   map (sub bank 0 7D04: any button picks a planet) */
+#define RAM_STAGE 0x48
+#define RAM_SHIP 0x53
+
+int xain_on_foot(const Xain *x)
+{
+    return x->shared[RAM_PLAYING] && x->shared[RAM_STAGE] && !(x->shared[RAM_SHIP] & 0x80);
 }
 
 int xain_patch_texts(Xain *x)
@@ -531,11 +574,33 @@ int xain_patch_texts(Xain *x)
        20 characters (ASCII, shown as code - 0x20), end 03 */
     static const char old_text[] = "PUSH 1P OR 2P BUTTON";
     static const char new_text[] = "LEFT 1P OR RIGHT 2P ";
+    /* continue screen (main 840B-8428): text 09 (78BE, row 8) "CONTINUE PLAY?" and TIME, then
+       text 0B (7902, "PUSH 1P BUTTON", also the start screen) or 26 (7D88, "PUSH 2P BUTTON",
+       only here) with CREDIT. New: text 09 = "PRESS FIRE TO CONTINUE" (row 8, column 5, colour
+       01), text 26 = TIME (colour 03) and CREDIT, and 841B LDA #$0B -> #$26 */
+    static const uint8_t old09[] = { 0x01, 0x21, 0x09, 'C', 'O', 'N', 'T', 'I', 'N', 'U', 'E', ' ', 'P', 'L', 'A',
+        'Y', '?', 0x03, 0x03, 0x01, 0x21, 0x6c, 'T', 'I', 'M', 'E', 0x00 };
+    static const uint8_t old26[] = { 0x02, 0x22, 0x49, 'P', 'U', 'S', 'H', ' ', '2', 'P', ' ', 'B', 'U', 'T', 'T',
+        'O', 'N', 0x03, 0x01, 0x01, 0x23, 0x6b, 'C', 'R', 'E', 'D', 'I', 'T', 0x00 };
+    static const uint8_t new26[] = { 0x03, 0x21, 0x6c, 'T', 'I', 'M', 'E', 0x03, 0x01, 0x01, 0x23, 0x6b,
+        'C', 'R', 'E', 'D', 'I', 'T', 0x00 };
     uint8_t *p = x->main_bank_rom[1] + 0x3885;
-    if (p[0] != 0x02 || p[1] != 0x22 || p[2] != 0x46 || memcmp(p + 3, old_text, 20) || p[23] != 0x03)
-        return 0;
-    memcpy(p + 3, new_text, 20);
-    return 1;
+    uint8_t *t09 = x->main_bank_rom[1] + 0x38be, *t26 = x->main_bank_rom[1] + 0x3d88;
+    uint8_t *lda = x->main_rom + 0x041b;
+    int n = 0;
+    if (p[0] == 0x02 && p[1] == 0x22 && p[2] == 0x46 && !memcmp(p + 3, old_text, 20) && p[23] == 0x03) {
+        memcpy(p + 3, new_text, 20);
+        n++;
+    }
+    if (!memcmp(t09, old09, sizeof old09) && !memcmp(t26, old26, sizeof old26) && lda[0] == 0x86 && lda[1] == 0x0b) {
+        t09[2] = 0x05;                                       /* 2109 -> 2105: centred */
+        memcpy(t09 + 3, cont_text, 22);
+        t09[25] = 0x00;
+        memcpy(t26, new26, sizeof new26);
+        lda[1] = 0x26;
+        n++;
+    }
+    return n;
 }
 
 void xain_set_sound(Xain *x, int on)

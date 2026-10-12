@@ -16,14 +16,18 @@
  *         [START=EASY|ARCADE] [LIVES=3|4|6|INF]: EASY (default) inserts coins while no game
  *         runs and shows LEFT 1P OR RIGHT 2P (joystick left / right start 1 or 2 players);
  *         ARCADE as the machine (coins 5 / 6, start 1 / 2). LIVES: the DIP switch.
+ *         [CONTROL=JOY1|JOY2|KEYBOARD]: see below
  *         [SAMPLES=file] [EMUSOUND]: the sound comes from samples (XainSleena.snd, made on the
  *         PC with tools/make_sndpack.py, looked for as SAMPLES, in PROGDIR: and the ROM
  *         drawers); without the file or with EMUSOUND the sound CPU and the YM2203 are emulated
  * Icon:   the same as tool types ("(...)" is switched off)
  *
- * Joystick in port 2: move, fire = fire, second button = jump
- *   (CD32 pad: red fire, blue jump, play = start 1, green = coin, yellow = start 2)
- * Keyboard: cursor keys, Ctrl / Space / Z = fire, Alt / X = jump, 5 / 6 = coin,
+ * CONTROL=JOY1 (default): joystick in port 2 moves and fires; on foot up jumps, in the flying
+ *   stages up only moves and Space (button 2) fires the extra weapon
+ * CONTROL=JOY2: joystick with two buttons, the second button jumps
+ * CONTROL=KEYBOARD: keyboard only (the joystick port is not read)
+ *   (CD32 pad with JOY1 / JOY2: red fire, blue jump, play = start 1, green = coin, yellow = start 2)
+ * Keyboard (always): cursor keys, Ctrl / Z = fire, Space / Alt / X = jump, 5 / 6 = coin,
  *           1 / 2 = start, P = pause, F3 = reset, Esc / close / Ctrl-C = quit
  */
 #include <stdio.h>
@@ -113,6 +117,8 @@ static int memo_off;                  /* MEMO=OFF: no replay of the main CPU's w
 static int subfast_off;               /* SUBFAST=OFF: waiting sub CPU slices on the core */
 static int start_arcade;              /* START=ARCADE: coins and start as the arcade */
 static int lives = -1;                /* LIVES=3|4|6|INF (0) */
+enum { CTL_KEYBOARD, CTL_JOY1, CTL_JOY2 };
+static int control = CTL_JOY1;         /* CONTROL=KEYBOARD / JOY1 (up jumps) / JOY2 */
 static int hle_on;                    /* HLE=ON: the sprite list routine translated to C (slower) */
 static SndPlay snd;
 static UBYTE *snd_pack;
@@ -1273,27 +1279,35 @@ static void read_inputs(void)
     if (keys[RAW_RIGHT]) p1 |= IN_RIGHT;
     if (keys[RAW_UP]) p1 |= IN_UP;
     if (keys[RAW_DOWN]) p1 |= IN_DOWN;
-    if (keys[RAW_CTRL] || keys[RAW_SPACE] || keys[RAW_Z]) p1 |= IN_BUTTON1;
-    if (keys[RAW_LALT] || keys[RAW_RALT] || keys[RAW_X]) p1 |= IN_BUTTON2;
+    if (keys[RAW_CTRL] || keys[RAW_Z]) p1 |= IN_BUTTON1;
+    if (keys[RAW_SPACE] || keys[RAW_LALT] || keys[RAW_RALT] || keys[RAW_X]) p1 |= IN_BUTTON2;
     if (keys[RAW_1]) p1 |= IN_P1_START1;
     if (keys[RAW_2]) p1 |= IN_P1_START2;
     if (keys[RAW_5]) p2 |= IN_P2_COIN1;
     if (keys[RAW_6]) p2 |= IN_P2_COIN2;
 
-    /* joystick port (and with JOYPORT=BOTH the mouse port): fire, second button = jump;
-       CD32 pad: red = fire, blue = jump, play = start, green = coin, yellow = start 2 */
-    if (LowLevelBase) {
+    /* joystick port (and with JOYPORT=BOTH the mouse port): fire, second button = jump (JOY2;
+       with JOY1 it is ignored: up jumps on foot, Space is button 2); CD32 pad: red = fire, blue = jump, play = start,
+       green = coin, yellow = start 2 */
+    if (LowLevelBase && control != CTL_KEYBOARD) {
         int port;
         for (port = 1; port >= (joy_mouseport ? 0 : 1); port--) {
             ULONG j = ReadJoyPort((ULONG)port), type = j & JP_TYPE_MASK;
             if (type != JP_TYPE_JOYSTK && type != JP_TYPE_GAMECTLR)
                 continue;
-            if (j & JPF_JOY_UP) p1 |= IN_UP;
+            if (j & JPF_JOY_UP) {
+                p1 |= IN_UP;
+                /* JOY1: on foot up also jumps (up has no function of its own there: up + jump =
+                   jump); in the flying stages up only moves, Space fires the extra weapon */
+                if (control == CTL_JOY1 && type == JP_TYPE_JOYSTK && xain_on_foot(&machine))
+                    p1 |= IN_BUTTON2;
+            }
             if (j & JPF_JOY_DOWN) p1 |= IN_DOWN;
             if (j & JPF_JOY_LEFT) p1 |= IN_LEFT;
             if (j & JPF_JOY_RIGHT) p1 |= IN_RIGHT;
             if (j & JPF_BUTTON_RED) p1 |= IN_BUTTON1;
-            if (j & JPF_BUTTON_BLUE) p1 |= IN_BUTTON2;
+            if ((j & JPF_BUTTON_BLUE) && (control == CTL_JOY2 || type == JP_TYPE_GAMECTLR))
+                p1 |= IN_BUTTON2;
             if (type == JP_TYPE_GAMECTLR) {
                 if (j & JPF_BUTTON_PLAY) p1 |= IN_P1_START1;
                 if (j & JPF_BUTTON_GREEN) p2 |= IN_P2_COIN1;
@@ -1351,6 +1365,12 @@ static void parse_option(const char *opt)
         start_arcade = 0;
     else if (same_text(name, "LIVES") && val)
         lives = same_text(val, "INF") ? 0 : atoi(val);
+    else if (same_text(opt, "CONTROL=KEYBOARD"))
+        control = CTL_KEYBOARD;
+    else if (same_text(opt, "CONTROL=JOY1"))
+        control = CTL_JOY1;
+    else if (same_text(opt, "CONTROL=JOY2"))
+        control = CTL_JOY2;
     else if (same_text(opt, "SUBFAST=OFF"))
         subfast_off = 1;                                 /* measurements */
     else if (same_text(opt, "HLE=ON"))

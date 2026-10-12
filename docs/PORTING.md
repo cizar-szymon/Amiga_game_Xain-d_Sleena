@@ -172,7 +172,7 @@ Dla porównania: w Vastar 2× Z80 3 MHz + AY na 68060/50 zajmowały ok. 7 ms + 6
 ## 7. Sterowanie (plan)
 
 Joystick 8 kierunków, 2 przyciski (strzał, skok): pad CD32 albo joystick z drugim przyciskiem;
-klawiatura: strzałki, Ctrl = strzał, Alt = skok, 5 = moneta, 1/2 = start, P = pauza, Esc = wyjście.
+klawiatura: strzałki, Ctrl / Z = strzał, Spacja / Alt / X = skok, 5 = moneta, 1/2 = start, P = pauza, Esc = wyjście.
 DIP-y jak w MAME (domyślnie `DSW1=3F`, `DSW2=FF` z `.mra`), opcje `LIVES=`, Free Play, start
 joystickiem – jak w Vastar.
 
@@ -246,7 +246,7 @@ W demo (klatka 1400) główny CPU czeka na VBLANK w `A25D-A262` (`LDB $3A05 / AN
 `video.c`, `romload.c` (C99, bez FPU i 64 bitów) + `main_sdl.c`.
 
 ```
-build\port\xainsleena.exe -rompath ROM                         # gra (okno, klawiatura, pad)
+build\port\xainsleena.exe -rompath ROM                         # gra (okno, tylko klawiatura)
 build\port\xainsleena.exe -headless -rompath ROM -frames 5001 -shots DIR 0-5000/50 -dump DIR 0-5000/50 -script "..."
 python tools/compare_frames.py build/ref/play1 DIR [--montage OUT.png 1400,3500]
 python tools/compare_dumps.py build/ref/play1 DIR [--detail FRAME]
@@ -825,7 +825,19 @@ cała klatka w grze 6 800 → 6 266 µs, w demie 5 133 → 4 866 µs.
 - napis `PUSH 1P OR 2P BUTTON` → `LEFT 1P OR RIGHT 2P ` (ROM `pa-09` 7885, bank 1 głównego
   CPU: kolor `02`, adres tekstu `2246` = wiersz 18 kolumna 6, 20 znaków ASCII – na ekranie kod
   ASCII − 20h –, koniec `03`); podmiana w pamięci tylko przy oryginalnych bajtach;
-- na ekranie startu (`$0036` = 1, gra nie trwa) joystick w lewo = START 1P, w prawo = START 2P.
+- na ekranie startu (`$0036` = 1, gra nie trwa) joystick w lewo = START 1P, w prawo = START 2P;
+- ekran kontynuacji (główny CPU `840B`–`8467`): oryginał pisze tekst 09 (`78BE`, wiersz 8)
+  `CONTINUE PLAY?` z `TIME`, potem tekst 0B (`7902`, `PUSH 1P BUTTON`, używany też na ekranie
+  startu) albo 26 (`7D88`, `PUSH 2P BUTTON`, tylko tu) z `CREDIT`, i czeka na START 1, gdy
+  `$003B` bit 0 = 1, inaczej na START 2 (gracz 1P w grze jednoosobowej widzi `PUSH 2P BUTTON`;
+  oba naraz się nie liczą). Rekordy tekstu: kolor, adres, znaki, `00` koniec, `01` nowy adres,
+  `03` nowy kolor (drukarka `A02E`). Zmiana w pamięci (tylko przy oryginalnych bajtach): tekst 09
+  = `PRESS FIRE TO CONTINUE` (wiersz 8, kolumna 5, kolor 01, mieści się w miejscu starego),
+  tekst 26 = `TIME` (kolor 03) i `CREDIT`, w `841B` `LDA #$0B` → `#$26` (oba warianty piszą
+  tekst 26; tekst 0B na ekranie startu bez zmian). `xain_assist`: gdy w wierszu 8 jest ten
+  napis – brak kredytu → moneta; nowe naciśnięcie ognia (nie przytrzymany z gry) trzyma
+  właściwy START. Sprawdzone na PC: ogień kontynuuje (kredyt 1 → 0), bez ognia po `TIME 0`
+  koniec gry i ekran startu z `CREDIT 2`.
 `START=ARCADE` (PC `-arcade`): jak automat. Gracze w trybie 2P grają na zmianę tymi samymi
 kontrolerami (wejścia P2 automatu są tylko dla obudowy cocktail), klawiatura i joystick działają
 jednocześnie.
@@ -837,6 +849,29 @@ nieskończone życia, w MAME „Infinite (Cheat)”).
 (klatka 1900, ekran MISSION, Xain), obraz 4-kolorowy i ColorIcon w 22 kolorach gry
 (`tools/make_icon.py` i `tools/icon_tooltypes.py` z Vastar). Tool Types: `SCALE=1`, `LIVES=3`,
 wyłączone `(SCALE=2)`, `(SCREEN=FULL)`, `(LIVES=4)`, `(LIVES=6)`, `(LIVES=INF)`,
-`(START=ARCADE)`, `(SOUND=AHI)`, `(NOSOUND)`, `(EMUSOUND)`, `(JOYPORT=BOTH)`, `(STATS)`,
+`CONTROL=JOY1`, `(CONTROL=JOY2)`, `(CONTROL=KEYBOARD)`, `(START=ARCADE)`, `(SOUND=AHI)`, `(NOSOUND)`, `(EMUSOUND)`, `(JOYPORT=BOTH)`, `(STATS)`,
 `(ROMPATH=Work:roms)`. Sprawdzone na A1200 (z Shella): ekran startu z napisem i `CREDIT 2`,
 strzałka w lewo startuje grę 1P.
+
+**Sterowanie: `CONTROL=JOY1|JOY2|KEYBOARD`.** Próby na PC (dżungla, klatka 3400 `play1`): skok
+z górą = sam skok, sama góra – nic, strzał z górą – poziomo, dół – strzał w przykucnięciu, więc na
+piechotę góra nie ma własnej funkcji. Kod procesora pomocniczego: obsługa gracza `823D` sprawdza
+`<$53` bit 7 (DP = 0, czyli wspólny RAM `$0053`): 0 → na piechotę (`8355`, przycisk 2 = skok),
+1 → statek (`82CC` → `8A75` → `8AAB`: przycisk 1 tworzy obiekt 6 – strzał, przycisk 2 obiekt 7,
+tylko gdy sloty `$1848`–`$184B` są wolne – dodatkowa, ograniczona broń). `$0053` ustawia główny
+CPU na początku etapu (`84DD`–`84F3` z tablicy `85B0`; `8519`/`852F` – etapy lotu). `$0048` =
+rodzaj etapu, 0 na mapie planet (bank 0 sub `7D04`: dowolny przycisk wybiera planetę).
+`xain_on_foot()` = gra trwa, `$0048` ≠ 0, `$0053` bit 7 = 0. Etapu lotu nie sprawdziłem w
+działaniu (skrypt nie dochodzi tak daleko) – wniosek z kodu.
+- `CONTROL=JOY1` (domyślnie, joystick z jednym przyciskiem): ruch i strzał; **na piechotę góra =
+  skok** (góra + przycisk 2), w lotach i na mapie góra to tylko ruch, a **Spacja** (przycisk 2)
+  odpala dodatkową broń; niebieski przycisk joysticka pomijany (przypadkowe sygnały na pinie 9);
+  pad CD32 – niebieski = przycisk 2;
+- `CONTROL=JOY2`: joystick z dwoma przyciskami (drugi przycisk na pinie 9, `lowlevel.library`
+  zgłasza go jako `JPF_BUTTON_BLUE`) = przycisk 2 (skok / broń), góra tylko ruch;
+- `CONTROL=KEYBOARD`: port joysticka nie jest czytany (bez `ReadJoyPort`).
+
+Klawiatura działa zawsze: strzałki, Ctrl / Z = strzał, **Spacja** / Alt / X = przycisk 2 (skok,
+w lotach broń), 1 / 2 = start, 5 / 6 = moneta, P = pauza, F3 = reset, Esc = wyjście. Wersja PC:
+tylko klawiatura (obsługa pada SDL usunięta), te same klawisze. Tool Types ikony: `CONTROL=JOY1`,
+`(CONTROL=JOY2)`, `(CONTROL=KEYBOARD)`.
