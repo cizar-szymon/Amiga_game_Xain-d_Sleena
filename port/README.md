@@ -4,7 +4,7 @@ Emulator automatu Xain'd Sleena (zestaw MAME `xsleena`, wersja światowa z MCU) 
 zera w C99 z wstawkami w asemblerze 68k: gra działa z oryginalnych ROM-ów, wynik jest zgodny
 z MAME 0.289 (wzorzec). Szczegóły, decyzje, pomiary i historia: [`docs/PORTING.md`](../docs/PORTING.md).
 
-## Stan (11.10.2026)
+## Stan (12.10.2026, wydanie 0.9.5)
 
 | Faza | Stan |
 |---|---|
@@ -12,8 +12,8 @@ z MAME 0.289 (wzorzec). Szczegóły, decyzje, pomiary i historia: [`docs/PORTING
 | 1. Wzorzec MAME (ślady instrukcji, zrzuty, dźwięk) | ✅ |
 | 2. Port na PC (SDL2) | ✅ grywalny; rdzenie CPU 0 różnic ze śladami MAME, obraz identyczny, dźwięk zgodny (korelacja 0,996) |
 | 3. Amiga (Intuition, Picasso96, Paula/AHI, joystick) | ✅ działa na A1200, wynik identyczny z PC co do bajtu |
-| 4. Optymalizacja | ⏳ 2,3 → ok. 25 kl./s bez dźwięku, 16–20 z dźwiękiem (68060/50, okno `SCALE=2`); cel 57,44 kl./s |
-| 5. Wydanie (ikona, Tool Types, opisy) | ⏳ |
+| 4. Optymalizacja | ✅ 68060/100 MHz: pełne tempo logiki (57,44 kl./s) bez dźwięku i z dźwiękiem z sampli; z emulacją YM2203 25–41 kl./s; 68060/50 ok. 2× wolniej |
+| 5. Wydanie (ikona, Tool Types, opisy) | ✅ 0.9.5: paczki LHA / ZIP, opisy dla graczy i programistów (PL/EN) w `docs/release/amiga` i `docs/release/pc`, lista zmian `XainSleena_release.txt` |
 
 ## Budowanie
 
@@ -28,8 +28,9 @@ z MAME 0.289 (wzorzec). Szczegóły, decyzje, pomiary i historia: [`docs/PORTING
 
 `XainSleena [SCALE=1|2|3] [SCREEN=FULL] [NOSOUND] [SOUND=PAULA|AHI] [FRAMESKIP=AUTO|n] [STATS|STATS=FULL] ...`
 (pełna lista na początku `src/main_amiga.c`; te same opcje działają jako Tool Types).
-Klawisze: strzałki, Ctrl/Z/spacja – strzał, Alt/X – skok, 5/6 – moneta, 1/2 – start,
-P – pauza, Esc – koniec; joystick / pad CD32.
+Klawisze: strzałki – ruch (w górę na piechotę = skok), Z – strzał, X – ogień 2, Y – dodatkowa
+broń w lotach, P – pauza, 1/2 – start, 5/6 – moneta, F3 – reset, F10 – zapis stanu do zgłoszenia
+błędu, Esc – koniec; joystick / pad CD32 (`CONTROL=JOY1|JOY2|KEYBOARD`).
 
 ## Budowa programu
 
