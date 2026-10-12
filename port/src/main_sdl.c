@@ -18,6 +18,9 @@
  *   -samples FILE       sound from samples (tools/make_sndpack.py); default: XainSleena.snd
  *                       next to the program, one or two folders up, in . or in a ROM folder
  *   -emusound           sound from the emulated sound CPU and YM2203 even if samples exist
+ *   -arcade             start as the arcade: insert coins (5 / 6), PUSH 1P OR 2P BUTTON (1 / 2);
+ *                       default: coins are inserted while no game runs, LEFT 1P OR RIGHT 2P
+ *   -lives N            lives (DIP switches): 3, 4, 6 or inf
  *   -shots DIR LIST     save the screen as DIR/frame_NNNNN.bmp at these frames
  *                       (LIST: 100,200,1000-1100/10); frame N = after N+1 frames, as in MAME
  *   -dump DIR LIST      also save the memory state as DIR/frame_NNNNN.bin (snapinfo.py format)
@@ -54,6 +57,7 @@ static const char *samples_path;
 static SndPlay snd;
 static uint8_t *snd_pack;
 static int use_samples;
+static int arcade, lives = -1;
 static const char *wav_path;
 static FILE *wav_fp;
 static unsigned long wav_bytes;
@@ -167,6 +171,8 @@ static void parse_args(int argc, char **argv)
         else if (!strcmp(a, "-fmdiv")) fmdiv = atoi(NEXT());
         else if (!strcmp(a, "-samples")) samples_path = NEXT();
         else if (!strcmp(a, "-emusound")) emusound = 1;
+        else if (!strcmp(a, "-arcade")) arcade = 1;
+        else if (!strcmp(a, "-lives")) { const char *v = NEXT(); lives = !strcmp(v, "inf") ? 0 : atoi(v); }
         else if (!strcmp(a, "-script")) parse_script(NEXT());
         else if (!strcmp(a, "-shots")) { shot_dir = NEXT(); shot_count = parse_frames(NEXT(), &shot_frames); }
         else if (!strcmp(a, "-dump")) { dump_dir = NEXT(); dump_count = parse_frames(NEXT(), &dump_frames); }
@@ -449,6 +455,12 @@ int main(int argc, char **argv)
     xain_init(&machine);
     if (dsw0 >= 0) machine.dsw0 = (uint8_t)dsw0;
     if (dsw1 >= 0) machine.dsw1 = (uint8_t)dsw1;
+    if (lives >= 0)                                     /* DSW1 bits 7-6: 3 C0, 4 80, 6 40, infinite 00 */
+        machine.dsw1 = (uint8_t)((machine.dsw1 & 0x3f) | (lives == 0 ? 0x00 : lives == 4 ? 0x80 : lives == 6 ? 0x40 : 0xc0));
+    if (!arcade) {
+        machine.autocoin = machine.joystart = 1;
+        xain_patch_texts(&machine);
+    }
     if (slice > 0 && XAIN_LINE_CYCLES % slice == 0) machine.slice = slice;
     if (!video_init(&video, &machine)) {
         fprintf(stderr, "out of memory\n");
@@ -525,6 +537,7 @@ int main(int argc, char **argv)
         read_pad(pad);
         machine.in_p1 = (uint8_t)(kb_p1 | pad_p1 | script_p1);
         machine.in_p2 = (uint8_t)(kb_p2 | pad_p2 | script_p2);
+        xain_assist(&machine);
 
         if (!paused) {
             t0 = SDL_GetPerformanceCounter();

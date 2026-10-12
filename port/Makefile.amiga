@@ -23,8 +23,9 @@ HEADERS  := $(wildcard src/*.h)
 
 all: $(OUT)/XainSleena $(OUT)/XainTest $(OUT)/Lockstep $(OUT)/YmBench $(OUT)/CpuTest6809 $(OUT)/RenderBench $(OUT)/CpuBench $(OUT)/SliceCost
 
-$(OUT)/XainSleena: $(CORE) src/main_amiga.c src/amiga_68k.s $(HEADERS)
+$(OUT)/XainSleena: $(CORE) src/main_amiga.c src/amiga_68k.s $(HEADERS) amiga/XainSleena.info
 	mkdir -p $(OUT)
+	cp amiga/XainSleena.info $(OUT)/XainSleena.info
 	vc $(CFLAGS) $(CORE) src/main_amiga.c src/amiga_68k.s -o $@ -lamiga
 
 # headless run for comparing with the PC build (same screens, memory and sound)

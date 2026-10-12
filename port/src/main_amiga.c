@@ -13,6 +13,9 @@
  *         when the Amiga falls behind, n draws one picture of n+1
  *         the ROMs (xsleena.zip from MAME, an xsleena drawer or the loose files) are looked
  *         for in ROMPATH, PROGDIR:, PROGDIR:rom, PROGDIR:roms and PROGDIR:ROM
+ *         [START=EASY|ARCADE] [LIVES=3|4|6|INF]: EASY (default) inserts coins while no game
+ *         runs and shows LEFT 1P OR RIGHT 2P (joystick left / right start 1 or 2 players);
+ *         ARCADE as the machine (coins 5 / 6, start 1 / 2). LIVES: the DIP switch.
  *         [SAMPLES=file] [EMUSOUND]: the sound comes from samples (XainSleena.snd, made on the
  *         PC with tools/make_sndpack.py, looked for as SAMPLES, in PROGDIR: and the ROM
  *         drawers); without the file or with EMUSOUND the sound CPU and the YM2203 are emulated
@@ -108,6 +111,8 @@ static int use_samples;               /* sound from XainSleena.snd (sndplay.c) *
 static int sndlog;                    /* SNDLOG: log of the sound commands (testing) */
 static int memo_off;                  /* MEMO=OFF: no replay of the main CPU's wait slices */
 static int subfast_off;               /* SUBFAST=OFF: waiting sub CPU slices on the core */
+static int start_arcade;              /* START=ARCADE: coins and start as the arcade */
+static int lives = -1;                /* LIVES=3|4|6|INF (0) */
 static int hle_on;                    /* HLE=ON: the sprite list routine translated to C (slower) */
 static SndPlay snd;
 static UBYTE *snd_pack;
@@ -1340,6 +1345,12 @@ static void parse_option(const char *opt)
         sound_request = SND_PAULA;
     else if (same_text(opt, "EMUSOUND"))
         emusound = 1;
+    else if (same_text(opt, "START=ARCADE"))
+        start_arcade = 1;
+    else if (same_text(opt, "START=EASY"))
+        start_arcade = 0;
+    else if (same_text(name, "LIVES") && val)
+        lives = same_text(val, "INF") ? 0 : atoi(val);
     else if (same_text(opt, "SUBFAST=OFF"))
         subfast_off = 1;                                 /* measurements */
     else if (same_text(opt, "HLE=ON"))
@@ -1651,6 +1662,12 @@ int main(int argc, char **argv)
     if (memo_off) machine.slice_memo = 0;
     if (hle_on) machine.hle_sprites = 1;
     if (subfast_off) machine.sub_fast = 0;
+    if (lives >= 0)                                     /* DSW1 bits 7-6: 3 C0, 4 80, 6 40, infinite 00 */
+        machine.dsw1 = (uint8_t)((machine.dsw1 & 0x3f) | (lives == 0 ? 0x00 : lives == 4 ? 0x80 : lives == 6 ? 0x40 : 0xc0));
+    if (!start_arcade) {
+        machine.autocoin = machine.joystart = 1;
+        xain_patch_texts(&machine);
+    }
     if (!video_init(&video, &machine))
         fail("Not enough memory.");
     if (!m6809_layout_ok())
@@ -1690,6 +1707,7 @@ int main(int argc, char **argv)
         if (stats)
             t0 = eclock_now();
         read_inputs();
+        xain_assist(&machine);
         /* frame skipping: the game always runs at full speed, the picture is left out when
            the last frame finished too late (at most MAX_AUTO_SKIP in a row) */
         if (frameskip < 0)

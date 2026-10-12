@@ -92,6 +92,11 @@ struct Xain {
                                            the asm core on the 68060; m6809_run_spr) */
     uint32_t memo_hits, memo_runs;      /* statistics */
     uint32_t spr_slices, sub_fast_slices;
+
+    /* front end help (xain_assist, START=EASY): coins inserted when not playing, joystick
+       left / right = start 1P / 2P on the start screen */
+    int autocoin, joystart;
+    int coin_phase;
     XainSliceMemo memo[XAIN_MEMO_SIZE];
     int32_t (*cpu_run)(M6809 *cpu, int32_t cycles);   /* m6809_run (C) or m6809_run_asm (68k) */
     uint32_t frame;
@@ -124,6 +129,13 @@ int xain_load_roms(Xain *x, const char *const *sources, int nsources);
 void xain_run_frame(Xain *x);
 /* switch the sound synthesis on or off (off: only the YM2203 timers run) */
 void xain_set_sound(Xain *x, int on);
+/* START=EASY (not the original): call after the inputs of a frame are set. Inserts coins (through
+   the coin input, as the coin slot) while no game runs and fewer than 2 credits are left, and on
+   the start screen joystick left / right press start 1P / 2P. */
+void xain_assist(Xain *x);
+/* START=EASY: the start screen text "PUSH 1P OR 2P BUTTON" becomes "LEFT 1P OR RIGHT 2P" (same
+   place, colour and font; ROM data in memory, only if the original bytes are there). 1 = done */
+int xain_patch_texts(Xain *x);
 /* FM output rate: 1 = every FM sample (exact, MAME), 2 = every second one (faster; phases and
    envelopes still run at the full rate) */
 void xain_set_fm_div(Xain *x, int div);

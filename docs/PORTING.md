@@ -814,3 +814,29 @@ także z wzorcem bez żadnego pomijania pętli (`REF_NOIDLE=1`; wtedy bez liczni
 przy pomijaniu liczą się inaczej o kilka cykli – tak było już wcześniej, sam stan bez zmian):
 12 000 klatek identycznych. `Lockstep` 3000 klatek identycznych. A1200: kwant MCU 3,0 → 1,9 µs,
 cała klatka w grze 6 800 → 6 266 µs, w demie 5 133 → 4 866 µs.
+
+## 14. Start, opcje i ikona (12.10.2026)
+
+**`START=EASY` (domyślnie; decyzja użytkownika) – `xain_assist` i `xain_patch_texts` w
+`xain.c`.** Nie zmienia emulacji, tylko wejścia i jeden napis:
+- monety: gdy gra nie trwa (`$0039` = 0) i kredytów (`$0031`) jest mniej niż 2, impuls na wejściu
+  monety (6 klatek, 24 przerwy) – gra sama nalicza kredyt (z dźwiękiem monety); po uruchomieniu
+  od razu ekran startu z `CREDIT 2`, także po końcu gry;
+- napis `PUSH 1P OR 2P BUTTON` → `LEFT 1P OR RIGHT 2P ` (ROM `pa-09` 7885, bank 1 głównego
+  CPU: kolor `02`, adres tekstu `2246` = wiersz 18 kolumna 6, 20 znaków ASCII – na ekranie kod
+  ASCII − 20h –, koniec `03`); podmiana w pamięci tylko przy oryginalnych bajtach;
+- na ekranie startu (`$0036` = 1, gra nie trwa) joystick w lewo = START 1P, w prawo = START 2P.
+`START=ARCADE` (PC `-arcade`): jak automat. Gracze w trybie 2P grają na zmianę tymi samymi
+kontrolerami (wejścia P2 automatu są tylko dla obudowy cocktail), klawiatura i joystick działają
+jednocześnie.
+
+**`LIVES=3|4|6|INF`** (PC `-lives`): przełączniki DIP (DSW1 bity 7–6: C0, 80, 40, 00 =
+nieskończone życia, w MAME „Infinite (Cheat)”).
+
+**Ikona** `port/amiga/XainSleena.info` (Makefile kopiuje do `build/amiga`): 64×56 z kadru PC
+(klatka 1900, ekran MISSION, Xain), obraz 4-kolorowy i ColorIcon w 22 kolorach gry
+(`tools/make_icon.py` i `tools/icon_tooltypes.py` z Vastar). Tool Types: `SCALE=1`, `LIVES=3`,
+wyłączone `(SCALE=2)`, `(SCREEN=FULL)`, `(LIVES=4)`, `(LIVES=6)`, `(LIVES=INF)`,
+`(START=ARCADE)`, `(SOUND=AHI)`, `(NOSOUND)`, `(EMUSOUND)`, `(JOYPORT=BOTH)`, `(STATS)`,
+`(ROMPATH=Work:roms)`. Sprawdzone na A1200 (z Shella): ekran startu z napisem i `CREDIT 2`,
+strzałka w lewo startuje grę 1P.

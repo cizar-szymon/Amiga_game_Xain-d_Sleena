@@ -499,6 +499,45 @@ void xain_set_fm_div(Xain *x, int div)
     x->audio_frac = 0;
 }
 
+/* ---- front end help (START=EASY; not part of the machine) ---- */
+
+/* shared RAM: credits, 1 while credits or a game (the start screen), 1 while a game runs */
+#define RAM_CREDITS 0x31
+#define RAM_CREDIT_MODE 0x36
+#define RAM_PLAYING 0x39
+
+void xain_assist(Xain *x)
+{
+    int playing = x->shared[RAM_PLAYING] != 0;
+    if (x->autocoin) {
+        /* a coin: 6 frames on the coin input, then 24 off (as tools/mame_capture.py play1) */
+        if (x->coin_phase > 0) {
+            if (x->coin_phase > 24)
+                x->in_p2 |= IN_P2_COIN1;
+            x->coin_phase--;
+        } else if (!playing && x->shared[RAM_CREDITS] < 2 && x->frame > 60) {
+            x->coin_phase = 30;
+        }
+    }
+    if (x->joystart && !playing && x->shared[RAM_CREDIT_MODE]) {
+        if (x->in_p1 & IN_LEFT) x->in_p1 |= IN_P1_START1;
+        if (x->in_p1 & IN_RIGHT) x->in_p1 |= IN_P1_START2;
+    }
+}
+
+int xain_patch_texts(Xain *x)
+{
+    /* pa-09.ic65 7885 (main bank 1 at 7885): colour 02, text address 2246 (row 18, column 6),
+       20 characters (ASCII, shown as code - 0x20), end 03 */
+    static const char old_text[] = "PUSH 1P OR 2P BUTTON";
+    static const char new_text[] = "LEFT 1P OR RIGHT 2P ";
+    uint8_t *p = x->main_bank_rom[1] + 0x3885;
+    if (p[0] != 0x02 || p[1] != 0x22 || p[2] != 0x46 || memcmp(p + 3, old_text, 20) || p[23] != 0x03)
+        return 0;
+    memcpy(p + 3, new_text, 20);
+    return 1;
+}
+
 void xain_set_sound(Xain *x, int on)
 {
     int i;
