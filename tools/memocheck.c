@@ -9,12 +9,13 @@
 #include "romload.h"
 
 static Xain a, b;
+static int no_total;                    /* REF_NOIDLE: the cycle totals count skipped cycles differently */
 
 static int same_cpu(const M6809 *p, const M6809 *q)
 {
     return p->a == q->a && p->b == q->b && p->dp == q->dp && p->cc == q->cc && p->x == q->x &&
            p->y == q->y && p->u == q->u && p->s == q->s && p->pc == q->pc && p->icount == q->icount &&
-           p->total == q->total && p->nmi_line == q->nmi_line && p->nmi_pending == q->nmi_pending &&
+           (no_total || p->total == q->total) && p->nmi_line == q->nmi_line && p->nmi_pending == q->nmi_pending &&
            p->firq_line == q->firq_line && p->irq_line == q->irq_line;
 }
 
@@ -30,6 +31,13 @@ int main(int argc, char **argv)
     a.slice_memo = 0;
     a.hle_sprites = 0;
     a.sub_fast = 0;
+    if (getenv("B_PLAIN"))                              /* B without the new fast paths either */
+        b.slice_memo = b.sub_fast = b.hle_sprites = 0;
+    if (getenv("REF_NOIDLE")) {                         /* the reference without any idle skipping */
+        a.idle_skip = 0;
+        no_total = 1;
+        xain_reset(&a);
+    }
     if (getenv("NO_SUBFAST")) b.sub_fast = 0;
     b.hle_sprites = !getenv("ONLY_MEMO");                /* checked although off by default */
     if (getenv("ONLY_HLE")) b.slice_memo = 0;
@@ -56,7 +64,10 @@ int main(int argc, char **argv)
             memcmp(a.palette_ext, b.palette_ext, sizeof a.palette_ext) || memcmp(a.scrollx, b.scrollx, sizeof a.scrollx) ||
             memcmp(a.scrolly, b.scrolly, sizeof a.scrolly) || a.soundlatch != b.soundlatch ||
             !same_cpu(&a.main, &b.main) || !same_cpu(&a.sub, &b.sub) ||
-            memcmp(a.mcu.ram, b.mcu.ram, sizeof a.mcu.ram)) {
+            memcmp(a.mcu.ram, b.mcu.ram, sizeof a.mcu.ram) || a.mcu.cpu.pc != b.mcu.cpu.pc ||
+            a.mcu.cpu.a != b.mcu.cpu.a || a.mcu.cpu.x != b.mcu.cpu.x || a.mcu.cpu.cc != b.mcu.cpu.cc ||
+            (!no_total && a.mcu.cpu.total != b.mcu.cpu.total) || a.mcu.icount != b.mcu.icount || a.mcu.tdr != b.mcu.tdr ||
+            a.mcu.prescale != b.mcu.prescale || a.mcu.tcr != b.mcu.tcr || a.mcu.cpu.pending != b.mcu.cpu.pending) {
             printf("DIFFERENT after frame %ld (main pc %04X/%04X total %lu/%lu icount %ld/%ld)\n", f,
                    a.main.pc, b.main.pc, (unsigned long)a.main.total, (unsigned long)b.main.total,
                    (long)a.main.icount, (long)b.main.icount);

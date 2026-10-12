@@ -253,7 +253,39 @@ static void idle_skip(Mcu68705 *m)
 
 void mcu_run(Mcu68705 *m, int32_t cycles)
 {
+    M6805 *c = &m->cpu;
     m->icount += cycles;
+    /*
+     * The common case at once (256 of 272 slices in play; A1200 060/100: 3.0 us per slice through
+     * idle_skip): in the wait loop, timer clocked with divisor 128 (as pz-0.113 sets it) and its
+     * counter not reaching 0 in this slice. Then idle_skip does the whole slice and timer_update
+     * only counts (no interrupt, no limit by `room`), the same as below without the calls.
+     */
+    if (m->idle && m->idle_code_ok && m->icount > 0 && m->divisor == 7 && m->source == SRC_CLOCK &&
+        !m->ram[0x3c] && !m->ram[0x28] && (c->cc & (M6805_CC_N | M6805_CC_Z)) == M6805_CC_Z &&
+        !(c->pending && !(c->cc & M6805_CC_I))) {
+        static const uint8_t cost[8] = { 6, 4, 6, 4, 6, 4, 6, 4 };
+        static const uint16_t lpc[4] = { 0x096, 0x098, 0x09e, 0x0a0 };
+        int phase = c->pc == 0x096 ? 0 : c->pc == 0x098 ? 1 : c->pc == 0x09e ? 2 : c->pc == 0x0a0 ? 3 : -1;
+        if (phase >= 0) {
+            int32_t k = div20(m->icount - 1), r = m->icount - k * 20, s = 0, t;
+            unsigned pre, dec;
+            int n = 0;
+            while (s < r)
+                s += cost[phase + n++];
+            t = k * 20 + s;
+            pre = (m->prescale & 0x7fu) + (unsigned)t;
+            dec = pre >> 7;
+            if (dec < (m->tdr ? (unsigned)m->tdr : 256u)) {
+                m->icount -= t;
+                c->total += (uint32_t)t;
+                c->pc = lpc[(phase + n) & 3];
+                m->prescale = (uint8_t)(pre & 0x7f);
+                m->tdr = (uint8_t)(m->tdr - dec);
+                return;
+            }
+        }
+    }
     while (m->icount > 0) {
         int c;
         if (m->idle)

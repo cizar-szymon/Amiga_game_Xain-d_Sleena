@@ -787,3 +787,30 @@ klatki 1000, bez obrazu): z oboma skrótami 9,2 ms, bez `SUBFAST` 11,0 ms, bez t
 19–33), logika pełne 57,4.
 Dalej: MCU czekające (7 µs na kwant, 258 kwantów), druga pętla oczekiwania pomocniczego
 `4B91`–`4B95` (ok. 30 kwantów), koszt wejścia do rdzenia asm (3,7 µs).
+
+**Korekta pomiarów `SliceCost` (12.10.2026).** Pierwsze przebiegi `SliceCost` szły, gdy na A1200
+działała równolegle gra – liczby bezwzględne w dwóch akapitach wyżej (koszt kwantów 6–24 µs,
+cała klatka 9,2 / 11,0 / 14,0 ms) są przez to zawyżone mniej więcej dwukrotnie. Przy zatrzymanej
+grze (dwa przebiegi, zgodne): wejście/wyjście rdzenia asm 1,0 µs, pomocniczy czekający przez
+rdzeń 4,7 µs (`run_sub` 0,7–0,8 µs), MCU czekające 3,0–3,3 µs, główny czekający z tablicy 1,7 µs
+(przez rdzeń 12,0 µs), `scanline()` 0,7–0,8 µs. Cała klatka emulacji bez obrazu (µs):
+
+| Wariant | demo od 1000 | gra od 1800 |
+|---|---|---|
+| oba skróty | 5 133 | 6 800 |
+| bez tablicy kwantów | 4 933–5 000 | 7 800 |
+| bez `SUBFAST` | 6 400–6 466 | 7 866 |
+| bez obu | 6 333 | 8 933 |
+
+W grze każdy skrót daje ok. 1 ms na klatkę (razem 2,1 ms, 24% emulacji); w demie tablica
+kwantów nic nie daje (sprawdzanie przy każdym kwancie kosztuje tyle, ile oszczędza).
+
+**MCU czekające bez `idle_skip`/`timer_update`** (początek `mcu_run`): w pętli oczekiwania, licznik
+z dzielnikiem 128 (tak ustawia go `pz-0.113`) i taktowany zegarem, licznik nie dochodzi do zera w
+tym kwancie (`dec < tdr`, równoważne temu, że `idle_skip` nie ogranicza kwantu przez `room`) –
+cały kwant od razu: cykle, PC w pętli, `prescale` i `tdr` jak w `timer_update`. Inaczej stara
+droga. Sprawdzenie `tools/memocheck.c` (porównuje teraz też rejestry, cykle i licznik MCU),
+także z wzorcem bez żadnego pomijania pętli (`REF_NOIDLE=1`; wtedy bez liczników `total`, które
+przy pomijaniu liczą się inaczej o kilka cykli – tak było już wcześniej, sam stan bez zmian):
+12 000 klatek identycznych. `Lockstep` 3000 klatek identycznych. A1200: kwant MCU 3,0 → 1,9 µs,
+cała klatka w grze 6 800 → 6 266 µs, w demie 5 133 → 4 866 µs.
