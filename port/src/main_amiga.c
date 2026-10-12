@@ -106,6 +106,7 @@ static int emusound;                  /* EMUSOUND: the sound CPU and YM2203 emul
 static const char *samples_path;      /* SAMPLES=file */
 static int use_samples;               /* sound from XainSleena.snd (sndplay.c) */
 static int sndlog;                    /* SNDLOG: log of the sound commands (testing) */
+static int memo_off;                  /* MEMO=OFF: no replay of the main CPU's wait slices */
 static SndPlay snd;
 static UBYTE *snd_pack;
 static ULONG snd_pack_size;
@@ -1337,6 +1338,8 @@ static void parse_option(const char *opt)
         sound_request = SND_PAULA;
     else if (same_text(opt, "EMUSOUND"))
         emusound = 1;
+    else if (same_text(opt, "MEMO=OFF"))
+        memo_off = 1;                                    /* measurements */
     else if (same_text(opt, "SNDLOG"))
         sndlog = 1;                                      /* testing */
     else if (same_text(name, "SAMPLES") && val) {
@@ -1639,6 +1642,7 @@ int main(int argc, char **argv)
     if (dsw0 >= 0) machine.dsw0 = (uint8_t)dsw0;
     if (dsw1 >= 0) machine.dsw1 = (uint8_t)dsw1;
     if (slice > 0 && XAIN_LINE_CYCLES % slice == 0) machine.slice = slice;
+    if (memo_off) machine.slice_memo = 0;
     if (!video_init(&video, &machine))
         fail("Not enough memory.");
     if (!m6809_layout_ok())

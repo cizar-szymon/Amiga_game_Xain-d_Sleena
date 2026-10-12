@@ -701,3 +701,37 @@ liczonym z częstotliwości w pliku (22 030 Hz → 161, ten sam co emulacja), bu
 `snd_loop.py` w metodzie zapasowej bierze najkrótszy okres z błędem bliskim najlepszemu
 (trzymany ton: `97` 3,9 s zamiast 113 s). `XainSleena.snd` 25,6 MB (było 18,5 MB). PC `play1`:
 obwiednie zgodne z emulacją w 0,935. Na A1200 jeszcze nie sprawdzone (Amiga niedostępna).
+
+**Ranking procedur głównego CPU (12.10.2026, sonda `build/probe/mainprof.c`, rozgrywka `play1`
+klatki 1800–4500, rdzeń C z pomijaniem pętli oczekiwania, instrukcje faktycznie wykonane):**
+4296 instrukcji na klatkę. Własne instrukcje procedur (z wywołanymi – „razem”):
+
+| Procedura | Udział | Instr./klatkę | Co robi |
+|---|---|---|---|
+| `86E7` (pętla główna) | 19% | 827 | głównie dwie pętle oczekiwania: `8749`–`8752` (170 obrotów × 5 instr., w każdym zapis `3A09` przez C) i `8727`–`872B` (62 × 3) |
+| `DD48` (z `DCEC`, razem 27%) | 17,5% + 8,9% | 750 + 380 | lista sprite'ów: `DCEC` przegląda 16 priorytetów × rekordy obiektów (7 B od `0281`/`0361`), `DD48` zamienia obiekt (pozycja − przewinięcie `<$59`/`<$5C`, tablice metasprite'ów `DE89`) na wpisy sprite'ów od `0100` |
+| `8053` (NMI) | 6,3% | 272 | obsługa VBLANK |
+| `87E1` + `809B` (FIRQ co 16 linii) | 11% | 257 + 227 | 15 wywołań na klatkę |
+| `9A71` | 5,3% | 230 | |
+| `8000` | 6,5% | 278 | program główny poza procedurami |
+
+Wnioski: (1) pętle oczekiwania to wciąż ok. 24% wykonanych instrukcji – pomijanie działa w
+obrębie kwantu 96 cykli (jedna linia), więc w każdej linii wykonuje się 1–2 obroty i wykrycie
+pętli; tańsze byłoby sprawdzanie warunku pętli natywnie, bez wykonywania obrotów. (2) budowa
+listy sprite'ów (`DCEC`/`DD48`) – ok. 27% – kandydat na wersję natywną (C/asm) z porównaniem
+pamięci sprite'ów w `Lockstep`. (3) Arytmetyka 16-bit i brak liczb zmiennoprzecinkowych – FPU
+nic nie da; koszt to rozpoznawanie instrukcji, dostęp do pamięci i flagi.
+
+**Kwanty głównego CPU w pętlach oczekiwania z tablicy (punkt 1 z rankingu, 12.10.2026).**
+`run_main` w `xain.c`: kwant (96 cykli) zaczynający się w pętli `8727`–`872B` albo
+`8749`–`8752`, gdy jej warunek wyjścia jest fałszywy (`$3E` bit 0, `$3D & $3E` bit 1), DP = 0
+i żadne przerwanie nie czeka, nie może opuścić pętli – w kwancie głównego CPU nic innego nie
+działa. Jego wynik zależy tylko od PC, A, CC, przeniesionych cykli, długości kwantu, `$3D`,
+`$3E` i linii NMI (`3A09` ją kasuje); pierwszy taki kwant wykonuje rdzeń, wynik (PC, PPC, A, CC,
+NMI, cykle, licznik pominiętych) trafia do tablicy 64 wpisów w strukturze maszyny (osobno dla
+każdej maszyny – `Lockstep`), następne są odtwarzane bez rdzenia. Wyłączane `slice_memo = 0`
+(Amiga: `MEMO=OFF`, do pomiarów). Sprawdzenie `build/probe/memocheck.c`: dwie maszyny (z i bez),
+8000 klatek z ruchem w cztery strony, strzałami i skokami – pamięć, rejestry i liczniki cykli
+głównego i pomocniczego CPU oraz RAM MCU identyczne po każdej klatce. Odtwarzanych kwantów:
+**144 z 272 na klatkę** (98% trafień w tablicy). ⏳ Pomiar na A1200 (100 MHz, `STATS=FULL`
+z `MEMO=OFF` i bez) i `Lockstep` – Amiga niedostępna.

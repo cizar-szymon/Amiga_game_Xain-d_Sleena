@@ -192,6 +192,7 @@ void xain_init(Xain *x)
     x->cpu_run = m6809_run;
     x->slice = 96;                                      /* one scanline; see docs/PORTING.md */
     x->idle_skip = 1;
+    x->slice_memo = 1;
     x->sound_cpu = 1;
     xain_reset(x);
 }
@@ -226,6 +227,7 @@ void xain_reset(Xain *x)
     memset(x->scrolly, 0, sizeof x->scrolly);
     x->pri = x->main_bank = x->sub_bank = x->flip = 0;
     x->soundlatch = 0;
+    memset(x->memo, 0, sizeof x->memo);
     map_pages(x);
     x->main.irq_line = x->main.firq_line = 0;
     x->sub.irq_line = x->sub.firq_line = 0;
@@ -313,12 +315,78 @@ static int vcount_of(int y)
 /* profiling (STATS=FULL, tests): called after each part of a slice with its number */
 void (*xain_prof)(int part);
 
+/*
+ * The main CPU waits most of the frame in two loops of its main program:
+ *   8727 LDA <$3E / ANDA #1 / BEQ 8727                 (until bit 0 of $3E)
+ *   8749 STA $3A09 / LDA <$3D / ANDA <$3E / ANDA #2 / BEQ 8749   (until bit 1 of $3D & $3E)
+ * The idle loop skipping of the cores still runs one or two turns per time slice (one scanline)
+ * to recognise the loop. When a slice starts inside one of these loops, the loop cannot be left
+ * during it (the condition is false, no interrupt is pending, nothing else runs during the main
+ * CPU's slice), so its result depends only on PC, A, CC, the cycles carried over, $3D, $3E and
+ * the NMI line (3A09 clears it): such slices are run once and then replayed from a small table.
+ * Exact by construction; build/probe/memocheck.c compares with slice_memo = 0 (8000 frames of
+ * play identical, 144 of 272 slices per frame replayed).
+ */
+static int main_in_wait(const Xain *x)
+{
+    const M6809 *c = &x->main;
+    uint16_t pc = c->pc;
+    if (c->dp || c->waiting || c->freerun || c->hook || c->nmi_pending ||
+        (c->firq_line && !(c->cc & M6809_CC_F)) || (c->irq_line && !(c->cc & M6809_CC_I)))
+        return 0;
+    if (pc >= 0x8727 && pc < 0x872d)
+        return !(x->shared[0x3e] & 1);
+    if (pc >= 0x8749 && pc < 0x8754)
+        return !(x->shared[0x3d] & x->shared[0x3e] & 2);
+    return 0;
+}
+
+static void run_main(Xain *x, int32_t cycles)
+{
+    M6809 *c = &x->main;
+    XainSliceMemo *e;
+    uint32_t total0, skipped0;
+    if (!x->slice_memo || !main_in_wait(x)) {
+        x->cpu_run(c, cycles);
+        return;
+    }
+    e = &x->memo[(c->pc * 7u + (uint32_t)c->icount * 13u + c->a) & (XAIN_MEMO_SIZE - 1)];
+    if (e->used && e->pc == c->pc && e->icount == c->icount && e->cycles == cycles && e->a == c->a && e->cc == c->cc &&
+        e->m3d == x->shared[0x3d] && e->m3e == x->shared[0x3e] && e->nmi == c->nmi_line) {
+        c->pc = e->pc2;
+        c->ppc = e->ppc2;
+        c->a = e->a2;
+        c->cc = e->cc2;
+        c->nmi_line = e->nmi2;
+        c->icount = e->icount2;
+        c->total += e->dtotal;
+        c->idle_skipped += e->dskipped;
+        x->memo_hits++;
+        return;
+    }
+    e->used = 0;
+    e->pc = c->pc; e->icount = c->icount; e->cycles = cycles; e->a = c->a; e->cc = c->cc;
+    e->m3d = x->shared[0x3d]; e->m3e = x->shared[0x3e]; e->nmi = c->nmi_line;
+    total0 = c->total;
+    skipped0 = c->idle_skipped;
+    x->cpu_run(c, cycles);
+    x->memo_runs++;
+    /* still in the loop with the same memory: the slice depends only on the key */
+    if (main_in_wait(x) && x->shared[0x3d] == e->m3d && x->shared[0x3e] == e->m3e) {
+        e->pc2 = c->pc; e->ppc2 = c->ppc; e->a2 = c->a; e->cc2 = c->cc; e->nmi2 = c->nmi_line;
+        e->icount2 = c->icount;
+        e->dtotal = c->total - total0;
+        e->dskipped = c->idle_skipped - skipped0;
+        e->used = 1;
+    }
+}
+
 static void run_slice(Xain *x, int32_t cycles)
 {
     if (xain_prof) {
         xain_prof(-1);
         main_fast_update(x);
-        x->cpu_run(&x->main, cycles);
+        run_main(x, cycles);
         xain_prof(0);
         x->cpu_run(&x->sub, cycles);
         xain_prof(1);
@@ -334,7 +402,7 @@ static void run_slice(Xain *x, int32_t cycles)
         return;
     }
     main_fast_update(x);                                /* VBLANK, coin 3, MCU flags since the last slice */
-    x->cpu_run(&x->main, cycles);
+    run_main(x, cycles);
     x->cpu_run(&x->sub, cycles);
     if (x->sound_cpu) {
         /* the sound CPU only receives (sound latch), so it can be left out without sound */

@@ -29,6 +29,18 @@ enum {
 
 typedef struct Xain Xain;
 
+/* a replayable time slice of the main CPU in a wait loop (run_main in xain.c) */
+typedef struct {
+    uint8_t used, a, cc, m3d, m3e, nmi;
+    uint16_t pc;
+    int32_t icount, cycles;
+    uint8_t a2, cc2, nmi2;                /* the result */
+    uint16_t pc2, ppc2;
+    int32_t icount2;
+    uint32_t dtotal, dskipped;
+} XainSliceMemo;
+#define XAIN_MEMO_SIZE 64
+
 struct Xain {
     M6809 main, sub, snd;
     Mcu68705 mcu;
@@ -71,6 +83,10 @@ struct Xain {
     int line;                           /* current scanline 0..271 */
     int slice;                          /* cycles per CPU time slice (divides 96) */
     int idle_skip;                      /* skip idle loops (exact; default on, set before reset) */
+    int slice_memo;                     /* main CPU in its wait loops: replay whole time slices
+                                           (exact; default on, see run_main in xain.c) */
+    uint32_t memo_hits, memo_runs;      /* statistics */
+    XainSliceMemo memo[XAIN_MEMO_SIZE];
     int32_t (*cpu_run)(M6809 *cpu, int32_t cycles);   /* m6809_run (C) or m6809_run_asm (68k) */
     uint32_t frame;
 
