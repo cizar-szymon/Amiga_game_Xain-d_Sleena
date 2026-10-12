@@ -847,8 +847,8 @@ nieskończone życia, w MAME „Infinite (Cheat)”).
 
 **Ikona** `port/amiga/XainSleena.info` (Makefile kopiuje do `build/amiga`): 64×56 z kadru PC
 (klatka 1900, ekran MISSION, Xain), obraz 4-kolorowy i ColorIcon w 22 kolorach gry
-(`tools/make_icon.py` i `tools/icon_tooltypes.py` z Vastar). Tool Types: `SCALE=1`, `LIVES=3`,
-wyłączone `(SCALE=2)`, `(SCREEN=FULL)`, `(LIVES=4)`, `(LIVES=6)`, `(LIVES=INF)`,
+(`tools/make_icon.py` i `tools/icon_tooltypes.py` z Vastar). Tool Types: `SCREEN=FULL`
+(domyślnie pełny ekran 320×240), `SCALE=1`, `LIVES=3`, wyłączone `(SCREEN=WINDOW)`, `(SCALE=2)`, `(LIVES=4)`, `(LIVES=6)`, `(LIVES=INF)`,
 `CONTROL=JOY1`, `(CONTROL=JOY2)`, `(CONTROL=KEYBOARD)`, `(START=ARCADE)`, `(SOUND=AHI)`, `(NOSOUND)`, `(EMUSOUND)`, `(JOYPORT=BOTH)`, `(STATS)`,
 `(ROMPATH=Work:roms)`. Sprawdzone na A1200 (z Shella): ekran startu z napisem i `CREDIT 2`,
 strzałka w lewo startuje grę 1P.
@@ -859,10 +859,15 @@ piechotę góra nie ma własnej funkcji. Kod procesora pomocniczego: obsługa gr
 `<$53` bit 7 (DP = 0, czyli wspólny RAM `$0053`): 0 → na piechotę (`8355`, przycisk 2 = skok),
 1 → statek (`82CC` → `8A75` → `8AAB`: przycisk 1 tworzy obiekt 6 – strzał, przycisk 2 obiekt 7,
 tylko gdy sloty `$1848`–`$184B` są wolne – dodatkowa, ograniczona broń). `$0053` ustawia główny
-CPU na początku etapu (`84DD`–`84F3` z tablicy `85B0`; `8519`/`852F` – etapy lotu). `$0048` =
-rodzaj etapu, 0 na mapie planet (bank 0 sub `7D04`: dowolny przycisk wybiera planetę).
-`xain_on_foot()` = gra trwa, `$0048` ≠ 0, `$0053` bit 7 = 0. Etapu lotu nie sprawdziłem w
-działaniu (skrypt nie dochodzi tak daleko) – wniosek z kodu.
+CPU na początku etapu (`84DD`–`84F3` z tablicy `85B0`; `8519`/`852F` – etapy lotu). Scena: IRQ
+sub `8020` skacze według `<$41` (1 = gra `804A`, 3 = mapa planet – bank 0 `7D04`, dowolny
+przycisk wybiera planetę); w grze na piechotę `<$52 & 0F` = 2 to ruch gracza.
+`xain_on_foot()` = gra trwa, `$0041` = 1, `$0053` bit 7 = 0, `$0052 & 0F` = 2. Pierwsza wersja
+używała `$0048` (rodzaj etapu) jako znacznika mapy – błąd: typ 0 to też planeta, więc na części
+planet góra nie skakała (zgłoszenie użytkownika z A1200). Próba `onfoot` (12000 klatek z ruchem
+w górę): na mapie 0 klatek z `on_foot`, z procedurą gracza na piechotę 5756 z `on_foot` i 217 bez
+(wejście na planetę, śmierć). Etapu lotu nie sprawdziłem w działaniu – wniosek z kodu. Góra
+skacze w JOY1 dla każdego typu urządzenia (wcześniej tylko `JP_TYPE_JOYSTK`).
 - `CONTROL=JOY1` (domyślnie, joystick z jednym przyciskiem): ruch i strzał; **na piechotę góra =
   skok** (góra + przycisk 2), w lotach i na mapie góra to tylko ruch, a **Spacja** (przycisk 2)
   odpala dodatkową broń; niebieski przycisk joysticka pomijany (przypadkowe sygnały na pinie 9);

@@ -557,15 +557,18 @@ void xain_assist(Xain *x)
     }
 }
 
-/* main 84DD-84F3 (stage start): <$53 bit 7 = the ship (sub 823D -> 82CC/8A75/8AAB: button 2 =
-   object 7), clear = on foot (sub 8355: button 2 = jump); <$48 = the stage type, 0 on the planet
-   map (sub bank 0 7D04: any button picks a planet) */
-#define RAM_STAGE 0x48
+/* sub IRQ 8020: <$41 = the scene (1 play, 3 the planet map: bank 0 7D04, any button picks a
+   planet); in play (804A) <$53 bit 7 = the ship (set by main 84DD-84F3 at the stage start;
+   sub 82CC/8A75/8AAB: button 2 = object 7, the extra weapon), clear = on foot with <$52 & 0F
+   = 2 the player moving (sub 823D/8355: button 2 = jump) */
+#define RAM_SCENE 0x41
+#define RAM_FOOT_STATE 0x52
 #define RAM_SHIP 0x53
 
 int xain_on_foot(const Xain *x)
 {
-    return x->shared[RAM_PLAYING] && x->shared[RAM_STAGE] && !(x->shared[RAM_SHIP] & 0x80);
+    return x->shared[RAM_PLAYING] && x->shared[RAM_SCENE] == 1 && !(x->shared[RAM_SHIP] & 0x80)
+        && (x->shared[RAM_FOOT_STATE] & 0x0f) == 2;
 }
 
 int xain_patch_texts(Xain *x)

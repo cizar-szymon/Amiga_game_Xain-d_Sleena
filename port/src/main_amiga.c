@@ -1299,7 +1299,7 @@ static void read_inputs(void)
                 p1 |= IN_UP;
                 /* JOY1: on foot up also jumps (up has no function of its own there: up + jump =
                    jump); in the flying stages up only moves, Space fires the extra weapon */
-                if (control == CTL_JOY1 && type == JP_TYPE_JOYSTK && xain_on_foot(&machine))
+                if (control == CTL_JOY1 && xain_on_foot(&machine))
                     p1 |= IN_BUTTON2;
             }
             if (j & JPF_JOY_DOWN) p1 |= IN_DOWN;
