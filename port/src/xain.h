@@ -5,7 +5,7 @@
 #define XAIN_H
 
 /* the version of the port (Amiga $VER, PC window, start screen with START=EASY) */
-#define XAIN_VERSION "0.9.6"
+#define XAIN_VERSION "0.9.7"
 
 #include <stdint.h>
 #include "m6809.h"

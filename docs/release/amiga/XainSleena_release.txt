@@ -15,6 +15,19 @@ razem z numerem wydania. Autorzy wczytuja ten stan i widza
 dokladnie to, co bylo na Amidze.
 
 
+RELEASE 0.9.7  (17.10.2026)
+---------------------------
+
+Zmiany:
+- Szybsze rysowanie obrazu przy wielu przeciwnikach i przewijaniu: obraz
+  powstaje pasami po 8 linii, zmienione kawalki sa od razu zamieniane na
+  kolory karty i wysylane. W najciezszej scenie (68060/100 MHz, pelny
+  ekran) 28-29 obrazow na sekunde zamiast 20-21; w oknie SCALE=2 17
+  zamiast 14-15. Gra (logika) dalej w pelnym tempie automatu.
+- Uwaga: przy zegarze 55 MHz gra w ciezkich scenach zwalnia (emulacja nie
+  nadaza); zalecany zegar 100 MHz.
+
+
 RELEASE 0.9.6  (15.10.2026)
 ---------------------------
 

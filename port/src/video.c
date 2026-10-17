@@ -417,12 +417,13 @@ int video_asm = 0;
 /* time measurements: layers left out (bit 0 text, 1 BG1, 2 BG2, 3 sprites) */
 int video_skip;
 
-void video_render_frame(Video *v, const Xain *x)
+/* the sprite lists of the picture being rendered (video_render_begin) */
+static SprEntry spr[192];
+static uint8_t list[SCREEN_H][192], count[SCREEN_H];
+
+void video_render_begin(Video *v, const Xain *x)
 {
-    static SprEntry spr[192];
-    static uint8_t list[SCREEN_H][192], count[SCREEN_H];
     int n = 0, offs, y, i;
-    const uint8_t *o = order[x->pri & 7];
 
 #ifdef __VBCC__
     bg_row[0] = bg_row[1] = txt_row = -1;              /* the tile lists are built again */
@@ -461,8 +462,14 @@ void video_render_frame(Video *v, const Xain *x)
             list[r][count[r]++] = (uint8_t)i;
         }
     }
-    for (y = XAIN_FIRST_LINE; y < XAIN_FIRST_LINE + SCREEN_H; y++) {
-        uint16_t *line = v->fb + (y - XAIN_FIRST_LINE) * SCREEN_W;
+}
+
+void video_render_lines(Video *v, const Xain *x, int y0, int lines, uint16_t *dst)
+{
+    const uint8_t *o = order[x->pri & 7];
+    int y, i;
+    for (y = y0; y < y0 + lines; y++) {
+        uint16_t *line = dst + (y - y0) * SCREEN_W;
         for (i = 0; i < 4; i++) {
             if (video_skip & (1 << o[i])) continue;
             switch (o[i]) {
@@ -475,4 +482,10 @@ void video_render_frame(Video *v, const Xain *x)
             }
         }
     }
+}
+
+void video_render_frame(Video *v, const Xain *x)
+{
+    video_render_begin(v, x);
+    video_render_lines(v, x, XAIN_FIRST_LINE, SCREEN_H, v->fb);
 }

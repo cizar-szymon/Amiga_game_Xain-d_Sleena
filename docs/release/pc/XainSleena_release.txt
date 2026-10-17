@@ -7,6 +7,14 @@ w automacie). Zglaszajac blad, podaj numer wydania - po nim widac, czy
 blad nie zostal juz poprawiony w nowszym.
 
 
+RELEASE 0.9.7  (17.10.2026)
+---------------------------
+
+Zmiany:
+- Bez zmian w grze na PC (wspolny kod rysowania podzielony na czesci dla
+  wersji Amigi). Numer wydania jak w wersji Amigi.
+
+
 RELEASE 0.9.6  (15.10.2026)
 ---------------------------
 

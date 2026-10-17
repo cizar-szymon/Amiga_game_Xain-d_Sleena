@@ -264,3 +264,111 @@ _convert_rows_68k:
 	dbra	d7,.c3
 .cdone:	movem.l	(sp)+,d2-d7/a2-a5
 	rts
+
+; void convert_fast_68k(const uint16_t *src, UBYTE *dst, ULONG dst_bpr, ULONG pixels, const void *lut, ULONG mode)
+; 8 rows of palette indices (512 bytes per row, as a band or the picture) into the screen format,
+; 4 pixels per turn with the table lookups interleaved (the 68060 waits when a loaded index is
+; used at once). mode 1: 16 bit pixels, lut = UWORD[512]; mode 3: each pixel twice (SCALE=2),
+; lut = ULONG[512] (the pixel in both words). pixels: a multiple of 4.
+	public	_convert_fast_68k
+	cnop	0,4
+_convert_fast_68k:
+	movem.l	d2-d7/a2-a5,-(sp)
+	move.l	44(sp),a0		; src
+	move.l	48(sp),a1		; dst
+	move.l	52(sp),a5		; dst_bpr
+	move.l	56(sp),d6		; pixels
+	move.l	60(sp),a2		; lut
+	lsr.l	#2,d6
+	subq.l	#1,d6			; groups of 4 pixels - 1
+	moveq	#7,d7
+	cmp.l	#3,64(sp)
+	beq.s	.f3
+.f1row:	move.l	a0,a3
+	move.l	a1,a4
+	move.l	d6,d4
+.f1px:	move.l	(a3)+,d0		; p0:p1
+	move.l	(a3)+,d2		; p2:p3
+	move.w	d0,d1
+	swap	d0
+	move.w	d2,d3
+	swap	d2
+	move.w	(a2,d0.w*2),d5
+	swap	d5
+	move.w	(a2,d1.w*2),d5
+	move.w	(a2,d2.w*2),d0
+	swap	d0
+	move.w	(a2,d3.w*2),d0
+	move.l	d5,(a4)+
+	move.l	d0,(a4)+
+	dbra	d4,.f1px
+	lea	512(a0),a0
+	add.l	a5,a1
+	dbra	d7,.f1row
+	bra.s	.fdone
+.f3:	move.l	a0,a3
+	move.l	a1,a4
+	move.l	d6,d4
+.f3px:	move.l	(a3)+,d0
+	move.l	(a3)+,d2
+	move.w	d0,d1
+	swap	d0
+	move.w	d2,d3
+	swap	d2
+	move.l	(a2,d0.w*4),(a4)+
+	move.l	(a2,d1.w*4),(a4)+
+	move.l	(a2,d2.w*4),(a4)+
+	move.l	(a2,d3.w*4),(a4)+
+	dbra	d4,.f3px
+	lea	512(a0),a0
+	add.l	a5,a1
+	dbra	d7,.f3
+.fdone:	movem.l	(sp)+,d2-d7/a2-a5
+	rts
+
+; ULONG hash_band_68k(const uint16_t *band, ULONG *hash, UBYTE *dirty, ULONG full)
+; 32 blocks of a band (8 rows of 256 pixels, 512 bytes per row): per block a 32 bit hash of its
+; 8 x 16 bytes (h = rol(h, 5) ^ long, from $9E3779B9); dirty[bx] = 1 when it differs from
+; hash[bx] (or full), hash[bx] = the new one. Returns the number of dirty blocks.
+	public	_hash_band_68k
+	cnop	0,4
+_hash_band_68k:
+	movem.l	d2-d7/a2-a3,-(sp)
+	move.l	36(sp),a0		; band
+	move.l	40(sp),a1		; hash
+	move.l	44(sp),a2		; dirty
+	move.l	48(sp),d7		; full
+	moveq	#0,d6			; dirty blocks
+	moveq	#31,d5
+.hblk:	move.l	a0,a3
+	move.l	#$9e3779b9,d0
+	moveq	#7,d4
+.hrow:	move.l	(a3),d1
+	move.l	4(a3),d2
+	rol.l	#5,d0
+	eor.l	d1,d0
+	move.l	8(a3),d3
+	rol.l	#5,d0
+	eor.l	d2,d0
+	move.l	12(a3),d1
+	rol.l	#5,d0
+	eor.l	d3,d0
+	rol.l	#5,d0
+	eor.l	d1,d0
+	lea	512(a3),a3
+	dbra	d4,.hrow
+	moveq	#0,d1
+	cmp.l	(a1),d0
+	sne	d1
+	or.b	d7,d1
+	move.l	d0,(a1)+
+	tst.b	d1
+	sne	d1
+	and.b	#1,d1
+	move.b	d1,(a2)+
+	add.l	d1,d6
+	lea	16(a0),a0
+	dbra	d5,.hblk
+	move.l	d6,d0
+	movem.l	(sp)+,d2-d7/a2-a3
+	rts

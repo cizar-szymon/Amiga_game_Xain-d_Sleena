@@ -41,7 +41,10 @@ SCALE=1|2|3   [2; ikona: 1]
 
 VIDEO=BLIT|WPA|WCP   [16/8 bit: BLIT, 32 bit: WPA, bez Picasso96: WCP]
   BLIT: obraz na karcie (friend bitmap), zmienione bloki zapisywane tylko
-        dlugimi slowami, potem BltBitMapRastPort prostokata zmian.
+        dlugimi slowami, potem BltBitMapRastPort prostokata zmian. Przy
+        16 bitach i SCALE=1|2 obraz rysowany pasami po 8 linii: dla kazdego
+        bloku 8x8 32-bitowy skrot, zmienione bloki zamieniane na kolory
+        karty wprost do VRAM (od 0.9.7).
   WPA:  obraz w Fast RAM w formacie ekranu, p96WritePixelArray.
   WCP:  WriteChunkyPixels z piorami. NORTG = VIDEO=WCP.
 
@@ -51,7 +54,14 @@ FRAMESKIP=AUTO|n   [AUTO]
 
 RENDER=LINE   (test)  renderer wzorcowy linia po linii w czasie klatki.
 REDRAW        (pomiary) kazdy rysowany obraz wysylany w calosci.
-MOVE16=OFF    (pomiary) kopie do VRAM dlugimi slowami zamiast MOVE16.
+MOVE16=OFF    (pomiary) kopie do VRAM dlugimi slowami zamiast MOVE16
+              (stara droga; pasy zawsze dlugimi slowami).
+BANDS=OFF     (pomiary) stara droga: caly obraz, porownanie z poprzednim.
+BANDDIRECT=OFF (pomiary) pasy przez bufor w Fast RAM i kopie do VRAM.
+LOADSTATE=plik (testy) start od stanu automatu zapisanego klawiszem F10
+              (przelaczniki DIP nie sa w stanie: np. DSW1=3f).
+PBENCH=n      (pomiary, z LOADSTATE) kazdy etap rysowania i wysylania
+              obrazu n razy, czasy na standardowe wyjscie, potem koniec.
 
 
 DZWIEK

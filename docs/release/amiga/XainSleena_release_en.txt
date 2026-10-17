@@ -14,6 +14,20 @@ off (RAM: is lost) and send them with the release number. The authors
 load this state and see exactly what happened on the Amiga.
 
 
+RELEASE 0.9.7  (17.10.2026)
+---------------------------
+
+Changes:
+- Faster picture output with many enemies and scrolling: the picture is
+  built in bands of 8 lines, the changed parts are converted to the card's
+  colours and sent at once. In the heaviest scene (68060/100 MHz, full
+  screen) 28-29 pictures per second instead of 20-21; in a window with
+  SCALE=2 17 instead of 14-15. The game (logic) still runs at the full
+  arcade speed.
+- Note: at a 55 MHz clock the game slows down in heavy scenes (the
+  emulation cannot keep up); a 100 MHz clock is recommended.
+
+
 RELEASE 0.9.6  (15.10.2026)
 ---------------------------
 

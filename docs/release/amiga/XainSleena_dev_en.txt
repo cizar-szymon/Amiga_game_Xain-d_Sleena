@@ -45,7 +45,9 @@ SCALE=1|2|3   [2; icon: 1]
 VIDEO=BLIT|WPA|WCP   [16/8 bit: BLIT, 32 bit: WPA, no Picasso96: WCP]
   BLIT: the picture on the card (friend bitmap), changed blocks written
         with long word writes only, then BltBitMapRastPort of the changed
-        rectangle.
+        rectangle. With 16 bits and SCALE=1|2 the picture is drawn in bands
+        of 8 lines: a 32 bit hash per 8x8 block, changed blocks converted to
+        the card's colours straight into VRAM (since 0.9.7).
   WPA:  the picture in Fast RAM in the screen format, p96WritePixelArray.
   WCP:  WriteChunkyPixels with pens. NORTG = VIDEO=WCP.
 
@@ -55,7 +57,15 @@ FRAMESKIP=AUTO|n   [AUTO]
 
 RENDER=LINE   (test) the reference renderer, line by line during the frame.
 REDRAW        (measurements) every drawn picture sent whole.
-MOVE16=OFF    (measurements) copies to VRAM with long moves, not MOVE16.
+MOVE16=OFF    (measurements) copies to VRAM with long moves, not MOVE16
+              (old way; the bands always use long moves).
+BANDS=OFF     (measurements) the old way: whole picture, compared with the
+              previous one.
+BANDDIRECT=OFF (measurements) bands through a Fast RAM buffer and copies.
+LOADSTATE=file (tests) start from a machine state saved with F10 (the DIP
+              switches are not in it: e.g. DSW1=3f).
+PBENCH=n      (measurements, with LOADSTATE) each stage of drawing and
+              sending the picture n times, times to stdout, then quit.
 
 
 SOUND

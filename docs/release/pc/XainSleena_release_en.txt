@@ -7,6 +7,14 @@ is as on the arcade). When reporting a bug, give the release number - it
 tells whether the bug has already been fixed in a newer one.
 
 
+RELEASE 0.9.7  (17.10.2026)
+---------------------------
+
+Changes:
+- No changes to the game on the PC (the shared drawing code was split into
+  parts for the Amiga version). Same release number as the Amiga version.
+
+
 RELEASE 0.9.6  (15.10.2026)
 ---------------------------
 

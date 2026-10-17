@@ -77,7 +77,7 @@
 #include "romload.h"
 #include "sndplay.h"
 
-const char version[] = "$VER: XainSleena " XAIN_VERSION " (15.10.2026) arcade emulation";
+const char version[] = "$VER: XainSleena " XAIN_VERSION " (17.10.2026) arcade emulation";
 
 struct IntuitionBase *IntuitionBase;
 struct GfxBase *GfxBase;
@@ -448,6 +448,7 @@ static ULONG wfb_bpr, scr_fmt;
 static int vbpp;
 static ULONG native[512];             /* palette index -> pixel in the screen format */
 static ULONG native2[512];            /* 16 bit screens: the pixel twice (SCALE=2) */
+static UWORD native16[512];           /* 16 bit screens: the pixel as a word (convert_fast_68k) */
 static int rtg_ok;
 
 /* amiga_68k.s: rows from fast RAM to VRAM, writes only (MOVE16 or long moves) */
@@ -456,6 +457,8 @@ void copy_rows(const UBYTE *src, UBYTE *dst, ULONG bytes, ULONG rows, ULONG src_
 /* the changed 8x8 blocks of two pictures; 8 rows of indices into 16 bit pixels (SCALE 1/2) */
 ULONG find_dirty_68k(const uint16_t *a, const uint16_t *b, UBYTE *dirty);
 void convert_rows_68k(const uint16_t *src, UBYTE *dst, ULONG dst_bpr, ULONG pixels, const ULONG *lut, ULONG scale);
+/* the same with the lookups interleaved: mode 1 lut UWORD[512], mode 3 (doubled) lut ULONG[512] */
+void convert_fast_68k(const uint16_t *src, UBYTE *dst, ULONG dst_bpr, ULONG pixels, const void *lut, ULONG mode);
 
 #define MAX_RUNS (RENDER_BW * RENDER_BH)
 static UBYTE run_by[MAX_RUNS], run_x0[MAX_RUNS], run_x1[MAX_RUNS];
@@ -498,6 +501,7 @@ static void update_colours(void)
         for (i = 0; i < 512; i++) {
             native[i] = pixel_value(scr_fmt, video.rgb[i][0], video.rgb[i][1], video.rgb[i][2], 0);
             native2[i] = (native[i] & 0xffff) * 0x00010001UL;
+            native16[i] = (UWORD)native[i];
         }
     }
     force_full = 1;
@@ -833,6 +837,271 @@ static void present(void)
         prof_stage(5);
     if (verify && ++verify_frames % 30 == 0)
         verify_window();
+}
+
+/* BLIT, 16 bit, SCALE 1/2, fast renderer: the picture in bands of 8 lines that stay in the data
+   cache: each band is rendered, compared with what the window shows (shown), the changed blocks
+   are copied into shown, converted and written to VRAM; then one blit of the changed rectangle.
+   The same result as video_render_frame + present() without the passes over whole pictures
+   (render into fb, compare fb with shown, convert from fb: each ca. 2-4 ms at 100 MHz).
+   BANDS=OFF: the old way (comparisons). */
+static int use_bands = 1;
+static int bands_direct = 1;          /* convert straight into VRAM (BANDDIRECT=OFF: via sfb + copy) */
+static int bands_skip;                /* PBENCH: 1 = nothing sent, 2 = converted but not copied */
+static uint16_t band[RENDER_W * 8];
+
+/* What the window shows is kept as one 32 bit hash per block (4 KB, stays in the data cache)
+   instead of the previous picture: a block is sent when the hash of its new pixels differs.
+   (A changed block with the same hash - about 1 in 4e9 - would stay until it changes again;
+   VERIFY compares the window with the picture.) */
+static ULONG block_hash[RENDER_BH][RENDER_BW];
+
+/* the blocks of band row by that changed (all with full): 1 in d[] */
+/* amiga_68k.s: the same for the 32 blocks of a band (h = rol(h, 5) ^ long over 8 x 16 bytes) */
+ULONG hash_band_68k(const uint16_t *band, ULONG *hash, UBYTE *dirty, ULONG full);
+
+static int band_diff(const uint16_t *b, int by, UBYTE *d, int full)
+{
+    return (int)hash_band_68k(b, block_hash[by], d, (ULONG)(full != 0));
+}
+
+static int bands_possible(void)
+{
+    return use_bands && video_mode == VID_BLIT && vbpp == 2 && (scale == 1 || scale == 2) && !render_lines;
+}
+
+static void render_present_bands(void)
+{
+    const ULONG bw = (ULONG)(8 * scale * 2);
+    int by, x0 = RENDER_BW, x1 = -1, y0 = RENDER_BH, y1 = -1, full;
+    if (machine.palette_dirty)
+        update_colours();
+    if (redraw)
+        force_full = 1;
+    full = force_full;
+    force_full = 0;
+    video_render_begin(&video, &machine);
+    for (by = 0; by < RENDER_BH; by++) {
+        UBYTE d[RENDER_BW];
+        struct RenderInfo ri;
+        LONG lock;
+        int bx = 0, n;
+        video_render_lines(&video, &machine, XAIN_FIRST_LINE + by * 8, 8, band);
+        n = band_diff(band, by, d, full);
+        if (verify)                                       /* VERIFY compares the window with shown */
+            memcpy(&shown[by * 8 * RENDER_W], band, sizeof band);
+        if (!n || bands_skip == 1)
+            continue;
+        prof_blocks += (ULONG)n;
+        lock = p96LockBitMap(vbm, (UBYTE *)&ri, sizeof ri);
+        if (!ri.Memory) {
+            p96UnlockBitMap(vbm, lock);
+            force_full = 1;                               /* everything again next time */
+            return;
+        }
+        while (bx < RENDER_BW) {
+            const ULONG bpr = (UWORD)ri.BytesPerRow;
+            int r0;
+            ULONG b0, b1, m16;
+            UBYTE *dst;
+            if (!d[bx]) {
+                bx++;
+                continue;
+            }
+            r0 = bx;
+            while (bx < RENDER_BW && d[bx])
+                bx++;
+            b0 = (ULONG)r0 * bw;
+            b1 = (ULONG)bx * bw;
+            dst = (UBYTE *)ri.Memory + (ULONG)(by * 8 * scale) * bpr + b0;
+            m16 = 0;          /* long moves: MOVE16 needs CacheClearE per run and was slower (PBENCH) */
+            if (bands_skip == 2) {
+                convert_fast_68k(&band[r0 * 8], sfb + b0, sfb_bpr, (ULONG)(bx - r0) * 8, native16, 1);
+            } else if (bands_direct) {
+                /* converted straight into VRAM (long word writes only), no buffer in between */
+                if (scale == 2) {
+                    convert_fast_68k(&band[r0 * 8], dst, 2 * bpr, (ULONG)(bx - r0) * 8, native2, 3);
+                    convert_fast_68k(&band[r0 * 8], dst + bpr, 2 * bpr, (ULONG)(bx - r0) * 8, native2, 3);
+                } else {
+                    convert_fast_68k(&band[r0 * 8], dst, bpr, (ULONG)(bx - r0) * 8, native16, 1);
+                }
+            } else if (scale == 2) {
+                convert_fast_68k(&band[r0 * 8], sfb + b0, sfb_bpr, (ULONG)(bx - r0) * 8, native2, 3);
+                copy_rows(sfb + b0, dst, b1 - b0, 8, sfb_bpr, 2 * bpr, m16);
+                copy_rows(sfb + b0, dst + bpr, b1 - b0, 8, sfb_bpr, 2 * bpr, m16);
+            } else {
+                convert_fast_68k(&band[r0 * 8], sfb + b0, sfb_bpr, (ULONG)(bx - r0) * 8, native16, 1);
+                copy_rows(sfb + b0, dst, b1 - b0, 8, sfb_bpr, bpr, m16);
+            }
+            if (r0 < x0) x0 = r0;
+            if (bx - 1 > x1) x1 = bx - 1;
+            if (by < y0) y0 = by;
+            if (by > y1) y1 = by;
+        }
+        p96UnlockBitMap(vbm, lock);
+    }
+    if (x1 >= 0)
+        BltBitMapRastPort(vbm, (WORD)(x0 * 8 * scale), (WORD)(y0 * 8 * scale), win->RPort,
+                          (WORD)(ox + x0 * 8 * scale), (WORD)(oy + y0 * 8 * scale),
+                          (WORD)((x1 + 1 - x0) * 8 * scale), (WORD)((y1 + 1 - y0) * 8 * scale), 0xC0);
+    if (verify && ++verify_frames % 30 == 0)
+        verify_window();
+}
+
+/* PBENCH=n (tests): the picture output measured n times per stage from two consecutive
+   pictures of the scene (LOADSTATE=), one clock read per series; results to stdout, then quit */
+static int present_bench, present_bench_m16;   /* PBENCH=n, BENCHM16 also tests MOVE16 alone */
+static uint64_t eclock_now(void);
+
+static ULONG bench_us(uint64_t t0, int n)
+{
+    return (ULONG)((eclock_now() - t0) * 1000000 / eclock_freq / (ULONG)n);
+}
+
+static void load_state(void);
+
+/* n frames of the scene from the state: emulation only (mode 0), + video_render_frame and
+   present() (1), + render_present_bands (2); microseconds per frame */
+static ULONG bench_series(int mode, int n)
+{
+    uint64_t t;
+    int i;
+    load_state();
+    force_full = 1;
+    t = eclock_now();
+    for (i = 0; i < n; i++) {
+        xain_run_frame(&machine);
+        if (mode == 1) {
+            video_render_frame(&video, &machine);
+            present();
+        } else if (mode == 2) {
+            render_present_bands();
+        }
+    }
+    WaitBlit();
+    return bench_us(t, n);
+}
+
+static void run_present_bench(void)
+{
+    static uint16_t buf_a[RENDER_W * RENDER_H], buf_b[RENDER_W * RENDER_H];
+    static UBYTE dirty[RENDER_BH][RENDER_BW];
+    const int n = present_bench;
+    uint64_t t;
+    ULONG copy_us;
+    int i, by;
+    setvbuf(stdout, NULL, _IONBF, 0);             /* each line on disk at once (if it hangs) */
+    xain_run_frame(&machine);
+    video_render_frame(&video, &machine);
+    memcpy(buf_a, video.fb, sizeof buf_a);
+    xain_run_frame(&machine);
+    video_render_frame(&video, &machine);
+    memcpy(buf_b, video.fb, sizeof buf_b);
+    if (machine.palette_dirty)
+        update_colours();
+    printf("PBENCH %d: %s, %d bytes/pixel, scale %d, %s, move16 %d\n", n, video_names[video_mode], vbpp,
+           scale, screen_full ? "full screen" : "window", use_move16);
+    printf("changed blocks between the two pictures: %lu of %d\n",
+           find_dirty_68k(buf_a, buf_b, &dirty[0][0]), RENDER_BW * RENDER_BH);
+    t = eclock_now();
+    for (i = 0; i < n; i++) video_render_frame(&video, &machine);
+    printf("%-44s %6lu us\n", "render (whole picture)", bench_us(t, n));
+    t = eclock_now();
+    for (i = 0; i < n; i++) find_dirty_68k(buf_a, buf_b, &dirty[0][0]);
+    printf("%-44s %6lu us\n", "compare (find_dirty_68k)", bench_us(t, n));
+    t = eclock_now();
+    for (i = 0; i < n; i++) memcpy(video.fb, (i & 1) ? buf_b : buf_a, sizeof buf_a);
+    copy_us = bench_us(t, n);
+    printf("%-44s %6lu us (subtracted below)\n", "memcpy of a picture", copy_us);
+    t = eclock_now();
+    for (i = 0; i < n; i++) {
+        memcpy(video.fb, (i & 1) ? buf_b : buf_a, sizeof buf_a);
+        present();
+    }
+    WaitBlit();
+    printf("%-44s %6lu us\n", "present(), changed blocks", bench_us(t, n) - copy_us);
+    t = eclock_now();
+    for (i = 0; i < n; i++) {
+        memcpy(video.fb, (i & 1) ? buf_b : buf_a, sizeof buf_a);
+        force_full = 1;
+        present();
+    }
+    WaitBlit();
+    printf("%-44s %6lu us\n", "present(), whole picture", bench_us(t, n) - copy_us);
+    {
+        ULONG emu = bench_series(0, n), old = bench_series(1, n), bands = 0;
+        printf("%-44s %6lu us\n", "emulation of a frame (subtracted below)", emu);
+        printf("%-44s %6lu us\n", "render + present, old way (per frame)", old - emu);
+        if (bands_possible()) {
+            bands = bench_series(2, n);
+            printf("%-44s %6lu us\n", "render + present in bands (per frame)", bands - emu);
+            bands_skip = 1;
+            printf("%-44s %6lu us\n", "  bands: render + hashes only", bench_series(2, n) - emu);
+            bands_skip = 2;
+            printf("%-44s %6lu us\n", "  bands: + convert, no copy to VRAM", bench_series(2, n) - emu);
+            bands_skip = 0;
+            {
+                ULONG b0 = prof_blocks;
+                bench_series(2, n);
+                printf("blocks sent per frame in bands: %lu\n", (prof_blocks - b0) / (ULONG)n);
+            }
+        }
+        printf("blocks sent in the series: %lu\n", prof_blocks);
+    }
+    if (video_mode == VID_BLIT && vbpp == 2 && scale == 1) {
+        struct RenderInfo ri;
+        LONG lock;
+        t = eclock_now();
+        for (i = 0; i < n; i++)
+            for (by = 0; by < RENDER_BH; by++)
+                convert_rows_68k(&shown[by * 8 * RENDER_W], sfb, sfb_bpr, RENDER_W, native, 1);
+        printf("%-44s %6lu us\n", "convert whole picture into fast RAM", bench_us(t, n));
+        t = eclock_now();
+        for (i = 0; i < n; i++)
+            for (by = 0; by < RENDER_BH; by++)
+                convert_fast_68k(&shown[by * 8 * RENDER_W], sfb, sfb_bpr, RENDER_W, native16, 1);
+        printf("%-44s %6lu us\n", "  the same, convert_fast_68k", bench_us(t, n));
+        t = eclock_now();
+        for (i = 0; i < n; i++)
+            for (by = 0; by < RENDER_BH; by++)
+                convert_fast_68k(band, sfb, sfb_bpr, RENDER_W, native16, 1);
+        printf("%-44s %6lu us\n", "  convert_fast_68k from one band (cached)", bench_us(t, n));
+        t = eclock_now();
+        for (i = 0; i < n; i++)
+            CacheClearE(sfb, sfb_bpr * 8, CACRF_ClearD);
+        printf("%-44s %6lu us\n", "CacheClearE of one block row", bench_us(t, n));
+        t = eclock_now();
+        for (i = 0; i < n; i++) {
+            lock = p96LockBitMap(vbm, (UBYTE *)&ri, sizeof ri);
+            p96UnlockBitMap(vbm, lock);
+        }
+        printf("%-44s %6lu us\n", "p96LockBitMap + p96UnlockBitMap", bench_us(t, n));
+        lock = p96LockBitMap(vbm, (UBYTE *)&ri, sizeof ri);
+        if (ri.Memory) {
+            const ULONG bpr = (UWORD)ri.BytesPerRow;
+            int m16;
+            printf("VRAM %08lx, %lu bytes per row\n", (ULONG)ri.Memory, bpr);
+            for (m16 = 0; m16 < 2; m16++) {
+                if (m16 && ((((ULONG)ri.Memory | bpr) & 15) || present_bench_m16 == 0))
+                    break;
+                printf("copy test %d...\n", m16);
+                t = eclock_now();
+                for (i = 0; i < n; i++)
+                    for (by = 0; by < RENDER_BH; by++)
+                        copy_rows(sfb, (UBYTE *)ri.Memory + (ULONG)by * 8 * bpr, RENDER_W * 2, 8, sfb_bpr, bpr,
+                                  (ULONG)m16);
+                printf("%-44s %6lu us\n", m16 ? "copy whole picture to VRAM, MOVE16" : "copy whole picture to VRAM, long moves",
+                       bench_us(t, n));
+            }
+        }
+        p96UnlockBitMap(vbm, lock);
+        t = eclock_now();
+        for (i = 0; i < n; i++)
+            BltBitMapRastPort(vbm, 0, 0, win->RPort, (WORD)ox, (WORD)oy, RENDER_W, RENDER_H, 0xC0);
+        WaitBlit();
+        printf("%-44s %6lu us\n", "blit whole picture to the screen", bench_us(t, n));
+    }
+    exit(0);
 }
 
 /* ------------------------------------------------------------------ timing */
@@ -1483,6 +1752,14 @@ static void parse_option(const char *opt)
         dsw1 = (int)strtol(val, 0, 16);
     else if (same_text(name, "SLICE") && val)
         slice = atoi(val);
+    else if (same_text(opt, "BANDDIRECT=OFF"))
+        bands_direct = 0;
+    else if (same_text(opt, "BANDS=OFF"))
+        use_bands = 0;
+    else if (same_text(opt, "BENCHM16"))
+        present_bench_m16 = 1;
+    else if (same_text(name, "PBENCH") && val)
+        present_bench = atoi(val);
     else if (same_text(name, "LOADSTATE") && val)
         snprintf(state_path, sizeof state_path, "%s", val);
     else if (same_text(name, "ROMPATH") && val && nrompaths < 4) {
@@ -1786,6 +2063,8 @@ int main(int argc, char **argv)
         machine.sound_ctx = &snd;
     }
     xain_set_fm_div(&machine, fmdiv);
+    if (present_bench > 0)
+        run_present_bench();
     start_watchdog();
     if (stats > 1)
         prof_calibrate();
@@ -1837,14 +2116,18 @@ int main(int argc, char **argv)
             }
             skipped = 0;
             stat_drawn++;
-            if (!render_lines)
-                video_render_frame(&video, &machine);
-            if (stats) {
-                uint64_t tr = eclock_now();
-                stat_render += tr - t1;
-                t1 = tr;
+            if (bands_possible()) {
+                render_present_bands();                  /* render + present together */
+            } else {
+                if (!render_lines)
+                    video_render_frame(&video, &machine);
+                if (stats) {
+                    uint64_t tr = eclock_now();
+                    stat_render += tr - t1;
+                    t1 = tr;
+                }
+                present();
             }
-            present();
             if (stats) {
                 t2 = eclock_now();
                 stat_present += t2 - t1;

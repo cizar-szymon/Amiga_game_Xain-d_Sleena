@@ -623,6 +623,33 @@ w ok. 7,5 ms = **ok. 90 cykli 68060 na instrukcję** (w `CpuBench` 33): kwanty i
 1,1 ms, reszta to sam rdzeń przy różnorodnym kodzie gry (rozproszone procedury opcodów,
 chybienia pamięci podręcznej 8 KB). Wniosek: rekompilacja ma sens – kod liniowy bez rozdziału.
 
+**Wysyłanie obrazu – pomiar i rysowanie pasami (17.10.2026, A1200 060/100, `heavy_ins`).**
+`STATS=FULL` w trybie BLIT czytał zegar przy każdym odcinku bloków (ok. 14 µs na odczyt), więc
+dawne „przeliczenie 7,9 ms” było zawyżone. Nowa opcja **`PBENCH=n`** (z `LOADSTATE=`): każdy
+etap n razy, jednym odczytem zegara na serię, wynik na stdout, potem koniec (nazwa opcji: parser
+obcina nazwy do 11 znaków – `PRESENTBENCH` nie działał). Na obraz 256×240: rysowanie 8,4 ms,
+porównanie `find_dirty_68k` 4,2 ms, `memcpy` 120 KB 3,4–3,9 ms (pamięć ok. 60–80 MB/s), przeliczenie
+całego obrazu 5,6 ms (`convert_rows_68k`, ok. 9 cykli/piksel), zapis całego obrazu do VRAM 2,6 ms
+(ok. 47 MB/s), blit 0,3 ms, `CacheClearE` i blokada bitmapy po 6 µs. W tej scenie zmienia się
+ok. 650 z 960 bloków na klatkę (tło się przesuwa). Rysowanie + wysyłanie na klatkę:
+
+| Wersja (`SCREEN=FULL SCALE=1`) | ms/obraz | obrazy/s w grze |
+|---|---|---|
+| dawniej (`video_render_frame` + `present`, MOVE16) | 17,4 | 20–21 |
+| pasy 8 linii, poprzedni obraz w `shown` (kopiowanie bloków) | 18,7 | – |
+| pasy + 32-bitowy skrót na blok (4 KB) zamiast poprzedniego obrazu | 17,2 | – |
+| + bez MOVE16/`CacheClearE` (zwykłe długie słowa) | 15,7 | – |
+| + `convert_fast_68k` (4 piksele na obrót, przeplot odczytów) | 14,8 | 22–24 |
+| + skróty w asm (`hash_band_68k`) | 14,1 | 24 |
+| + przeliczanie wprost do VRAM (bez `sfb` i `copy_rows`) | **12,4** | **28–29** |
+| (próba) renderer piszący od razu piksele ekranu przez tablicę | 14,97 | wycofane: rysowanie 8,3 → 11,4 ms |
+
+Okno `SCALE=2`: 14–15 → 17 obrazów/s. `VERIFY` (odczyt ekranu z karty co 30 obrazów): 0 złych
+bloków na pełnym ekranie i w oknie `SCALE=2`. Ścieżka pasami: `render_present_bands` (BLIT,
+16 bit, `SCALE=1|2`, bez `RENDER=LINE`), `video_render_begin` + `video_render_lines` (`video.c`);
+`BANDS=OFF` – stara droga, `BANDDIRECT=OFF` – przez `sfb`. Zostaje: rysowanie 8,4 ms (pamięć
+grafiki kafelków), przeliczenie + zapis do VRAM ok. 3,5 ms.
+
 > **Gałęzie (17.10.2026, decyzja użytkownika):** `main` – emulacja procesorów (rdzeń asm 6809, bez
 > tłumacza); gałąź **`recompiler`** – to samo plus tłumacz 6809 → 68k opisany niżej (`m6809_tr.c`,
 > wzorce w `gen_6809_68k.py`, opcja `TR=ON`, `Lockstep … TR`, `tools/check_tpl_lst.py`). Opisy
