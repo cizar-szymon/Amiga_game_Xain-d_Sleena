@@ -8,7 +8,7 @@
  *
  * Shell:  XainSleena [SCALE=1|2|3] [ROMPATH=dir] [NOSOUND] [SOUND=PAULA|AHI]
  *                    [VIDEO=BLIT|WPA|WCP] [FRAMESKIP=AUTO|n] [SCREEN=WINDOW|FULL]
- *                    [DSW0=hh] [DSW1=hh] [SLICE=n] [RENDER=LINE] [FMDIV=1|2] [CPU=C] [STATS|STATS=FULL] [VERIFY]
+ *                    [LOADSTATE=file] [DSW0=hh] [DSW1=hh] [SLICE=n] [RENDER=LINE] [FMDIV=1|2] [CPU=C] [STATS|STATS=FULL] [VERIFY]
  *         FRAMESKIP: the game always runs at 57.44 Hz; AUTO (default) leaves out pictures
  *         when the Amiga falls behind, n draws one picture of n+1
  *         the ROMs (xsleena.zip from MAME, an xsleena drawer or the loose files) are looked
@@ -77,7 +77,7 @@
 #include "romload.h"
 #include "sndplay.h"
 
-const char version[] = "$VER: XainSleena " XAIN_VERSION " (12.10.2026) arcade emulation";
+const char version[] = "$VER: XainSleena " XAIN_VERSION " (15.10.2026) arcade emulation";
 
 struct IntuitionBase *IntuitionBase;
 struct GfxBase *GfxBase;
@@ -140,6 +140,7 @@ static ULONG stat_drawn;
 static const char *rompaths[4];
 static int nrompaths;
 static int dsw0 = -1, dsw1 = -1, slice = 0;
+static char state_path[256];         /* LOADSTATE=file: start from an F10 machine state */
 static int joy_mouseport;             /* JOYPORT=BOTH: also a joystick in the mouse port */
 static int screen_full;               /* SCREEN=FULL: an own screen instead of a window */
 static struct Screen *scr;
@@ -1272,6 +1273,24 @@ static void save_state(void)
     DisplayBeep(NULL);
 }
 
+/* LOADSTATE=file: the machine from an F10 state (repeatable tests and measurements of one scene) */
+static void load_state(void)
+{
+    BPTR fh = Open((STRPTR)state_path, MODE_OLDFILE);
+    uint32_t len = xain_save_state(&machine, NULL);
+    UBYTE *buf = AllocVec(len + 16, MEMF_ANY);
+    LONG got = -1;
+    if (fh && buf)
+        got = Read(fh, buf, (LONG)len + 16);
+    if (fh)
+        Close(fh);
+    if (got <= 0 || !xain_load_state(&machine, buf, (uint32_t)got)) {
+        if (buf) FreeVec(buf);
+        fail("LOADSTATE: not a machine state.");
+    }
+    FreeVec(buf);
+}
+
 static void handle_messages(void)
 {
     struct IntuiMessage *msg;
@@ -1311,14 +1330,13 @@ static void handle_messages(void)
    hardware, so it is read once per frame */
 static void read_inputs(void)
 {
+    static uint8_t up_wait;
     uint8_t p1 = 0, p2 = 0;
+    int up_jump = keys[RAW_UP];                         /* as the joystick (JOY1): up jumps on foot */
 
     if (keys[RAW_LEFT]) p1 |= IN_LEFT;
     if (keys[RAW_RIGHT]) p1 |= IN_RIGHT;
-    if (keys[RAW_UP]) {
-        p1 |= IN_UP;
-        if (xain_on_foot(&machine)) p1 |= IN_BUTTON2;   /* as the joystick (JOY1): up jumps on foot */
-    }
+    if (keys[RAW_UP]) p1 |= IN_UP;
     if (keys[RAW_DOWN]) p1 |= IN_DOWN;
     if (keys[RAW_Z]) p1 |= IN_BUTTON1;
     if (keys[RAW_X] || keys[RAW_Y] || (control == CTL_JOY1 && keys[RAW_SPACE])) p1 |= IN_BUTTON2;
@@ -1340,8 +1358,8 @@ static void read_inputs(void)
                 p1 |= IN_UP;
                 /* JOY1: on foot up also jumps (up has no function of its own there: up + jump =
                    jump); in the flying stages up only moves, Space fires the extra weapon */
-                if (control == CTL_JOY1 && xain_on_foot(&machine))
-                    p1 |= IN_BUTTON2;
+                if (control == CTL_JOY1)
+                    up_jump = 1;
             }
             if (j & JPF_JOY_DOWN) p1 |= IN_DOWN;
             if (j & JPF_JOY_LEFT) p1 |= IN_LEFT;
@@ -1356,7 +1374,7 @@ static void read_inputs(void)
             }
         }
     }
-    machine.in_p1 = p1;
+    machine.in_p1 = xain_up_jump(&up_wait, p1, up_jump && xain_on_foot(&machine));
     machine.in_p2 = p2;
 }
 
@@ -1465,6 +1483,8 @@ static void parse_option(const char *opt)
         dsw1 = (int)strtol(val, 0, 16);
     else if (same_text(name, "SLICE") && val)
         slice = atoi(val);
+    else if (same_text(name, "LOADSTATE") && val)
+        snprintf(state_path, sizeof state_path, "%s", val);
     else if (same_text(name, "ROMPATH") && val && nrompaths < 4) {
         snprintf(rp[nrompaths], sizeof rp[0], "%s", val);
         rompaths[nrompaths] = rp[nrompaths];
@@ -1736,6 +1756,8 @@ int main(int argc, char **argv)
         machine.autocoin = machine.joystart = 1;
         xain_patch_texts(&machine);
     }
+    if (state_path[0])
+        load_state();
     if (!video_init(&video, &machine))
         fail("Not enough memory.");
     if (!m6809_layout_ok())

@@ -624,6 +624,20 @@ int xain_on_foot(const Xain *x)
         && (x->shared[RAM_FOOT_STATE] & 0x0f) == 2;
 }
 
+uint8_t xain_up_jump(uint8_t *wait, uint8_t p1, int up)
+{
+    if (!up) {
+        *wait = 0;
+        return p1;
+    }
+    if (*wait < UP_JUMP_WAIT && !(p1 & (IN_LEFT | IN_RIGHT))) {
+        (*wait)++;
+        return p1;
+    }
+    *wait = UP_JUMP_WAIT;
+    return (uint8_t)(p1 | IN_BUTTON2);
+}
+
 int xain_patch_texts(Xain *x)
 {
     /* pa-09.ic65 7885 (main bank 1 at 7885): colour 02, text address 2246 (row 18, column 6),

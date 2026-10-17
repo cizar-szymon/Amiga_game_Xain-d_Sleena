@@ -7,6 +7,17 @@ w automacie). Zglaszajac blad, podaj numer wydania - po nim widac, czy
 blad nie zostal juz poprawiony w nowszym.
 
 
+RELEASE 0.9.6  (15.10.2026)
+---------------------------
+
+Poprawki:
+- Skok strzalka w gore w bok:
+  gra bierze kierunek skoku tylko w chwili wybicia, a strzalka w bok
+  wcisnieta chwile po strzalce w gore dawala skok pionowy. Teraz skok
+  czeka do 3 klatek (ok. 1/20 s) na kierunek w bok. Zmienic kierunku
+  w powietrzu nie mozna - tak jest w automacie.
+
+
 RELEASE 0.9.5  (12.10.2026)
 ---------------------------
 

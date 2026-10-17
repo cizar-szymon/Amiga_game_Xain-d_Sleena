@@ -78,3 +78,8 @@ src/video_68k.s: ../tools/gen_video_68k.py
 $(OUT)/SliceCost: $(CORE) tests/slicecost.c $(HEADERS)
 	mkdir -p $(OUT)
 	vc $(CFLAGS) $(filter-out src/xain.c,$(CORE)) tests/slicecost.c -o $@ -lamiga
+
+# emulation cost of a frame and of the time slices from a machine state (includes xain.c)
+$(OUT)/FrameCost: $(CORE) tests/framecost.c $(HEADERS)
+	mkdir -p $(OUT)
+	vc $(CFLAGS) $(filter-out src/xain.c,$(CORE)) tests/framecost.c -o $@ -lamiga
