@@ -8,11 +8,91 @@ Zglaszajac blad, podaj numer wydania - po nim widac, czy blad nie
 zostal juz poprawiony w nowszym.
 
 Zgloszenie bledu: gdy gra sie zawiesi albo dzieje sie cos
-dziwnego, nacisnij F10. Stan automatu zapisuje sie do
-RAM:XainSleena-state.bin (i krotki opis do RAM:XainSleena-state.txt).
-Skopiuj oba pliki, zanim wylaczysz Amige (RAM: znika), i wyslij je
-razem z numerem wydania. Autorzy wczytuja ten stan i widza
+dziwnego, nacisnij F10 (od 0.9.10: pliki numerowane
+RAM:XainSleena-dumpN.bin / .txt / .ppm i RAM:XainSleena-stateN.bin).
+Skopiuj je, zanim wylaczysz Amige (RAM: znika), i wyslij je razem
+z numerem wydania. Autorzy odtwarzaja ostatnie sekundy gry i widza
 dokladnie to, co bylo na Amidze.
+
+
+RELEASE 0.9.14  (17.10.2026)
+----------------------------
+
+Zmiany:
+- Wiersze kafelkow jednego koloru (np. czarne tlo z gwiazdami w lotach)
+  wypelniane dlugimi slowami: rysowanie ok. 0,3-0,7 ms krotsze.
+
+
+RELEASE 0.9.13  (17.10.2026)
+----------------------------
+
+Zmiany:
+- Obraz rysowany tylko tam, gdzie mogl sie zmienic (pasy ze sprite'ami,
+  zmienionym tlem albo tekstem); przy zmianie kolorow bez ponownego
+  rysowania. Na Twoich powtorkach z F10 (SCALE=1, 100 MHz): rysowanie
+  ok. 15-16 -> 11-13 ms, 26-30 -> 34-39 obrazow na sekunde; przy
+  przewijaniu (cale tlo sie zmienia) zysk mniejszy.
+
+
+RELEASE 0.9.12  (17.10.2026)
+----------------------------
+
+Poprawki:
+- Po zniszczeniu bazy (odliczanie COUNT DOWN, trzeba wskoczyc do statku)
+  joystick do gory nie skakal (dzialala tylko Spacja), wiec nie dalo sie
+  poprawnie ukonczyc misji. Gra jest w tej fazie w innym stanie, ktorego
+  port nie rozpoznawal jako "na piechote". Poprawione (takze strzalka
+  w gore na klawiaturze).
+
+
+RELEASE 0.9.11  (17.10.2026)
+----------------------------
+
+Dodatki:
+- Opcja TEST (do sprawdzania plansz): na piechote pasek DAMAGE GAGE sie
+  nie zmniejsza, zycia nieskonczone. W lotach statek dalej ginie od
+  trafienia, ale gra trwa. Wpisz TEST na koncu listy Tool Types (albo
+  DIFFICULTY=NODAMAGE - sam brak obrazen).
+
+
+RELEASE 0.9.10  (17.10.2026)
+----------------------------
+
+Zmiany:
+- F10 zapisuje teraz pelny zestaw do zgloszen bledow, numerowany (kazde
+  nacisniecie nowe pliki, nic nie jest nadpisywane):
+    RAM:XainSleena-dumpN.bin   powtorka ostatnich 9-18 sekund gry
+    RAM:XainSleena-stateN.bin  stan automatu w chwili nacisniecia
+    RAM:XainSleena-dumpN.txt   opis: plansza, opcje, klawiatura, joystick
+    RAM:XainSleena-dumpN.ppm   obraz z ekranu
+  Ekran mignie na znak zapisu. Pliki znikaja po wylaczeniu Amigi -
+  skopiuj je albo zglos od razu.
+
+
+RELEASE 0.9.9  (17.10.2026)
+---------------------------
+
+Poprawki:
+- Po utracie zycia (i przy innych zmianach kolorow) czesc ekranu, np.
+  jednolite niebo, zostawala czarna albo w starym kolorze, dopoki nie
+  przelecial przez nia jakis obiekt (0.9.7, 0.9.8). Przyczyna: zbyt slaba
+  suma kontrolna kawalkow obrazu. Poprawione.
+- Ekran pelnoekranowy odswiezany w calosci, gdy cos go zaslonilo (inne
+  okno, komunikat systemu), oraz dodatkowo co kilka sekund.
+
+
+RELEASE 0.9.8  (17.10.2026)
+---------------------------
+
+Zmiany:
+- Zmiana kolorow w grze (gra robi to bardzo czesto, np. migajace
+  tlo) nie wysyla juz calego obrazu do karty, tylko te kawalki, ktore
+  naprawde zmienily wyglad. W najciezszej scenie przy 100 MHz: pelny
+  ekran SCALE=2 29-30 obrazow na sekunde (0.9.7: ok. 17-20), SCALE=1
+  31-32.
+- LAGLOG (opcja diagnostyczna): podsumowanie co 10 sekund gry w
+  RAM:XainSleena-lag.txt, przy dluzszych zwolnieniach zapis stanu
+  automatu (RAM:XainSleena-lagN.bin) do zgloszen bledow.
 
 
 RELEASE 0.9.7  (17.10.2026)

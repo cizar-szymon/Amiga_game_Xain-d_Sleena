@@ -116,7 +116,7 @@ static uint8_t sub_read(void *ctx, uint16_t a)
 }
 
 /* DIFFICULTY=EASY / VERYEASY (not the original): half / a quarter of the damage on foot
-   (easy_damage 1 / 2). The sub CPU damages the player in
+   (easy_damage 1 / 2); 3 (TEST, DIFFICULTY=NODAMAGE): no damage on foot at all. The sub CPU damages the player in
    bank 1 7015 (through FE36 -> FF00: STB $3000 bank 1, JSR $7000, STB $3000 bank 0): when the
    player touches the object it subtracts the damage on the stack from the health <$56 (low 6
    bits, full = 10; 0 = dead: $1073 bit 0), else sets bit 7 (redraw the bar) and bit 6 (the
@@ -141,6 +141,10 @@ static void easy_damage(Xain *x, uint8_t v)
         if (x->sub.pc != 0xff0d) return;
         d = before + 16 - after;
         if (d <= 0) { *h = x->dmg_entry; return; }               /* not touched */
+        if (x->easy_damage >= 3) {                               /* TEST: no damage at all */
+            *h = (uint8_t)((*h & 0xc0) | before);
+            return;
+        }
         div = x->easy_damage >= 2 ? 4 : 2;
         left = before - ((x->dmg_acc + d) / div - x->dmg_acc / div);
         x->dmg_acc = (x->dmg_acc + d) & 0xff;
@@ -613,15 +617,18 @@ void xain_assist(Xain *x)
 /* sub IRQ 8020: <$41 = the scene (1 play, 3 the planet map: bank 0 7D04, any button picks a
    planet); in play (804A) <$53 bit 7 = the ship (set by main 84DD-84F3 at the stage start;
    sub 82CC/8A75/8AAB: button 2 = object 7, the extra weapon), clear = on foot with <$52 & 0F
-   = 2 the player moving (sub 823D/8355: button 2 = jump) */
+   = 2 the player moving (sub 823D/8355: button 2 = jump) or 3 the escape after the base is
+   destroyed (COUNT DOWN, jump into the ship: set by sub 8286 / 893D; the player routine 830A
+   runs the same; 0.9.11 and older had only 2, so up did not jump there) */
 #define RAM_SCENE 0x41
 #define RAM_FOOT_STATE 0x52
 #define RAM_SHIP 0x53
 
 int xain_on_foot(const Xain *x)
 {
+    int st = x->shared[RAM_FOOT_STATE] & 0x0f;
     return x->shared[RAM_PLAYING] && x->shared[RAM_SCENE] == 1 && !(x->shared[RAM_SHIP] & 0x80)
-        && (x->shared[RAM_FOOT_STATE] & 0x0f) == 2;
+        && (st == 2 || st == 3);
 }
 
 uint8_t xain_up_jump(uint8_t *wait, uint8_t p1, int up)

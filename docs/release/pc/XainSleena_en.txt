@@ -65,6 +65,7 @@ Target), e.g.:
   -easy        on foot, hits take half as much from the DAMAGE GAGE
                bar (not in the original)
   -veryeasy    on foot, hits take a quarter as much
+  -test        for checking stages: no damage on foot, infinite lives
   -arcade      as the arcade: coins with keys 5 / 6, start 1 / 2
   -nosound     no sound
   -rompath DIR where to look for the ROMs (if not next to the game)

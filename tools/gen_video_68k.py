@@ -73,19 +73,41 @@ def tile_setup(width_shift):
     ins("move.w (a1)+,d1")           # cb
     ins("move.w (a1)+,d5")           # flip (text: x)
     ins("addq.l #4,a1")
+    # opaque layer: a row without visible pixel is one pen (0) -> 3, a mixed row is copied -> 1
+    nop, done = L(), L()
     ins("cmp.w #0,a4")
-    ins("beq.s *+4")
+    ins("beq.s %s" % nop)
+    ins("tst.b d6")
+    ins("bne.s *+6")
+    ins("moveq #3,d6")
+    ins("bra.s %s" % done)
+    ins("cmp.b #2,d6")
+    ins("bne.s %s" % done)
     ins("moveq #1,d6")
+    emit(nop + ":")
+    emit(done + ":")
 
 
 def whole_tile(width, done):
     """draw the whole row (width pixels) for the tile set up by tile_setup"""
-    vis, copy, cflip, tflip = L(), L(), L(), L()
+    vis, copy, cflip, tflip, fill = L(), L(), L(), L(), L()
     ins("tst.b d6")
     ins("bne.s %s" % vis)
     ins("lea %d(a0),a0" % (2 * width))
     ins("bra %s" % done)
     emit(vis + ":")
+    ins("cmp.b #3,d6")
+    ins("bne.s %s" % fill)
+    # one pen: cb | pen in both words of a long, width / 2 long word writes
+    ins("move.w d1,d0")
+    ins("or.b (a5),d0")
+    ins("move.w d0,d2")
+    ins("swap d0")
+    ins("move.w d2,d0")
+    for _ in range(width // 2):
+        ins("move.l d0,(a0)+")
+    ins("bra %s" % done)
+    emit(fill + ":")
     ins("cmp.b #1,d6")
     ins("beq %s" % copy)
     if width == 16:
@@ -133,8 +155,8 @@ def partial_tile():
     emit(px + ":")
     ins("move.b (a5),d5")
     ins("add.l a6,a5")
-    ins("cmp.b #1,d6")
-    ins("beq.s %s" % put)
+    ins("cmp.b #2,d6")                # 1 and 3: every pixel
+    ins("bne.s %s" % put)
     ins("tst.b d5")
     ins("beq.s %s" % skip)
     emit(put + ":")

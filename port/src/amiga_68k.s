@@ -327,9 +327,11 @@ _convert_fast_68k:
 	rts
 
 ; ULONG hash_band_68k(const uint16_t *band, ULONG *hash, UBYTE *dirty, ULONG full)
-; 32 blocks of a band (8 rows of 256 pixels, 512 bytes per row): per block a 32 bit hash of its
-; 8 x 16 bytes (h = rol(h, 5) ^ long, from $9E3779B9); dirty[bx] = 1 when it differs from
-; hash[bx] (or full), hash[bx] = the new one. Returns the number of dirty blocks.
+; 32 blocks of a band (8 rows of 256 pixels, 512 bytes per row): per block a 32 bit FNV-1a hash
+; of its 8 x 4 long words (h = (h ^ long) * 16777619, from 2166136261); dirty[bx] = 1 when it
+; differs from hash[bx] (or full), hash[bx] = the new one. Returns the number of dirty blocks.
+; (The first version, h = rol(h, 5) ^ long, gave a block of one colour only two hashes - the
+; parity of the colour's bits - so a flat sky that changed colour was often not sent.)
 	public	_hash_band_68k
 	cnop	0,4
 _hash_band_68k:
@@ -339,22 +341,23 @@ _hash_band_68k:
 	move.l	44(sp),a2		; dirty
 	move.l	48(sp),d7		; full
 	moveq	#0,d6			; dirty blocks
+	move.l	#16777619,d3		; FNV prime
 	moveq	#31,d5
 .hblk:	move.l	a0,a3
-	move.l	#$9e3779b9,d0
+	move.l	#$811c9dc5,d0
 	moveq	#7,d4
 .hrow:	move.l	(a3),d1
 	move.l	4(a3),d2
-	rol.l	#5,d0
 	eor.l	d1,d0
-	move.l	8(a3),d3
-	rol.l	#5,d0
+	mulu.l	d3,d0
+	move.l	8(a3),d1
 	eor.l	d2,d0
-	move.l	12(a3),d1
-	rol.l	#5,d0
-	eor.l	d3,d0
-	rol.l	#5,d0
+	mulu.l	d3,d0
+	move.l	12(a3),d2
 	eor.l	d1,d0
+	mulu.l	d3,d0
+	eor.l	d2,d0
+	mulu.l	d3,d0
 	lea	512(a3),a3
 	dbra	d4,.hrow
 	moveq	#0,d1
@@ -371,4 +374,41 @@ _hash_band_68k:
 	dbra	d5,.hblk
 	move.l	d6,d0
 	movem.l	(sp)+,d2-d7/a2-a3
+	rts
+
+; void double_rows_68k(const uint16_t *src, UBYTE *dst, ULONG dst_bpr, ULONG pixels)
+; 8 rows of 16 bit screen pixels (512 bytes per source row) to VRAM at SCALE=2: every pixel
+; twice in a long word, every row twice (dst_bpr = bytes per screen row). Long word writes only.
+; pixels: a multiple of 2.
+	public	_double_rows_68k
+	cnop	0,4
+_double_rows_68k:
+	movem.l	d2-d7/a2-a4,-(sp)
+	move.l	40(sp),a0		; src
+	move.l	44(sp),a1		; dst
+	move.l	48(sp),d5		; dst_bpr
+	move.l	52(sp),d6		; pixels
+	lsr.l	#1,d6
+	subq.l	#1,d6			; pairs - 1
+	moveq	#7,d7
+.drow:	move.l	a0,a2
+	move.l	a1,a3
+	lea	(a1,d5.l),a4
+	move.l	d6,d4
+.dpx:	move.l	(a2)+,d0		; p0:p1
+	move.l	d0,d3
+	move.l	d0,d2
+	swap	d0			; p1:p0
+	move.w	d0,d3			; d3 = p0:p0
+	move.w	d2,d0			; d0 = p1:p1
+	move.l	d3,(a3)+
+	move.l	d0,(a3)+
+	move.l	d3,(a4)+
+	move.l	d0,(a4)+
+	dbra	d4,.dpx
+	lea	512(a0),a0
+	add.l	d5,a1
+	add.l	d5,a1
+	dbra	d7,.drow
+	movem.l	(sp)+,d2-d7/a2-a4
 	rts

@@ -7,11 +7,90 @@ arcade) and in the Shell: Version XainSleena. When reporting a bug, give the rel
 tells whether the bug has already been fixed in a newer one.
 
 Reporting a bug: when the game freezes or something odd
-happens, press F10. The state of the arcade board is saved to
-RAM:XainSleena-state.bin (and a short description to
-RAM:XainSleena-state.txt). Copy both files before switching the Amiga
-off (RAM: is lost) and send them with the release number. The authors
-load this state and see exactly what happened on the Amiga.
+happens, press F10 (since 0.9.10: the numbered files
+RAM:XainSleena-dumpN.bin / .txt / .ppm and RAM:XainSleena-stateN.bin).
+Copy them before switching the Amiga off (RAM: is lost) and send them
+with the release number. The authors replay the last seconds of play
+and see exactly what happened on the Amiga.
+
+
+RELEASE 0.9.14  (17.10.2026)
+----------------------------
+
+Changes:
+- Tile rows of one colour (e.g. the black star background of the flying
+  stages) are filled with long words: drawing about 0.3-0.7 ms shorter.
+
+
+RELEASE 0.9.13  (17.10.2026)
+----------------------------
+
+Changes:
+- The picture is drawn only where it can have changed (bands with
+  sprites, changed background or text); a colour change needs no new
+  drawing. On your F10 replays (SCALE=1, 100 MHz): drawing about 15-16
+  -> 11-13 ms, 26-30 -> 34-39 pictures per second; less gain while the
+  background scrolls (all of it changes).
+
+
+RELEASE 0.9.12  (17.10.2026)
+----------------------------
+
+Fixes:
+- After the base is destroyed (COUNT DOWN, jump into the ship) up on the
+  joystick did not jump (only Space did), so the mission could not be
+  finished properly. The game is in another state in this phase, which
+  the port did not take as "on foot". Fixed (the up arrow key too).
+
+
+RELEASE 0.9.11  (17.10.2026)
+----------------------------
+
+Additions:
+- Option TEST (for checking stages): on foot the DAMAGE GAGE bar does not
+  go down, infinite lives. In the flying stages a hit still destroys the
+  ship, but the game goes on. Put TEST last in the Tool Types (or
+  DIFFICULTY=NODAMAGE - only no damage).
+
+
+RELEASE 0.9.10  (17.10.2026)
+----------------------------
+
+Changes:
+- F10 now saves a full set for bug reports, numbered (each press makes new
+  files, nothing is overwritten):
+    RAM:XainSleena-dumpN.bin   a replay of the last 9-18 seconds of play
+    RAM:XainSleena-stateN.bin  the state of the arcade board at the press
+    RAM:XainSleena-dumpN.txt   description: stage, options, keyboard, joystick
+    RAM:XainSleena-dumpN.ppm   the picture on the screen
+  The screen flashes when it is saved. The files are lost when the Amiga
+  is switched off - copy them or report at once.
+
+
+RELEASE 0.9.9  (17.10.2026)
+---------------------------
+
+Fixes:
+- After losing a life (and on other colour changes) parts of the screen,
+  e.g. a flat sky, stayed black or in the old colour until an object
+  moved through them (0.9.7, 0.9.8). Cause: a too weak checksum of the
+  picture parts. Fixed.
+- The full screen is redrawn whole when something covered it (another
+  window, a system requester), and also every few seconds.
+
+
+RELEASE 0.9.8  (17.10.2026)
+---------------------------
+
+Changes:
+- A change of the game's colours (the game does it very often, e.g. a
+  flashing background) no longer sends the whole picture to the card,
+  only the parts that really look different. Heaviest scene at 100 MHz:
+  full screen SCALE=2 29-30 pictures per second (0.9.7: about 17-20),
+  SCALE=1 31-32.
+- LAGLOG (diagnostic option): a summary of every 10 seconds of play in
+  RAM:XainSleena-lag.txt, and on longer slowdowns the machine state
+  (RAM:XainSleena-lagN.bin) for bug reports.
 
 
 RELEASE 0.9.7  (17.10.2026)

@@ -85,6 +85,10 @@ i uruchom gre od nowa.
                        z paska DAMAGE GAGE (nie ma tego w oryginale)
   DIFFICULTY=VERYEASY  na piechote trafienia zabieraja 4 razy mniej
                        (nie ma tego w oryginale)
+  TEST                 do sprawdzania plansz: na piechote pasek DAMAGE
+                       GAGE sie nie zmniejsza, zycia nieskonczone (w lotach
+                       statek dalej ginie od trafienia, ale gra trwa).
+                       Wpisz na koncu listy Tool Types.
   CONTROL=JOY1         joystick z jednym przyciskiem, drugi przycisk
                        to SPACJA; do gory = skok na piechote (tak jest
                        w ikonie)
@@ -123,9 +127,11 @@ GDY COS NIE DZIALA
 - Gra za wolna: SCALE=1, NOSOUND, procesor 100 MHz.
 - Brak dzwieku: wpisz SOUND=AHI (albo odwrotnie: usun SOUND=AHI).
 - Gra sie zawiesila (obraz stoi, muzyka gra) albo dzieje sie cos
-  dziwnego: nacisnij F10 (ekran moze mignac) i wyjdz klawiszem Esc.
-  Plik RAM:XainSleena-state.bin opisuje stan automatu - przyda sie
-  autorom do znalezienia bledu. Skopiuj go, zanim wylaczysz Amige.
+  dziwnego (blad obrazu, sterowanie nie dziala): nacisnij F10 (ekran
+  mignie). W RAM: powstaja pliki XainSleena-dumpN.bin / .txt / .ppm i
+  XainSleena-stateN.bin (N = kolejny numer, kazde nacisniecie nowe):
+  powtorka ostatnich sekund, opis planszy i obraz - przydadza sie
+  autorom do znalezienia bledu. Skopiuj je, zanim wylaczysz Amige.
 
 
 Numer wydania: na ekranie startu (RELEASE x.y.z). Co sie zmienilo

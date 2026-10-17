@@ -24,43 +24,51 @@ _video_bg_line_68k:
 	move.w (a1)+,d5
 	addq.l #4,a1
 	cmp.w #0,a4
-	beq.s *+4
+	beq.s .L5
+	tst.b d6
+	bne.s *+6
+	moveq #3,d6
+	bra.s .L6
+	cmp.b #2,d6
+	bne.s .L6
 	moveq #1,d6
+.L5:
+.L6:
 	move.l d7,d0
 	moveq #16,d2
 	sub.l d7,d2
 	tst.b d6
-	bne.s .L5
+	bne.s .L7
 	add.l d2,a0
 	add.l d2,a0
-	bra .L11
-.L5:
+	bra .L13
+.L7:
 	tst.b d5
-	bpl.s .L6
+	bpl.s .L8
 	lea 15(a5),a5
 	sub.l d0,a5
 	move.l #-1,a6
-	bra.s .L7
-.L6:
+	bra.s .L9
+.L8:
 	add.l d0,a5
 	move.l #1,a6
-.L7:
+.L9:
 	subq.l #1,d2
-.L8:
+.L10:
 	move.b (a5),d5
 	add.l a6,a5
-	cmp.b #1,d6
-	beq.s .L9
+	cmp.b #2,d6
+	bne.s .L11
 	tst.b d5
-	beq.s .L10
-.L9:
+	beq.s .L12
+.L11:
 	move.w d1,d0
 	or.b d5,d0
 	move.w d0,(a0)
-.L10:
+.L12:
 	addq.l #2,a0
-	dbra d2,.L8
-.L11:
+	dbra d2,.L10
+.L13:
 .L1:
 	moveq #15,d0
 	tst.l d7
@@ -77,217 +85,242 @@ _video_bg_line_68k:
 	move.w (a1)+,d5
 	addq.l #4,a1
 	cmp.w #0,a4
-	beq.s *+4
-	moveq #1,d6
+	beq.s .L14
 	tst.b d6
-	bne.s .L12
+	bne.s *+6
+	moveq #3,d6
+	bra.s .L15
+	cmp.b #2,d6
+	bne.s .L15
+	moveq #1,d6
+.L14:
+.L15:
+	tst.b d6
+	bne.s .L16
 	lea 32(a0),a0
 	bra .L3
-.L12:
-	cmp.b #1,d6
-	beq .L13
-	tst.b d5
-	bmi .L15
-	move.b 0(a5),d2
-	beq.s .L16
-	move.w d1,d0
-	or.b d2,d0
-	move.w d0,0(a0)
 .L16:
-	move.b 1(a5),d2
-	beq.s .L17
+	cmp.b #3,d6
+	bne.s .L20
 	move.w d1,d0
-	or.b d2,d0
-	move.w d0,2(a0)
-.L17:
-	move.b 2(a5),d2
-	beq.s .L18
-	move.w d1,d0
-	or.b d2,d0
-	move.w d0,4(a0)
-.L18:
-	move.b 3(a5),d2
-	beq.s .L19
-	move.w d1,d0
-	or.b d2,d0
-	move.w d0,6(a0)
-.L19:
-	move.b 4(a5),d2
-	beq.s .L20
-	move.w d1,d0
-	or.b d2,d0
-	move.w d0,8(a0)
+	or.b (a5),d0
+	move.w d0,d2
+	swap d0
+	move.w d2,d0
+	move.l d0,(a0)+
+	move.l d0,(a0)+
+	move.l d0,(a0)+
+	move.l d0,(a0)+
+	move.l d0,(a0)+
+	move.l d0,(a0)+
+	move.l d0,(a0)+
+	move.l d0,(a0)+
+	bra .L3
 .L20:
-	move.b 5(a5),d2
+	cmp.b #1,d6
+	beq .L17
+	tst.b d5
+	bmi .L19
+	move.b 0(a5),d2
 	beq.s .L21
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,10(a0)
+	move.w d0,0(a0)
 .L21:
-	move.b 6(a5),d2
+	move.b 1(a5),d2
 	beq.s .L22
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,12(a0)
+	move.w d0,2(a0)
 .L22:
-	move.b 7(a5),d2
+	move.b 2(a5),d2
 	beq.s .L23
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,14(a0)
+	move.w d0,4(a0)
 .L23:
-	move.b 8(a5),d2
+	move.b 3(a5),d2
 	beq.s .L24
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,16(a0)
+	move.w d0,6(a0)
 .L24:
-	move.b 9(a5),d2
+	move.b 4(a5),d2
 	beq.s .L25
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,18(a0)
+	move.w d0,8(a0)
 .L25:
-	move.b 10(a5),d2
+	move.b 5(a5),d2
 	beq.s .L26
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,20(a0)
+	move.w d0,10(a0)
 .L26:
-	move.b 11(a5),d2
+	move.b 6(a5),d2
 	beq.s .L27
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,22(a0)
+	move.w d0,12(a0)
 .L27:
-	move.b 12(a5),d2
+	move.b 7(a5),d2
 	beq.s .L28
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,24(a0)
+	move.w d0,14(a0)
 .L28:
-	move.b 13(a5),d2
+	move.b 8(a5),d2
 	beq.s .L29
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,26(a0)
+	move.w d0,16(a0)
 .L29:
-	move.b 14(a5),d2
+	move.b 9(a5),d2
 	beq.s .L30
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,28(a0)
+	move.w d0,18(a0)
 .L30:
-	move.b 15(a5),d2
+	move.b 10(a5),d2
 	beq.s .L31
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,30(a0)
+	move.w d0,20(a0)
 .L31:
-	lea 32(a0),a0
-	bra .L3
-.L15:
-	move.b 15(a5),d2
+	move.b 11(a5),d2
 	beq.s .L32
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,0(a0)
+	move.w d0,22(a0)
 .L32:
-	move.b 14(a5),d2
+	move.b 12(a5),d2
 	beq.s .L33
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,2(a0)
+	move.w d0,24(a0)
 .L33:
 	move.b 13(a5),d2
 	beq.s .L34
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,4(a0)
+	move.w d0,26(a0)
 .L34:
-	move.b 12(a5),d2
+	move.b 14(a5),d2
 	beq.s .L35
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,6(a0)
+	move.w d0,28(a0)
 .L35:
-	move.b 11(a5),d2
+	move.b 15(a5),d2
 	beq.s .L36
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,8(a0)
+	move.w d0,30(a0)
 .L36:
-	move.b 10(a5),d2
+	lea 32(a0),a0
+	bra .L3
+.L19:
+	move.b 15(a5),d2
 	beq.s .L37
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,10(a0)
+	move.w d0,0(a0)
 .L37:
-	move.b 9(a5),d2
+	move.b 14(a5),d2
 	beq.s .L38
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,12(a0)
+	move.w d0,2(a0)
 .L38:
-	move.b 8(a5),d2
+	move.b 13(a5),d2
 	beq.s .L39
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,14(a0)
+	move.w d0,4(a0)
 .L39:
-	move.b 7(a5),d2
+	move.b 12(a5),d2
 	beq.s .L40
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,16(a0)
+	move.w d0,6(a0)
 .L40:
-	move.b 6(a5),d2
+	move.b 11(a5),d2
 	beq.s .L41
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,18(a0)
+	move.w d0,8(a0)
 .L41:
-	move.b 5(a5),d2
+	move.b 10(a5),d2
 	beq.s .L42
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,20(a0)
+	move.w d0,10(a0)
 .L42:
-	move.b 4(a5),d2
+	move.b 9(a5),d2
 	beq.s .L43
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,22(a0)
+	move.w d0,12(a0)
 .L43:
-	move.b 3(a5),d2
+	move.b 8(a5),d2
 	beq.s .L44
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,24(a0)
+	move.w d0,14(a0)
 .L44:
-	move.b 2(a5),d2
+	move.b 7(a5),d2
 	beq.s .L45
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,26(a0)
+	move.w d0,16(a0)
 .L45:
-	move.b 1(a5),d2
+	move.b 6(a5),d2
 	beq.s .L46
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,28(a0)
+	move.w d0,18(a0)
 .L46:
-	move.b 0(a5),d2
+	move.b 5(a5),d2
 	beq.s .L47
 	move.w d1,d0
 	or.b d2,d0
-	move.w d0,30(a0)
+	move.w d0,20(a0)
 .L47:
+	move.b 4(a5),d2
+	beq.s .L48
+	move.w d1,d0
+	or.b d2,d0
+	move.w d0,22(a0)
+.L48:
+	move.b 3(a5),d2
+	beq.s .L49
+	move.w d1,d0
+	or.b d2,d0
+	move.w d0,24(a0)
+.L49:
+	move.b 2(a5),d2
+	beq.s .L50
+	move.w d1,d0
+	or.b d2,d0
+	move.w d0,26(a0)
+.L50:
+	move.b 1(a5),d2
+	beq.s .L51
+	move.w d1,d0
+	or.b d2,d0
+	move.w d0,28(a0)
+.L51:
+	move.b 0(a5),d2
+	beq.s .L52
+	move.w d1,d0
+	or.b d2,d0
+	move.w d0,30(a0)
+.L52:
 	lea 32(a0),a0
 	bra .L3
-.L13:
+.L17:
 	tst.b d5
-	bmi .L14
+	bmi .L18
 	move.w d1,d0
 	or.b (a5)+,d0
 	move.w d0,(a0)+
@@ -337,7 +370,7 @@ _video_bg_line_68k:
 	or.b (a5)+,d0
 	move.w d0,(a0)+
 	bra .L3
-.L14:
+.L18:
 	lea 16(a5),a5
 	move.w d1,d0
 	or.b -(a5),d0
@@ -403,42 +436,50 @@ _video_bg_line_68k:
 	move.w (a1)+,d5
 	addq.l #4,a1
 	cmp.w #0,a4
-	beq.s *+4
+	beq.s .L53
+	tst.b d6
+	bne.s *+6
+	moveq #3,d6
+	bra.s .L54
+	cmp.b #2,d6
+	bne.s .L54
 	moveq #1,d6
+.L53:
+.L54:
 	moveq #0,d0
 	move.l d7,d2
 	tst.b d6
-	bne.s .L48
+	bne.s .L55
 	add.l d2,a0
 	add.l d2,a0
-	bra .L54
-.L48:
+	bra .L61
+.L55:
 	tst.b d5
-	bpl.s .L49
+	bpl.s .L56
 	lea 15(a5),a5
 	sub.l d0,a5
 	move.l #-1,a6
-	bra.s .L50
-.L49:
+	bra.s .L57
+.L56:
 	add.l d0,a5
 	move.l #1,a6
-.L50:
+.L57:
 	subq.l #1,d2
-.L51:
+.L58:
 	move.b (a5),d5
 	add.l a6,a5
-	cmp.b #1,d6
-	beq.s .L52
+	cmp.b #2,d6
+	bne.s .L59
 	tst.b d5
-	beq.s .L53
-.L52:
+	beq.s .L60
+.L59:
 	move.w d1,d0
 	or.b d5,d0
 	move.w d0,(a0)
-.L53:
+.L60:
 	addq.l #2,a0
-	dbra d2,.L51
-.L54:
+	dbra d2,.L58
+.L61:
 .L4:
 	movem.l (sp)+,d2-d7/a2-a6
 	rts
@@ -453,8 +494,8 @@ _video_txt_line_68k:
 	move.l d3,d4
 	lsl.l #3,d4
 	subq.l #1,d7
-	bmi .L57
-.L55:
+	bmi .L64
+.L62:
 	move.l (a1)+,a5
 	move.l (a1)+,a6
 	moveq #0,d6
@@ -464,67 +505,88 @@ _video_txt_line_68k:
 	move.w (a1)+,d5
 	addq.l #4,a1
 	cmp.w #0,a4
-	beq.s *+4
+	beq.s .L65
+	tst.b d6
+	bne.s *+6
+	moveq #3,d6
+	bra.s .L66
+	cmp.b #2,d6
+	bne.s .L66
 	moveq #1,d6
+.L65:
+.L66:
 	lea (a3,d5.w),a0
 	tst.b d6
-	bne.s .L58
+	bne.s .L67
 	lea 16(a0),a0
-	bra .L56
-.L58:
+	bra .L63
+.L67:
+	cmp.b #3,d6
+	bne.s .L71
+	move.w d1,d0
+	or.b (a5),d0
+	move.w d0,d2
+	swap d0
+	move.w d2,d0
+	move.l d0,(a0)+
+	move.l d0,(a0)+
+	move.l d0,(a0)+
+	move.l d0,(a0)+
+	bra .L63
+.L71:
 	cmp.b #1,d6
-	beq .L59
+	beq .L68
 	move.b 0(a5),d2
-	beq.s .L62
+	beq.s .L72
 	move.w d1,d0
 	or.b d2,d0
 	move.w d0,0(a0)
-.L62:
+.L72:
 	move.b 1(a5),d2
-	beq.s .L63
+	beq.s .L73
 	move.w d1,d0
 	or.b d2,d0
 	move.w d0,2(a0)
-.L63:
+.L73:
 	move.b 2(a5),d2
-	beq.s .L64
+	beq.s .L74
 	move.w d1,d0
 	or.b d2,d0
 	move.w d0,4(a0)
-.L64:
+.L74:
 	move.b 3(a5),d2
-	beq.s .L65
+	beq.s .L75
 	move.w d1,d0
 	or.b d2,d0
 	move.w d0,6(a0)
-.L65:
+.L75:
 	move.b 4(a5),d2
-	beq.s .L66
+	beq.s .L76
 	move.w d1,d0
 	or.b d2,d0
 	move.w d0,8(a0)
-.L66:
+.L76:
 	move.b 5(a5),d2
-	beq.s .L67
+	beq.s .L77
 	move.w d1,d0
 	or.b d2,d0
 	move.w d0,10(a0)
-.L67:
+.L77:
 	move.b 6(a5),d2
-	beq.s .L68
+	beq.s .L78
 	move.w d1,d0
 	or.b d2,d0
 	move.w d0,12(a0)
-.L68:
+.L78:
 	move.b 7(a5),d2
-	beq.s .L69
+	beq.s .L79
 	move.w d1,d0
 	or.b d2,d0
 	move.w d0,14(a0)
-.L69:
+.L79:
 	lea 16(a0),a0
-	bra .L56
-.L59:
+	bra .L63
+.L68:
 	move.w d1,d0
 	or.b (a5)+,d0
 	move.w d0,(a0)+
@@ -549,9 +611,9 @@ _video_txt_line_68k:
 	move.w d1,d0
 	or.b (a5)+,d0
 	move.w d0,(a0)+
-	bra .L56
-.L56:
-	dbra d7,.L55
-.L57:
+	bra .L63
+.L63:
+	dbra d7,.L62
+.L64:
 	movem.l (sp)+,d2-d7/a2-a6
 	rts

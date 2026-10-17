@@ -99,6 +99,8 @@ static Video video;
 static uint16_t fb_other[RENDER_W * RENDER_H];
 static uint16_t *shown = fb_other;
 static int force_full = 1;
+static int prev_valid;                /* the incremental bands may compare with the last picture */
+static ULONG present_count;
 
 static struct Window *win;
 static LONG pens[512];
@@ -124,7 +126,7 @@ static int memo_off;                  /* MEMO=OFF: no replay of the main CPU's w
 static int subfast_off;               /* SUBFAST=OFF: waiting sub CPU slices on the core */
 static int start_arcade;              /* START=ARCADE: coins and start as the arcade */
 static int lives = -1;                /* LIVES=3|4|6|INF (0) */
-static int easy_damage;               /* DIFFICULTY=EASY (1) / VERYEASY (2) */
+static int easy_damage;               /* DIFFICULTY=EASY (1) / VERYEASY (2) / NODAMAGE (3) */
 enum { CTL_KEYBOARD, CTL_JOY1, CTL_JOY2 };
 static int control = CTL_JOY1;         /* CONTROL=KEYBOARD / JOY1 (up jumps) / JOY2 */
 static int hle_on;                    /* HLE=ON: the sprite list routine translated to C (slower) */
@@ -141,6 +143,9 @@ static const char *rompaths[4];
 static int nrompaths;
 static int dsw0 = -1, dsw1 = -1, slice = 0;
 static char state_path[256];         /* LOADSTATE=file: start from an F10 machine state */
+static char replay_path[256];        /* REPLAY=file: an F10 replay (state + inputs), then quit */
+static UBYTE *replay_in;             /* p1, p2 per frame */
+static ULONG replay_count, replay_pos;
 static int joy_mouseport;             /* JOYPORT=BOTH: also a joystick in the mouse port */
 static int screen_full;               /* SCREEN=FULL: an own screen instead of a window */
 static struct Screen *scr;
@@ -266,9 +271,12 @@ static void release_pens(void)
     pens_ok = 0;
 }
 
+static void lag_report(void);
+
 static void cleanup(void)
 {
     stop_watchdog();
+    lag_report();
     close_sound();
     sndlog_write();
     if (snd_pack) {
@@ -382,8 +390,10 @@ static void open_fullscreen(void)
                          WA_Activate, TRUE,
                          WA_RMBTrap, TRUE,
                          WA_SimpleRefresh, TRUE,
-                         WA_NoCareRefresh, TRUE,
-                         WA_IDCMP, IDCMP_RAWKEY | IDCMP_INACTIVEWINDOW | IDCMP_ACTIVEWINDOW,
+                         /* damage (another window or a requester over the screen) is reported:
+                            the picture is sent whole again (only changed blocks are sent) */
+                         WA_IDCMP, IDCMP_RAWKEY | IDCMP_INACTIVEWINDOW | IDCMP_ACTIVEWINDOW |
+                                   IDCMP_REFRESHWINDOW,
                          TAG_DONE);
     if (!win)
         fail("Cannot open the window.");
@@ -459,6 +469,8 @@ ULONG find_dirty_68k(const uint16_t *a, const uint16_t *b, UBYTE *dirty);
 void convert_rows_68k(const uint16_t *src, UBYTE *dst, ULONG dst_bpr, ULONG pixels, const ULONG *lut, ULONG scale);
 /* the same with the lookups interleaved: mode 1 lut UWORD[512], mode 3 (doubled) lut ULONG[512] */
 void convert_fast_68k(const uint16_t *src, UBYTE *dst, ULONG dst_bpr, ULONG pixels, const void *lut, ULONG mode);
+/* 8 rows of 16 bit screen pixels (512 bytes per row) doubled into VRAM (SCALE=2) */
+void double_rows_68k(const uint16_t *src, UBYTE *dst, ULONG dst_bpr, ULONG pixels);
 
 #define MAX_RUNS (RENDER_BW * RENDER_BH)
 static UBYTE run_by[MAX_RUNS], run_x0[MAX_RUNS], run_x1[MAX_RUNS];
@@ -756,7 +768,7 @@ static uint64_t stat_stage[7], stage_t0;
 
 /* VERIFY (testing): every 30th drawn frame read the window back from the board and compare
    every block with what it should show; the result goes to the title */
-static int verify;
+static int verify, verify_every = 30;   /* VERIFY[=n]: every n-th drawn picture */
 static ULONG verify_bad, verify_checks, verify_frames;
 static int verify_bx = -1, verify_by;
 
@@ -821,8 +833,9 @@ static void present(void)
         stage_t0 = eclock_now();
     if (machine.palette_dirty)
         update_colours();
-    if (redraw)
+    if (redraw || (++present_count & 255) == 0)        /* also against unreported damage */
         force_full = 1;
+    prev_valid = 0;                                     /* shown is swapped below */
     prof_blocks += (ULONG)find_dirty(dirty);
     n = collect_runs(dirty, video_mode == VID_BLIT ? 0 : run_gap);
     if (stats > 1)
@@ -835,7 +848,7 @@ static void present(void)
         present_rtg(n);
     if (stats > 1)
         prof_stage(5);
-    if (verify && ++verify_frames % 30 == 0)
+    if (verify && ++verify_frames % (ULONG)verify_every == 0)
         verify_window();
 }
 
@@ -846,8 +859,8 @@ static void present(void)
    (render into fb, compare fb with shown, convert from fb: each ca. 2-4 ms at 100 MHz).
    BANDS=OFF: the old way (comparisons). */
 static int use_bands = 1;
-static int bands_direct = 1;          /* convert straight into VRAM (BANDDIRECT=OFF: via sfb + copy) */
-static int bands_skip;                /* PBENCH: 1 = nothing sent, 2 = converted but not copied */
+static int bands_skip;                /* PBENCH: 1 = nothing sent */
+static ULONG bands_count;             /* drawn pictures: whole blit every 32, everything sent every 256 */
 static uint16_t band[RENDER_W * 8];
 
 /* What the window shows is kept as one 32 bit hash per block (4 KB, stays in the data cache)
@@ -857,7 +870,7 @@ static uint16_t band[RENDER_W * 8];
 static ULONG block_hash[RENDER_BH][RENDER_BW];
 
 /* the blocks of band row by that changed (all with full): 1 in d[] */
-/* amiga_68k.s: the same for the 32 blocks of a band (h = rol(h, 5) ^ long over 8 x 16 bytes) */
+/* amiga_68k.s: a 32 bit hash (FNV-1a over the long words) for each of the 32 blocks of a band */
 ULONG hash_band_68k(const uint16_t *band, ULONG *hash, UBYTE *dirty, ULONG full);
 
 static int band_diff(const uint16_t *b, int by, UBYTE *d, int full)
@@ -870,26 +883,133 @@ static int bands_possible(void)
     return use_bands && video_mode == VID_BLIT && vbpp == 2 && (scale == 1 || scale == 2) && !render_lines;
 }
 
+/* Incremental drawing (0.9.13): a band of 8 lines is rendered again only when it can have
+   changed since the last drawn picture - everything after a full redraw, a new priority mode or
+   scroll position; else the bands of changed background tiles (from the tile's row and the
+   scroll), of changed text cells, and the bands with sprites now or in the last picture. The
+   picture of palette indices stays in shown; after a palette change the other bands are only
+   converted again (and their hashes decide what is sent). INCR=OFF renders every band. */
+static int incr_off;
+static int rcheck;                    /* RCHECK: the assembler lines compared with the C renderer */
+static ULONG rcheck_bands, rcheck_bad;
+static UBYTE prev_bg0[0x800], prev_bg1[0x800], prev_txt[0x800], prev_scroll[8], prev_pri;
+static ULONG prev_spr_bands, bands_rendered, bands_converted;
+
+/* the bands (bit per band) covered by visible sprites, as video_render_begin finds them */
+static ULONG sprite_bands(void)
+{
+    ULONG m = 0;
+    int offs, t;
+    for (offs = 0; offs < 0x180; offs += 4) {
+        int attr = machine.spriteram[offs + 1];
+        int sx = 238 - machine.spriteram[offs + 3];
+        int sy = 240 - machine.spriteram[offs];
+        if (sx <= -7) sx += 256;
+        if (sy <= -7) sy += 256;
+        if (sx >= SCREEN_W || sx <= -16)
+            continue;
+        for (t = (attr & 0x80) ? 0 : 1; t < 2; t++) {
+            int ty = t == 0 ? sy - 16 : sy, y0, y1, b;
+            if (ty + 16 <= XAIN_FIRST_LINE || ty >= XAIN_FIRST_LINE + SCREEN_H)
+                continue;
+            y0 = (ty < XAIN_FIRST_LINE ? XAIN_FIRST_LINE : ty) - XAIN_FIRST_LINE;
+            y1 = (ty + 16 > XAIN_FIRST_LINE + SCREEN_H ? XAIN_FIRST_LINE + SCREEN_H : ty + 16) - XAIN_FIRST_LINE - 1;
+            for (b = y0 >> 3; b <= y1 >> 3; b++)
+                m |= 1UL << b;
+        }
+    }
+    return m;
+}
+
+/* the bands showing background tiles that changed (tile RAM: code 000-3FF, attribute 400-7FF) */
+static ULONG bg_bands(const UBYTE *now, const UBYTE *old, const UBYTE *scy)
+{
+    const int sy = scy[0] | scy[1] << 8;
+    ULONG m = 0, rows = 0;
+    int i, row, k;
+    if (!memcmp(now, old, 0x800))
+        return 0;
+    for (i = 0; i < 0x800; i++)
+        if (now[i] != old[i]) {
+            int idx = i & 0x3ff;
+            rows |= 1UL << (((idx >> 4) & 15) | ((idx >> 9) & 1) << 4);
+        }
+    for (row = 0; row < 32; row++)
+        if (rows & (1UL << row))
+            for (k = 0; k < 16; k++) {                      /* the lines of the tile row */
+                int y = (row * 16 + k - sy) & 511;
+                if (y >= XAIN_FIRST_LINE && y < XAIN_FIRST_LINE + SCREEN_H)
+                    m |= 1UL << ((y - XAIN_FIRST_LINE) >> 3);
+            }
+    return m;
+}
+
+/* the bands with changed text cells (32 x 32 cells, row r = lines 8r..8r+7, not scrolled) */
+static ULONG text_bands(void)
+{
+    ULONG m = 0;
+    int i;
+    if (!memcmp(machine.charram, prev_txt, 0x800))
+        return 0;
+    for (i = 0; i < 0x800; i++)
+        if (machine.charram[i] != prev_txt[i]) {
+            int r = (i & 0x3ff) >> 5, y = r * 8;
+            if (y >= XAIN_FIRST_LINE && y < XAIN_FIRST_LINE + SCREEN_H)
+                m |= 1UL << ((y - XAIN_FIRST_LINE) >> 3);
+        }
+    return m;
+}
+
 static void render_present_bands(void)
 {
+    static uint16_t nband[RENDER_W * 8];                /* the band in the screen format */
     const ULONG bw = (ULONG)(8 * scale * 2);
-    int by, x0 = RENDER_BW, x1 = -1, y0 = RENDER_BH, y1 = -1, full;
-    if (machine.palette_dirty)
+    ULONG dirty, spr;
+    int by, x0 = RENDER_BW, x1 = -1, y0 = RENDER_BH, y1 = -1, full, pal;
+    /* a new palette does not mean a new picture here: the hashes are of the screen pixels, so
+       only the blocks whose colours changed are sent (not everything as in present()) */
+    full = force_full || redraw || (++bands_count & 255) == 0;
+    pal = machine.palette_dirty;
+    if (pal)
         update_colours();
-    if (redraw)
-        force_full = 1;
-    full = force_full;
     force_full = 0;
+    spr = sprite_bands();
+    if (full || incr_off || !prev_valid || machine.pri != prev_pri ||
+        memcmp(&machine.scrollx[0][0], prev_scroll, 4) || memcmp(&machine.scrolly[0][0], prev_scroll + 4, 4))
+        dirty = (1UL << RENDER_BH) - 1;
+    else
+        dirty = spr | prev_spr_bands | bg_bands(machine.bgram0, prev_bg0, machine.scrolly[0]) |
+                bg_bands(machine.bgram1, prev_bg1, machine.scrolly[1]) | text_bands();
     video_render_begin(&video, &machine);
     for (by = 0; by < RENDER_BH; by++) {
+        uint16_t *band_px = &shown[by * 8 * RENDER_W];  /* the picture of indices, kept */
         UBYTE d[RENDER_BW];
         struct RenderInfo ri;
         LONG lock;
         int bx = 0, n;
-        video_render_lines(&video, &machine, XAIN_FIRST_LINE + by * 8, 8, band);
-        n = band_diff(band, by, d, full);
-        if (verify)                                       /* VERIFY compares the window with shown */
-            memcpy(&shown[by * 8 * RENDER_W], band, sizeof band);
+        if (dirty & (1UL << by)) {
+            video_render_lines(&video, &machine, XAIN_FIRST_LINE + by * 8, 8, band_px);
+            if (rcheck) {
+                /* RCHECK (tests): the band again with the C renderer, compared pixel by pixel */
+                static uint16_t ref[RENDER_W * 8];
+                int k;
+                video_asm = 0;
+                video_render_lines(&video, &machine, XAIN_FIRST_LINE + by * 8, 8, ref);
+                video_asm = 1;
+                rcheck_bands++;
+                for (k = 0; k < RENDER_W * 8; k++)
+                    if (ref[k] != band_px[k]) {
+                        rcheck_bad++;
+                        break;
+                    }
+            }
+            bands_rendered++;
+        } else if (!pal) {
+            continue;                                     /* nothing can have changed */
+        }
+        convert_fast_68k(band_px, (UBYTE *)nband, RENDER_W * 2, RENDER_W, native16, 1);
+        bands_converted++;
+        n = band_diff(nband, by, d, full);
         if (!n || bands_skip == 1)
             continue;
         prof_blocks += (ULONG)n;
@@ -897,12 +1017,12 @@ static void render_present_bands(void)
         if (!ri.Memory) {
             p96UnlockBitMap(vbm, lock);
             force_full = 1;                               /* everything again next time */
+            prev_valid = 0;
             return;
         }
         while (bx < RENDER_BW) {
             const ULONG bpr = (UWORD)ri.BytesPerRow;
             int r0;
-            ULONG b0, b1, m16;
             UBYTE *dst;
             if (!d[bx]) {
                 bx++;
@@ -911,28 +1031,12 @@ static void render_present_bands(void)
             r0 = bx;
             while (bx < RENDER_BW && d[bx])
                 bx++;
-            b0 = (ULONG)r0 * bw;
-            b1 = (ULONG)bx * bw;
-            dst = (UBYTE *)ri.Memory + (ULONG)(by * 8 * scale) * bpr + b0;
-            m16 = 0;          /* long moves: MOVE16 needs CacheClearE per run and was slower (PBENCH) */
-            if (bands_skip == 2) {
-                convert_fast_68k(&band[r0 * 8], sfb + b0, sfb_bpr, (ULONG)(bx - r0) * 8, native16, 1);
-            } else if (bands_direct) {
-                /* converted straight into VRAM (long word writes only), no buffer in between */
-                if (scale == 2) {
-                    convert_fast_68k(&band[r0 * 8], dst, 2 * bpr, (ULONG)(bx - r0) * 8, native2, 3);
-                    convert_fast_68k(&band[r0 * 8], dst + bpr, 2 * bpr, (ULONG)(bx - r0) * 8, native2, 3);
-                } else {
-                    convert_fast_68k(&band[r0 * 8], dst, bpr, (ULONG)(bx - r0) * 8, native16, 1);
-                }
-            } else if (scale == 2) {
-                convert_fast_68k(&band[r0 * 8], sfb + b0, sfb_bpr, (ULONG)(bx - r0) * 8, native2, 3);
-                copy_rows(sfb + b0, dst, b1 - b0, 8, sfb_bpr, 2 * bpr, m16);
-                copy_rows(sfb + b0, dst + bpr, b1 - b0, 8, sfb_bpr, 2 * bpr, m16);
-            } else {
-                convert_fast_68k(&band[r0 * 8], sfb + b0, sfb_bpr, (ULONG)(bx - r0) * 8, native16, 1);
-                copy_rows(sfb + b0, dst, b1 - b0, 8, sfb_bpr, bpr, m16);
-            }
+            dst = (UBYTE *)ri.Memory + (ULONG)(by * 8 * scale) * bpr + (ULONG)r0 * bw;
+            /* long word writes only (MOVE16 needs CacheClearE per run and was slower, PBENCH) */
+            if (scale == 2)
+                double_rows_68k(&nband[r0 * 8], dst, bpr, (ULONG)(bx - r0) * 8);
+            else
+                copy_rows((const UBYTE *)&nband[r0 * 8], dst, (ULONG)(bx - r0) * 16, 8, RENDER_W * 2, bpr, 0);
             if (r0 < x0) x0 = r0;
             if (bx - 1 > x1) x1 = bx - 1;
             if (by < y0) y0 = by;
@@ -940,12 +1044,137 @@ static void render_present_bands(void)
         }
         p96UnlockBitMap(vbm, lock);
     }
+    /* what the next picture is compared with */
+    memcpy(prev_bg0, machine.bgram0, 0x800);
+    memcpy(prev_bg1, machine.bgram1, 0x800);
+    memcpy(prev_txt, machine.charram, 0x800);
+    memcpy(prev_scroll, &machine.scrollx[0][0], 4);
+    memcpy(prev_scroll + 4, &machine.scrolly[0][0], 4);
+    prev_pri = machine.pri;
+    prev_spr_bands = spr;
+    prev_valid = 1;
+    if ((bands_count & 31) == 0) {                      /* vbm holds the whole picture */
+        x0 = y0 = 0;
+        x1 = RENDER_BW - 1;
+        y1 = RENDER_BH - 1;
+    }
     if (x1 >= 0)
         BltBitMapRastPort(vbm, (WORD)(x0 * 8 * scale), (WORD)(y0 * 8 * scale), win->RPort,
                           (WORD)(ox + x0 * 8 * scale), (WORD)(oy + y0 * 8 * scale),
                           (WORD)((x1 + 1 - x0) * 8 * scale), (WORD)((y1 + 1 - y0) * 8 * scale), 0xC0);
-    if (verify && ++verify_frames % 30 == 0)
+    if (verify && ++verify_frames % (ULONG)verify_every == 0)
         verify_window();
+}
+
+/* LAGLOG (diagnostics of slowdowns): a summary of every 10 seconds of play (574 frames) goes
+   to RAM:XainSleena-lag.txt when the game ends: late frames (the picture left out), drawn
+   pictures, average emulation and drawing time, the slowest frame, blocks sent, palette
+   changes, flying stage. When 30% or more of the frames of such a window were late, the
+   machine state of 1-2 seconds earlier is written to RAM:XainSleena-lagN.bin (up to 5, at
+   least a minute apart; load with LOADSTATE= / -loadstate, DIP switches as in lagN.txt). */
+static int laglog;
+#define LAG_WIN 574
+#define LAG_MAX 720
+typedef struct {
+    UWORD frames, late, drawn, pal, fly, file;
+    ULONG emu, draw, worst, blocks;
+    UBYTE scene;
+} LagWin;
+static LagWin *lag_win;
+static int lag_n, lag_files;
+static ULONG lag_frames, lag_late_all, lag_last_file, lag_state_frame[2], lag_state_len;
+static UBYTE *lag_state[2];
+
+static void lag_init(void)
+{
+    lag_state_len = xain_save_state(&machine, NULL);
+    lag_win = AllocVec(sizeof(LagWin) * LAG_MAX, MEMF_ANY | MEMF_CLEAR);
+    lag_state[0] = AllocVec(lag_state_len, MEMF_ANY);
+    lag_state[1] = AllocVec(lag_state_len, MEMF_ANY);
+    if (!lag_win || !lag_state[0] || !lag_state[1])
+        laglog = 0;
+}
+
+/* one frame: us_emu and us_draw in microseconds */
+static void lag_frame(ULONG us_emu, ULONG us_draw, int drawn, int pal, int late, ULONG blocks)
+{
+    ULONG f = lag_frames++;
+    LagWin *w;
+    if ((f & 63) == 0) {                                  /* the state every 64 frames, two kept */
+        int k = (int)((f >> 6) & 1);
+        xain_save_state(&machine, lag_state[k]);
+        lag_state_frame[k] = f;
+    }
+    if (lag_n >= LAG_MAX)
+        return;
+    w = &lag_win[lag_n];
+    w->frames++;
+    w->late += late ? 1 : 0;
+    w->drawn += drawn ? 1 : 0;
+    w->pal += pal ? 1 : 0;
+    w->fly += (machine.shared[0x53] & 0x80) ? 1 : 0;
+    w->emu += us_emu;
+    w->draw += us_draw;
+    w->blocks += blocks;
+    if (us_emu + us_draw > w->worst) w->worst = us_emu + us_draw;
+    w->scene = machine.shared[0x41];
+    lag_late_all += late ? 1 : 0;
+    if (w->frames < LAG_WIN)
+        return;
+    if (w->late * 10 >= w->frames * 3 && lag_files < 5 && (lag_files == 0 || f - lag_last_file >= 3445)) {
+        int k = lag_state_frame[0] < lag_state_frame[1] ? 0 : 1;   /* the older state */
+        char path[48], line[112];
+        BPTR fh;
+        lag_files++;
+        lag_last_file = f;
+        w->file = (UWORD)lag_files;
+        sprintf(path, "RAM:XainSleena-lag%d.bin", lag_files);
+        if ((fh = Open((STRPTR)path, MODE_NEWFILE))) {
+            Write(fh, lag_state[k], (LONG)lag_state_len);
+            Close(fh);
+        }
+        sprintf(path, "RAM:XainSleena-lag%d.txt", lag_files);
+        if ((fh = Open((STRPTR)path, MODE_NEWFILE))) {
+            sprintf(line, "state of frame %lu, window ending at frame %lu (%u%% late); dsw0 %02x dsw1 %02x\n",
+                    lag_state_frame[k], f, (unsigned)(w->late * 100 / w->frames), machine.dsw0, machine.dsw1);
+            Write(fh, line, (LONG)strlen(line));
+            Close(fh);
+        }
+    }
+    lag_n++;
+}
+
+static void lag_report(void)
+{
+    BPTR fh;
+    char line[160];
+    int i, n;
+    if (!laglog || !lag_win)
+        return;
+    fh = Open((STRPTR)"RAM:XainSleena-lag.txt", MODE_NEWFILE);
+    if (!fh)
+        return;
+    sprintf(line, "XainSleena " XAIN_VERSION " LAGLOG: %lu frames, %lu late (%lu%%), %d state files\n",
+            lag_frames, lag_late_all, lag_frames ? lag_late_all * 100 / lag_frames : 0, lag_files);
+    Write(fh, line, (LONG)strlen(line));
+    sprintf(line, "options: scale %d %s video %s bands %d sound %d; one line = 10 s (%d frames)\n", scale,
+            screen_full ? "full screen" : "window", video_names[video_mode], bands_possible(), sound, LAG_WIN);
+    Write(fh, line, (LONG)strlen(line));
+    sprintf(line, " time  late%% drawn/s emu_ms draw_ms worst_ms blocks/pic pal fly scene\n");
+    Write(fh, line, (LONG)strlen(line));
+    n = lag_n < LAG_MAX && lag_win[lag_n].frames ? lag_n + 1 : lag_n;
+    for (i = 0; i < n; i++) {
+        const LagWin *w = &lag_win[i];
+        ULONG fr = w->frames ? w->frames : 1, dr = w->drawn ? w->drawn : 1;
+        sprintf(line, "%2d:%02d  %4lu %7lu %6lu.%lu %6lu.%lu %8lu %10lu %3u %3s %5u%s\n", i / 6, (i % 6) * 10,
+                (ULONG)w->late * 100 / fr, (ULONG)w->drawn * 5744 / fr / 100,
+                w->emu / fr / 1000, w->emu / fr / 100 % 10, w->draw / dr / 1000, w->draw / dr / 100 % 10,
+                w->worst / 1000, w->blocks / dr, w->pal, w->fly * 2 > w->frames ? "yes" : "-", w->scene,
+                w->file == 1 ? "  <- lag1.bin" : w->file == 2 ? "  <- lag2.bin" : w->file == 3 ? "  <- lag3.bin" :
+                w->file == 4 ? "  <- lag4.bin" : w->file == 5 ? "  <- lag5.bin" : "");
+        Write(fh, line, (LONG)strlen(line));
+    }
+    Close(fh);
 }
 
 /* PBENCH=n (tests): the picture output measured n times per stage from two consecutive
@@ -1037,8 +1266,6 @@ static void run_present_bench(void)
             printf("%-44s %6lu us\n", "render + present in bands (per frame)", bands - emu);
             bands_skip = 1;
             printf("%-44s %6lu us\n", "  bands: render + hashes only", bench_series(2, n) - emu);
-            bands_skip = 2;
-            printf("%-44s %6lu us\n", "  bands: + convert, no copy to VRAM", bench_series(2, n) - emu);
             bands_skip = 0;
             {
                 ULONG b0 = prof_blocks;
@@ -1513,33 +1740,153 @@ static void audio_push(const int16_t *samples, int count)
 #define RAW_F3     0x52
 #define RAW_F10    0x59
 
-/* F10: the machine state to RAM:XainSleena-state.bin (load on the PC: xainsleena -loadstate) and
-   a line to RAM:XainSleena-state.txt; for hangs of the game */
+/* F10: a debug dump, numbered (n = the first free number, nothing is overwritten):
+     RAM:XainSleena-dump<n>.bin    a replay: the machine state 9-18 s earlier and the inputs of
+                                   every frame since then (PC: xainsleena -replay FILE)
+     RAM:XainSleena-state<n>.bin   the machine state now (LOADSTATE=, PC -loadstate)
+     RAM:XainSleena-dump<n>.txt    release, options, the stage (RAM of the game), keyboard,
+                                   joystick, the last key events, whether the window was active
+     RAM:XainSleena-dump<n>.ppm    the picture as the window shows it
+   For it the inputs of the last 1024 frames and a state every 512 frames are kept. */
+#define REC_SIZE 1024
+static UBYTE rec_in[REC_SIZE][2];
+static ULONG rec_frame, rec_snap_frame[2], rec_state_len;
+static int rec_snap_ok[2];
+static UBYTE *rec_state[2];
+static struct { ULONG frame; UWORD code; } key_log[32];
+static ULONG key_log_n;
+static int win_active = 1;
+static ULONG last_joy;
+
+static void rec_init(void)
+{
+    rec_state_len = xain_save_state(&machine, NULL);
+    rec_state[0] = AllocVec(rec_state_len, MEMF_ANY);
+    rec_state[1] = AllocVec(rec_state_len, MEMF_ANY);
+}
+
+/* before each emulated frame (inputs already set) */
+static void rec_before_frame(void)
+{
+    if ((rec_frame & 511) == 0 && rec_state[0] && rec_state[1]) {
+        int k = (int)((rec_frame >> 9) & 1);
+        xain_save_state(&machine, rec_state[k]);
+        rec_snap_frame[k] = rec_frame;
+        rec_snap_ok[k] = 1;
+    }
+    rec_in[rec_frame & (REC_SIZE - 1)][0] = machine.in_p1;
+    rec_in[rec_frame & (REC_SIZE - 1)][1] = machine.in_p2;
+}
+
+static void put_be32(UBYTE *p, ULONG v)
+{
+    p[0] = (UBYTE)(v >> 24); p[1] = (UBYTE)(v >> 16); p[2] = (UBYTE)(v >> 8); p[3] = (UBYTE)v;
+}
+
+static int write_file(const char *path, const void *data, ULONG len)
+{
+    BPTR fh = Open((STRPTR)path, MODE_NEWFILE);
+    LONG n;
+    if (!fh)
+        return 0;
+    n = Write(fh, (APTR)data, (LONG)len);
+    Close(fh);
+    return n == (LONG)len;
+}
+
 static void save_state(void)
 {
-    uint32_t len = xain_save_state(&machine, NULL);
-    UBYTE *buf = AllocVec(len, MEMF_ANY);
-    BPTR fh;
-    char text[256];
-    if (!buf)
+    char path[64], *text;
+    UBYTE *buf;
+    ULONG len = 0, cur_len = xain_save_state(&machine, NULL), i, start, count;
+    int n, k, j;
+    BPTR lock;
+    for (n = 1; n < 100; n++) {                            /* the first free number */
+        sprintf(path, "RAM:XainSleena-dump%d.txt", n);
+        if (!(lock = Lock((STRPTR)path, ACCESS_READ)))
+            break;
+        UnLock(lock);
+    }
+    /* the replay: the older of the two states and the inputs since then */
+    k = rec_snap_ok[0] && rec_snap_ok[1] ? (rec_snap_frame[0] < rec_snap_frame[1] ? 0 : 1) : rec_snap_ok[1] ? 1 : 0;
+    start = rec_snap_frame[k];
+    count = rec_snap_ok[k] ? rec_frame - start : 0;
+    buf = AllocVec(16 + rec_state_len + REC_SIZE * 2 + cur_len, MEMF_ANY);
+    text = AllocVec(4096, MEMF_ANY);
+    if (!buf || !text) {
+        if (buf) FreeVec(buf);
+        if (text) FreeVec(text);
         return;
+    }
+    if (count) {
+        memcpy(buf, "XRP1", 4);
+        put_be32(buf + 4, start);
+        put_be32(buf + 8, count);
+        put_be32(buf + 12, rec_state_len);
+        memcpy(buf + 16, rec_state[k], rec_state_len);
+        for (i = 0; i < count; i++) {
+            buf[16 + rec_state_len + i * 2] = rec_in[(start + i) & (REC_SIZE - 1)][0];
+            buf[16 + rec_state_len + i * 2 + 1] = rec_in[(start + i) & (REC_SIZE - 1)][1];
+        }
+        sprintf(path, "RAM:XainSleena-dump%d.bin", n);
+        write_file(path, buf, 16 + rec_state_len + count * 2);
+    }
     xain_save_state(&machine, buf);
-    fh = Open((STRPTR)"RAM:XainSleena-state.bin", MODE_NEWFILE);
-    if (fh) {
-        Write(fh, buf, (LONG)len);
-        Close(fh);
+    sprintf(path, "RAM:XainSleena-state%d.bin", n);
+    write_file(path, buf, cur_len);
+    /* the description */
+    len += sprintf(text + len, "XainSleena " XAIN_VERSION " F10 dump %d: frame %lu (machine frame %lu); replay from frame %lu, %lu frames\n",
+                   n, rec_frame, (ULONG)machine.frame, start, count);
+    len += sprintf(text + len, "options: scale %d, %s, video %s, bands %d, control %d, sound %d, lives %d, difficulty %d, start_arcade %d, dsw0 %02x dsw1 %02x\n",
+                   scale, screen_full ? "full screen" : "window", video_names[video_mode], bands_possible(), control,
+                   sound, lives, easy_damage, start_arcade, machine.dsw0, machine.dsw1);
+    len += sprintf(text + len, "stage: playing %u, scene $41=%02x, stage type $48=%02x, %s ($53=%02x), $52=%02x, on foot %d\n",
+                   machine.shared[0x39], machine.shared[0x41], machine.shared[0x48],
+                   (machine.shared[0x53] & 0x80) ? "flying (ship)" : "not flying", machine.shared[0x53],
+                   machine.shared[0x52], xain_on_foot(&machine));
+    len += sprintf(text + len, "shared RAM 0030-006F:");
+    for (j = 0x30; j < 0x70; j++)
+        len += sprintf(text + len, "%s%02x", (j & 15) ? " " : "\n  ", machine.shared[j]);
+    len += sprintf(text + len, "\nCPU: main pc %04x, sub pc %04x, mcu pc %03x\n", machine.main.pc, machine.sub.pc,
+                   machine.mcu.cpu.pc);
+    len += sprintf(text + len, "input: window %s, in_p1 %02x in_p2 %02x, joystick port 2 %08lx, keys held:",
+                   win_active ? "active" : "NOT ACTIVE", machine.in_p1, machine.in_p2, last_joy);
+    for (j = 0; j < 128; j++)
+        if (keys[j])
+            len += sprintf(text + len, " %02x", j);
+    len += sprintf(text + len, "\ninputs of the last 16 frames (p1):");
+    for (i = 16; i >= 1; i--)
+        if (rec_frame >= i)
+            len += sprintf(text + len, " %02x", rec_in[(rec_frame - i) & (REC_SIZE - 1)][0]);
+    len += sprintf(text + len, "\nlast key events (frame:code, +80 = released):");
+    for (i = key_log_n > 32 ? key_log_n - 32 : 0; i < key_log_n; i++)
+        len += sprintf(text + len, "%s%lu:%02x", (i % 8) ? " " : "\n  ", key_log[i & 31].frame, key_log[i & 31].code);
+    len += sprintf(text + len, "\n");
+    sprintf(path, "RAM:XainSleena-dump%d.txt", n);
+    write_file(path, text, len);
+    /* the picture the window shows (RTG: 24 bit) */
+    if (rtg_ok) {
+        const ULONG w = (ULONG)(RENDER_W * scale), h = (ULONG)(RENDER_H * scale);
+        UBYTE *img = AllocVec(w * h * 3 + 32, MEMF_ANY);
+        if (img) {
+            struct RenderInfo ri;
+            int hl = sprintf((char *)img, "P6\n%lu %lu\n255\n", w, h);
+            WaitBlit();
+            ri.Memory = img + 32;
+            ri.BytesPerRow = (WORD)(w * 3);
+            ri.pad = 0;
+            ri.RGBFormat = RGBFB_R8G8B8;
+            p96ReadPixelArray(&ri, 0, 0, win->RPort, (UWORD)ox, (UWORD)oy, (UWORD)w, (UWORD)h);
+            memmove(img + hl, img + 32, w * h * 3);
+            sprintf(path, "RAM:XainSleena-dump%d.ppm", n);
+            write_file(path, img, (ULONG)hl + w * h * 3);
+            FreeVec(img);
+        }
     }
+    FreeVec(text);
     FreeVec(buf);
-    sprintf(text, "frame %lu paused %d main pc %04x sub pc %04x mcu pc %03x memo %d subfast %d hle %d"
-            " mcu idle %d control %d start_arcade %d\n",
-            (unsigned long)machine.frame, paused, machine.main.pc, machine.sub.pc, machine.mcu.cpu.pc,
-            machine.slice_memo, machine.sub_fast, machine.hle_sprites, machine.mcu.idle, control, start_arcade);
-    fh = Open((STRPTR)"RAM:XainSleena-state.txt", MODE_NEWFILE);
-    if (fh) {
-        Write(fh, text, (LONG)strlen(text));
-        Close(fh);
-    }
     DisplayBeep(NULL);
+    force_full = 1;                                     /* the flash may have changed the screen */
 }
 
 /* LOADSTATE=file: the machine from an F10 state (repeatable tests and measurements of one scene) */
@@ -1560,6 +1907,32 @@ static void load_state(void)
     FreeVec(buf);
 }
 
+/* REPLAY=file (tests): an F10 replay (RAM:XainSleena-dumpN.bin: "XRP1", start frame, frame count,
+   state length, state, 2 input bytes per frame) is played with the recorded inputs, then the game
+   quits (LAGLOG / VERIFY results at the exit) */
+static void load_replay(void)
+{
+    BPTR fh = Open((STRPTR)replay_path, MODE_OLDFILE);
+    LONG size, got;
+    UBYTE *buf;
+    ULONG count, slen;
+    if (!fh)
+        fail("REPLAY: cannot open the file.");
+    Seek(fh, 0, OFFSET_END);
+    size = Seek(fh, 0, OFFSET_BEGINNING);
+    buf = AllocVec((ULONG)size + 4, MEMF_ANY);
+    got = buf ? Read(fh, buf, size) : -1;
+    Close(fh);
+    if (got != size || size < 16 || memcmp(buf, "XRP1", 4))
+        fail("REPLAY: not a replay.");
+    count = (ULONG)buf[8] << 24 | (ULONG)buf[9] << 16 | (ULONG)buf[10] << 8 | buf[11];
+    slen = (ULONG)buf[12] << 24 | (ULONG)buf[13] << 16 | (ULONG)buf[14] << 8 | buf[15];
+    if (16 + slen + count * 2 > (ULONG)size || !xain_load_state(&machine, buf + 16, slen))
+        fail("REPLAY: not a replay.");
+    replay_in = buf + 16 + slen;                        /* (kept until the end) */
+    replay_count = count;
+}
+
 static void handle_messages(void)
 {
     struct IntuiMessage *msg;
@@ -1574,6 +1947,9 @@ static void handle_messages(void)
         else if (cls == IDCMP_RAWKEY) {
             int down = !(code & IECODE_UP_PREFIX);
             keys[code & 0x7F] = (UBYTE)down;
+            key_log[key_log_n & 31].frame = rec_frame;
+            key_log[key_log_n & 31].code = code;
+            key_log_n++;
             if (code == RAW_ESC)
                 quit = 1;
             else if (code == RAW_P)
@@ -1584,10 +1960,18 @@ static void handle_messages(void)
             }
             else if (code == RAW_F10)
                 save_state();
-        } else if (cls == IDCMP_INACTIVEWINDOW)
+        } else if (cls == IDCMP_INACTIVEWINDOW) {
             memset(keys, 0, sizeof keys);
-        else if (cls == IDCMP_ACTIVEWINDOW)
+            win_active = 0;
+        } else if (cls == IDCMP_ACTIVEWINDOW) {
             force_full = 1;                              /* repaint everything once */
+            win_active = 1;
+        }
+        else if (cls == IDCMP_REFRESHWINDOW) {
+            BeginRefresh(win);
+            EndRefresh(win, TRUE);
+            force_full = 1;                              /* the window was damaged */
+        }
     }
     if (SetSignal(0, SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C)
         quit = 1;
@@ -1621,6 +2005,8 @@ static void read_inputs(void)
         int port;
         for (port = 1; port >= (joy_mouseport ? 0 : 1); port--) {
             ULONG j = ReadJoyPort((ULONG)port), type = j & JP_TYPE_MASK;
+            if (port == 1)
+                last_joy = j;
             if (type != JP_TYPE_JOYSTK && type != JP_TYPE_GAMECTLR)
                 continue;
             if (j & JPF_JOY_UP) {
@@ -1695,6 +2081,12 @@ static void parse_option(const char *opt)
         easy_damage = 1;
     else if (same_text(opt, "DIFFICULTY=VERYEASY"))
         easy_damage = 2;
+    else if (same_text(opt, "DIFFICULTY=NODAMAGE"))
+        easy_damage = 3;
+    else if (same_text(opt, "TEST")) {               /* testing stages: no damage, infinite lives */
+        easy_damage = 3;
+        lives = 0;
+    }
     else if (same_text(opt, "DIFFICULTY=NORMAL"))
         easy_damage = 0;
     else if (same_text(name, "LIVES") && val)
@@ -1732,6 +2124,10 @@ static void parse_option(const char *opt)
         render_lines = 1;                                /* reference renderer */
     else if (same_text(opt, "VERIFY"))
         verify = 1;                                      /* testing */
+    else if (same_text(name, "VERIFY") && val) {        /* VERIFY=n: every n-th drawn picture */
+        verify = 1;
+        verify_every = atoi(val) > 0 ? atoi(val) : 1;
+    }
     else if (same_text(opt, "REDRAW"))
         redraw = 1;
     else if (same_text(opt, "MOVE16=OFF"))
@@ -1752,14 +2148,22 @@ static void parse_option(const char *opt)
         dsw1 = (int)strtol(val, 0, 16);
     else if (same_text(name, "SLICE") && val)
         slice = atoi(val);
-    else if (same_text(opt, "BANDDIRECT=OFF"))
-        bands_direct = 0;
+    else if (same_text(opt, "LAGLOG"))
+        laglog = 1;
+    else if (same_text(name, "VSKIP") && val)
+        video_skip = atoi(val);                          /* measurements: layers left out (1 text, 2 BG1, 4 BG2, 8 sprites) */
+    else if (same_text(opt, "RCHECK"))
+        rcheck = 1;
+    else if (same_text(opt, "INCR=OFF"))
+        incr_off = 1;
     else if (same_text(opt, "BANDS=OFF"))
         use_bands = 0;
     else if (same_text(opt, "BENCHM16"))
         present_bench_m16 = 1;
     else if (same_text(name, "PBENCH") && val)
         present_bench = atoi(val);
+    else if (same_text(name, "REPLAY") && val)
+        snprintf(replay_path, sizeof replay_path, "%s", val);
     else if (same_text(name, "LOADSTATE") && val)
         snprintf(state_path, sizeof state_path, "%s", val);
     else if (same_text(name, "ROMPATH") && val && nrompaths < 4) {
@@ -2035,6 +2439,8 @@ int main(int argc, char **argv)
     }
     if (state_path[0])
         load_state();
+    if (replay_path[0])
+        load_replay();
     if (!video_init(&video, &machine))
         fail("Not enough memory.");
     if (!m6809_layout_ok())
@@ -2065,18 +2471,43 @@ int main(int argc, char **argv)
     xain_set_fm_div(&machine, fmdiv);
     if (present_bench > 0)
         run_present_bench();
+    if (laglog)
+        lag_init();
+    rec_init();
     start_watchdog();
     if (stats > 1)
         prof_calibrate();
 
     for (;;) {
         static int late, skipped;
-        uint64_t t0 = 0, t1, t2;
-        int draw;
+        uint64_t t0 = 0, t1, t2, lt0 = 0, lt1 = 0, lt2 = 0;
+        int draw, lpal = 0;
+        ULONG lblocks = prof_blocks;
         if (stats)
             t0 = eclock_now();
-        read_inputs();
-        xain_assist(&machine);
+        if (laglog)
+            lt0 = eclock_now();
+        if (replay_in) {
+            if (replay_pos >= replay_count) {
+                if (verify)
+                    printf("REPLAY end: verify %lu bad blocks in %lu checks\n", verify_bad, verify_checks);
+                if (rcheck)
+                    printf("REPLAY end: RCHECK %lu of %lu bands differ from the C renderer\n", rcheck_bad, rcheck_bands);
+                printf("REPLAY end: %lu frames, %lu drawn; per drawn picture %lu.%lu bands rendered, %lu.%lu converted, %lu blocks sent\n",
+                       replay_count, stat_drawn, stat_drawn ? bands_rendered * 10 / stat_drawn / 10 : 0,
+                       stat_drawn ? bands_rendered * 10 / stat_drawn % 10 : 0,
+                       stat_drawn ? bands_converted * 10 / stat_drawn / 10 : 0,
+                       stat_drawn ? bands_converted * 10 / stat_drawn % 10 : 0,
+                       stat_drawn ? prof_blocks / stat_drawn : 0);
+                exit(0);
+            }
+            machine.in_p1 = replay_in[replay_pos * 2];      /* the recorded inputs (assist included) */
+            machine.in_p2 = replay_in[replay_pos * 2 + 1];
+            if (!paused) replay_pos++;
+        } else {
+            read_inputs();
+            xain_assist(&machine);
+        }
         /* frame skipping: the game always runs at full speed, the picture is left out when
            the last frame finished too late (at most MAX_AUTO_SKIP in a row) */
         if (frameskip < 0)
@@ -2093,7 +2524,9 @@ int main(int argc, char **argv)
                 xain_prof = (stat_frames & 3) == 0 ? prof_hook : 0;
                 if (xain_prof) prof_frames++;
             }
+            rec_before_frame();
             xain_run_frame(&machine);
+            rec_frame++;
             if (use_samples)
             {
                 uint64_t ts = stats > 1 ? eclock_now() : 0;
@@ -2107,6 +2540,10 @@ int main(int argc, char **argv)
             if (stats) {
                 t1 = eclock_now();
                 stat_emu += t1 - t0;
+            }
+            if (laglog) {
+                lt1 = eclock_now();
+                lpal = machine.palette_dirty;
             }
             if (!draw) {
                 skipped++;
@@ -2135,6 +2572,12 @@ int main(int argc, char **argv)
             }
         }
     frame_done:
+        if (laglog && !paused) {
+            lt2 = eclock_now();
+            if (!lt1) lt1 = lt2;
+            lag_frame((ULONG)((lt1 - lt0) * 1000000 / eclock_freq), (ULONG)((lt2 - lt1) * 1000000 / eclock_freq),
+                      draw, lpal, late, prof_blocks - lblocks);
+        }
         diag_frames++;
         handle_messages();
         late = !pace();

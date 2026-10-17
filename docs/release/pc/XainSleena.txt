@@ -65,6 +65,8 @@ Element docelowy), np.:
   -easy        na piechote trafienia zabieraja o polowe mniej z paska
                DAMAGE GAGE (nie ma tego w oryginale)
   -veryeasy    na piechote trafienia zabieraja 4 razy mniej
+  -test        do sprawdzania plansz: bez obrazen na piechote, zycia
+               nieskonczone
   -arcade      jak automat: monety klawiszami 5 / 6, start 1 / 2
   -nosound     bez dzwieku
   -rompath DIR gdzie szukac ROM-ow (gdy nie leza przy grze)

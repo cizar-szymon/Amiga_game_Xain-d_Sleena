@@ -85,6 +85,10 @@ Save and start the game again.
                        DAMAGE GAGE bar (not in the original)
   DIFFICULTY=VERYEASY  on foot, hits take a quarter as much (not in
                        the original)
+  TEST                 for checking stages: on foot the DAMAGE GAGE
+                       bar does not go down, infinite lives (in the
+                       flying stages a hit still destroys the ship, but
+                       the game goes on). Put it last in the Tool Types.
   CONTROL=JOY1         joystick with one button, the second button
                        is SPACE; up = jump on foot (as in the icon)
   CONTROL=JOY2         joystick / pad with two buttons: the second
@@ -122,10 +126,12 @@ TROUBLESHOOTING
 - Too slow: SCALE=1, NOSOUND, a 100 MHz CPU.
 - No sound: add SOUND=AHI (or the other way round: remove it).
 - The game froze (picture stands still, music plays) or something odd
-  happens: press F10 and quit with Esc. The file
-  RAM:XainSleena-state.bin describes the state of the arcade board - it
-  helps the authors find the bug. Copy it before switching the Amiga
-  off.
+  happens (a picture glitch, the controls do not work): press F10 (the
+  screen flashes). The files XainSleena-dumpN.bin / .txt / .ppm and
+  XainSleena-stateN.bin appear in RAM: (N = the next number, each press
+  makes new ones): a replay of the last seconds, the stage and the
+  picture - they help the authors find the bug. Copy them before
+  switching the Amiga off.
 
 
 Release number: on the start screen (RELEASE x.y.z). What changed in

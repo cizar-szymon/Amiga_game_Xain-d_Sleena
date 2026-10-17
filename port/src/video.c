@@ -55,10 +55,13 @@ static void row_types(uint8_t *dst, const uint8_t *gfx, int rows, int width)
 {
     int r, i;
     for (r = 0; r < rows; r++) {
-        int zeros = 0;
-        for (i = 0; i < width; i++)
+        int zeros = 0, same = 1;
+        for (i = 0; i < width; i++) {
             zeros += gfx[r * width + i] == 0;
-        dst[r] = (uint8_t)(zeros == width ? 0 : zeros == 0 ? 1 : 2);
+            same &= gfx[r * width + i] == gfx[r * width];
+        }
+        /* 3: all pixels one pen, not 0 (the Amiga renderer fills such a row with long words) */
+        dst[r] = (uint8_t)(zeros == width ? 0 : zeros == 0 ? (same ? 3 : 1) : 2);
     }
 }
 
@@ -266,13 +269,13 @@ static void fast_bg(const Video *v, const Xain *x, int which, int y, uint16_t *l
             uint16_t *d = line + px;
             if (attr & 0x80) {
                 const uint8_t *s = src + 15 - fx0;
-                if (kind == 1 || opaque)
+                if (kind & 1 || opaque)
                     for (i = 0; i < n; i++) d[i] = (uint16_t)(cb | s[-i]);
                 else
                     for (i = 0; i < n; i++) { int p = s[-i]; if (p) d[i] = (uint16_t)(cb | p); }
             } else {
                 const uint8_t *s = src + fx0;
-                if (kind == 1 || opaque)
+                if (kind & 1 || opaque)
                     for (i = 0; i < n; i++) d[i] = (uint16_t)(cb | s[i]);
                 else
                     for (i = 0; i < n; i++) { int p = s[i]; if (p) d[i] = (uint16_t)(cb | p); }
@@ -295,7 +298,7 @@ static void fast_txt(const Video *v, const Xain *x, int y, uint16_t *line, int o
             const uint8_t *s = v->chars + (code * 8 + fy) * 8;
             uint16_t cb = (uint16_t)(((attr & 0xe0) >> 5) * 16);
             uint16_t *d = line + col * 8;
-            if (kind == 1 || opaque)
+            if (kind & 1 || opaque)
                 for (i = 0; i < 8; i++) d[i] = (uint16_t)(cb | s[i]);
             else
                 for (i = 0; i < 8; i++) { int p = s[i]; if (p) d[i] = (uint16_t)(cb | p); }
@@ -316,7 +319,7 @@ static void fast_sprites(const SprEntry *spr, const uint8_t *list, int n, int y,
         s = e->gfx + r * 16;
         x0 = e->sx < 0 ? -e->sx : 0;
         x1 = e->sx + 16 > SCREEN_W ? SCREEN_W - e->sx : 16;
-        if (e->rt[r] == 1) {                            /* no pen 0: all pixels */
+        if (e->rt[r] & 1) {                             /* no pen 0 (1, 3: one pen): all pixels */
             uint16_t *d = line + e->sx, cb = e->cbase;
             if (e->flipx)
                 for (i = x0; i < x1; i++) d[i] = (uint16_t)(cb | s[15 - i]);

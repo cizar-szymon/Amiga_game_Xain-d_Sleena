@@ -23,7 +23,9 @@
  *   -lives N            lives (DIP switches): 3, 4, 6 or inf
  *   -easy               DIFFICULTY=EASY: half the damage on foot (not the original)
  *   -veryeasy           DIFFICULTY=VERYEASY: a quarter of the damage on foot
- *   -loadstate FILE     start from a machine state (Amiga F10: RAM:XainSleena-state.bin)
+ *   -loadstate FILE     start from a machine state (Amiga F10: RAM:XainSleena-state<n>.bin)
+ *   -replay FILE        an Amiga F10 replay (RAM:XainSleena-dump<n>.bin): its state, then its
+ *                       recorded inputs frame by frame (frame 0 = its first one), then the keyboard
  *   -shots DIR LIST     save the screen as DIR/frame_NNNNN.bmp at these frames
  *                       (LIST: 100,200,1000-1100/10); frame N = after N+1 frames, as in MAME
  *   -dump DIR LIST      also save the memory state as DIR/frame_NNNNN.bin (snapinfo.py format)
@@ -65,6 +67,9 @@ static int use_samples;
 static int arcade, lives = -1, easy_damage;
 static const char *wav_path;
 static const char *state_path;
+static const char *replay_path;
+static uint8_t *replay_in;           /* p1, p2 per frame */
+static long replay_count;
 static FILE *wav_fp;
 static unsigned long wav_bytes;
 static int16_t audio[8192];
@@ -180,8 +185,11 @@ static void parse_args(int argc, char **argv)
         else if (!strcmp(a, "-emusound")) emusound = 1;
         else if (!strcmp(a, "-arcade")) arcade = 1;
         else if (!strcmp(a, "-loadstate")) state_path = NEXT();
+        else if (!strcmp(a, "-replay")) replay_path = NEXT();
         else if (!strcmp(a, "-easy")) easy_damage = 1;
         else if (!strcmp(a, "-veryeasy")) easy_damage = 2;
+        else if (!strcmp(a, "-nodamage")) easy_damage = 3;
+        else if (!strcmp(a, "-test")) { easy_damage = 3; lives = 0; }   /* no damage, infinite lives */
         else if (!strcmp(a, "-lives")) { const char *v = NEXT(); lives = !strcmp(v, "inf") ? 0 : atoi(v); }
         else if (!strcmp(a, "-script")) parse_script(NEXT());
         else if (!strcmp(a, "-shots")) { shot_dir = NEXT(); shot_count = parse_frames(NEXT(), &shot_frames); }
@@ -466,6 +474,26 @@ int main(int argc, char **argv)
             return 1;
         }
     }
+    if (replay_path) {
+        /* "XRP1", start frame, frame count, state length (big endian), state, inputs */
+        static uint8_t rbuf[0x48000];
+        FILE *f = fopen(replay_path, "rb");
+        size_t len = f ? fread(rbuf, 1, sizeof rbuf, f) : 0;
+        uint32_t start, count, slen;
+        if (f) fclose(f);
+        start = (uint32_t)rbuf[4] << 24 | (uint32_t)rbuf[5] << 16 | (uint32_t)rbuf[6] << 8 | rbuf[7];
+        count = (uint32_t)rbuf[8] << 24 | (uint32_t)rbuf[9] << 16 | (uint32_t)rbuf[10] << 8 | rbuf[11];
+        slen = (uint32_t)rbuf[12] << 24 | (uint32_t)rbuf[13] << 16 | (uint32_t)rbuf[14] << 8 | rbuf[15];
+        if (len < 16 || memcmp(rbuf, "XRP1", 4) || 16 + slen + count * 2 > len ||
+            !xain_load_state(&machine, rbuf + 16, slen)) {
+            fprintf(stderr, "%s: not a replay\n", replay_path);
+            return 1;
+        }
+        replay_in = rbuf + 16 + slen;
+        replay_count = (long)count;
+        printf("replay: Amiga frames %lu..%lu (%lu frames)\n", (unsigned long)start,
+               (unsigned long)(start + count - 1), (unsigned long)count);
+    }
     if (!video_init(&video, &machine)) {
         fprintf(stderr, "out of memory\n");
         return 1;
@@ -537,7 +565,13 @@ int main(int argc, char **argv)
         machine.in_p1 = xain_up_jump(&up_wait, (uint8_t)(kb_p1 | kb_y | script_p1),
                                      (kb_p1 & IN_UP) && xain_on_foot(&machine));
         machine.in_p2 = (uint8_t)(kb_p2 | script_p2);
-        xain_assist(&machine);
+        if (replay_in && frame < replay_count) {
+            /* the recorded inputs (after the Amiga's front end help, which is not repeated) */
+            machine.in_p1 = replay_in[frame * 2];
+            machine.in_p2 = replay_in[frame * 2 + 1];
+        } else {
+            xain_assist(&machine);
+        }
 
         if (!paused) {
             t0 = SDL_GetPerformanceCounter();

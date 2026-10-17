@@ -29,6 +29,8 @@ OPCJE
   -lives N            3, 4, 6 albo inf (DSW1 bity 7-6: C0, 80, 40, 00)
   -easy               polowa obrazen na piechote (patrz nizej)
   -veryeasy           cwierc obrazen na piechote
+  -nodamage           bez obrazen na piechote
+  -test               -nodamage + -lives inf
   -arcade             start jak automat (patrz nizej)
   -dsw0 HH -dsw1 HH   przelaczniki DIP [3F FF jak MAME]. DSW0: bity 0-1 /
                       2-3 monety B / A, 4 dzwieki w demo, 5 kontynuacja,

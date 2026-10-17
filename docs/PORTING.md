@@ -650,6 +650,101 @@ bloków na pełnym ekranie i w oknie `SCALE=2`. Ścieżka pasami: `render_presen
 `BANDS=OFF` – stara droga, `BANDDIRECT=OFF` – przez `sfb`. Zostaje: rysowanie 8,4 ms (pamięć
 grafiki kafelków), przeliczenie + zapis do VRAM ok. 3,5 ms.
 
+**0.9.8: paleta bez wysyłania całego obrazu (17.10.2026).** Raport `LAGLOG` z gry użytkownika
+(0.9.7, pełny ekran `SCALE=2`, 22 min): 56% klatek spóźnionych, każda wolna klatka to ok. 905 z
+960 bloków (22 ms rysowania), w 80% ze zmianą palety. Gra zmienia paletę bardzo często, a
+`update_colours()` ustawiał `force_full`; w scenie `heavy_ins` „650 zmienionych bloków na klatkę”
+to właśnie paleta, nie przewijanie. Teraz pas jest najpierw cały zamieniany na piksele karty
+(`convert_fast_68k` do `nband`, pas w pamięci podręcznej), skróty liczone z pikseli karty, więc
+zmiana palety wysyła tylko bloki, które zmieniły wygląd; wysyłanie: `copy_rows` (`SCALE=1`) albo
+nowe `double_rows_68k` (`SCALE=2`), długimi słowami. `heavy_ins`, 100 MHz: bloków na obraz 653 → 49,
+rysowanie + wysyłanie `SCALE=1` 12,4 → ok. 3,6 ms ponad samo rysowanie (13,3 ms razem), `SCALE=2`
+22,5 (stara droga) → 14,1 ms; w grze pełny ekran `SCALE=1` 31–32, `SCALE=2` 29–30 obrazów/s;
+`VERIFY` 0 złych bloków. `BANDDIRECT=OFF` usunięte. `LAGLOG` przerobiony: podsumowanie co 10 s
+(spóźnione, obrazy/s, emulacja, rysowanie, najgorsza klatka, bloki, paleta, lot), stan automatu
+przy ≥ 30% spóźnionych klatek w oknie (do 5, co najmniej minutę od poprzedniego).
+- Zgłoszenie: po utracie życia, zanim gracz ruszy postacią, obraz jest źle narysowany (czarne
+  obszary, zmieniane tylko przez przelatujące obiekty). Stan F10 użytkownika → na A1200 `VERIFY`
+  przy `SCALE=1` w chwili śmierci i „GET READY” jednorazowo 96 i ok. 670 złych bloków. Przyczyna:
+  skrót `h = rol(h, 5) ^ long` – dla bloku jednego koloru po 32 krokach (5 i 32 względnie
+  pierwsze) zostaje tylko parzystość bitów koloru, więc jednolite niebo przy ściemnianiu i
+  rozjaśnianiu często miało ten sam skrót i nie było wysyłane. **0.9.9:** FNV-1a (`h = (h ^ long) *
+  16777619`, `mulu.l`); `VERIFY` 73 i 58 sprawdzeń przez śmierć: 0 złych bloków, tempo bez zmian.
+  Do tego: okno pełnoekranowe bez `WA_NoCareRefresh`, z `IDCMP_REFRESHWINDOW` (uszkodzenie →
+  wszystko od nowa), blit całej bitmapy co 32 obrazy, wysłanie wszystkiego co 256 (pasy) /
+  `force_full` co 256 (stara droga) – przeciw uszkodzeniom, których system nie zgłasza.
+- Zgłoszenie: największe zwolnienia w lotach w kosmosie przy jednym typie wrogiego statku –
+  ⏳ raport `LAGLOG` / stan F10 z tej sceny.
+
+**Rysowanie przyrostowe (0.9.13, testy tylko na A1200 – decyzja użytkownika).** Raport `LAGLOG`
+gry użytkownika (0.9.12, `SCALE=1`): nawet przy 10–17 zmienionych blokach na obraz rysowanie ok.
+13 ms (cały obraz 8,4 ms + przeliczenie wszystkich pasów), razem z emulacją ok. 22 ms. Teraz pas
+jest rysowany tylko, gdy mógł się zmienić: wszystko po pełnym odświeżeniu, zmianie `pri` albo
+przewinięcia (`scrollx`/`scrolly`); inaczej pasy zmienionych kafelków tła (`bgram0`/`bgram1`: wiersz
+kafelka z indeksu, linie przez przewinięcie Y), zmienionego tekstu (`charram`, wiersz r = linie
+8r–8r+7) i pasy ze sprite'ami teraz lub w poprzednim obrazie (`sprite_bands`, jak
+`video_render_begin`). Pasy rysowane wprost do `shown` (obraz indeksów, zostaje); przy zmianie palety
+pozostałe pasy tylko przeliczane. `present()` (stara droga) zeruje `prev_valid` (zamienia `shown`).
+Nowe opcje testowe: `REPLAY=plik` (powtórka F10 na Amidze, potem koniec; na stdout `VERIFY` i liczby
+pasów), `VERIFY=n`, `INCR=OFF`. Testy na powtórkach użytkownika (`dump1` odliczanie, `dump2` dżungla
+z przewijaniem, `dump3` kolumny): `VERIFY=1` (każdy narysowany obraz) – 0 złych bloków w 174–257
+sprawdzeniach na powtórkę (`SCALE=1` i `SCALE=2`). Czasy (`LAGLOG`, `SCALE=1`, 100 MHz), rysowanie
+`INCR=OFF` → nowe: `dump3` 15,0–15,5 → 11,3–11,5 ms (26–28 → 34–37 obrazów/s), `dump1` 15,8–16,1 →
+12,4–12,8 ms (28–30 → 37–39), `dump2` 16,5–18,2 → 14,1–17,8 ms (24–25 → 24–29). Pasów na obraz:
+rysowanych 19–24 z 30, przeliczanych 23–28 – sprite'y (także pasek energii i ikony żyć) są
+rozrzucone po ekranie; dalszy zysk wymagałby rysowania bloków 8×8 zamiast całych linii.
+
+**Loty w kosmosie – pomiar (17.10.2026, A1200 060/100, `REPLAY=` powtórek F10 użytkownika `dump5`,
+`dump6`, `SCALE=1`).** `LAGLOG` z gry: w lotach dwa tryby – spokojniej 260–310 bloków, ok. 340
+zmian palety na 574 klatki, rysowanie 10–11,5 ms, 38–41 obrazów/s; formacje 510–600 bloków,
+500–570 zmian palety (prawie co klatkę), 15–16,4 ms, 26–29 obrazów/s; emulacja 7–9 ms. Powtórki:
+normalnie 16,3–16,4 ms (pasy rysowane 30 z 30 – tło przewija się w każdej klatce, rysowanie
+przyrostowe nic nie daje), bez sprite'ów (`VSKIP=8`, nowa opcja pomiarowa) 15,2–15,5 ms, `INCR=OFF`
+16,2–16,3 ms, same sprite'y bez tła i tekstu (`VSKIP=7`) 7,5–7,8 ms przy 50–80 blokach. Na PC
+(`build/probe/replay_cost.c`): 7–8,5 tys. instrukcji 6809 na klatkę (formacja +ok. 1 tys.), do 29
+widocznych sprite'ów. Wniosek: sprite'y to ok. 1 ms; resztę zabiera przewijane tło (rysowanie obu
+warstw w każdej klatce i wysyłanie ok. 450 bloków zmienionych przez gwiazdy i paletę) oraz emulacja.
+
+**Warstwy w lotach, próby (17.10.2026, A1200 060/100, powtórki F10, `SCALE=1`).** Zrzuty z gry (F10)
+z `VSKIP`: gwiazdy to kafelki warstwy `BG2` (przewijanej rejestrami; kolor kropek – paleta); pod nią
+`BG1` ze stacją, w lotach w 100% przezroczysta (już pomijana typem wiersza 0). Zrzuty AmiAgenta w trakcie
+gry pokazują kolorowe pasy – błąd zrzutu (czyta ekran podczas blokad i zapisu VRAM gry), `VERIFY` = 0.
+- Pomijanie zakrytych warstw (dla linii od góry: warstwa tła bez przezroczystego piksela → rysowanie od
+  niej): obraz identyczny (`RCHECK` z rysowaniem pełnym: 0 z ok. 32 000 pasów), ale wolniej o ok. 0,4 ms
+  (sprawdzanie linii kosztuje więcej, niż daje) – **wycofane**.
+- Eksperyment użytkownika „70% mniej gwiazd w lotach” (`STARS=30`, kafelki `BG2` jako kolor tła): bloków
+  wysyłanych 450 → 245, rysowanie 17,2 → 16,6 ms (3%) – warstwa przewija się w każdej klatce i jest
+  rysowana w całości, wysyłanie bloków to mały koszt – **wycofane**.
+- **0.9.14:** typ wiersza kafelka 3 = jeden kolor ≠ 0 (`row_types`), a w warstwie nieprzezroczystej
+  wiersz koloru 0 też jako 3; renderer asm wypełnia go 8 (tekst: 4) długimi słowami. W lotach `BG2`:
+  29% wierszy jednego koloru + 50% koloru 0. `RCHECK` (nowe znaczenie: każdy pas także rendererem w C,
+  porównanie): 0 różnic w ok. 29 000 pasów (5 powtórek). Czasy rysowania: `dump5` 16,6 → 16,4, `dump6`
+  16,8 → 16,1, `dump3` 11,7 → 10,9, `dump1` 12,6 → 12,4, `dump2` 14,5/18,1 → 14,1/17,8 ms.
+- Wniosek: przy rysowaniu zostały głównie stałe koszty obrazu (rysowanie linii, przeliczenie 30 pasów,
+  skróty, przy zmianie palety `update_colours`) – dalsze zyski będą małe; największą pozycją pozostaje
+  emulacja (ok. 9 ms).
+
+**Skok górą po zniszczeniu bazy (0.9.12).** Zrzut F10 użytkownika (0.9.11): odliczanie `COUNT DOWN`
+po zniszczeniu bazy (trzeba wskoczyć do statku), joystick w górę nie skakał, Spacja tak. W zrzucie
+`$52 = 03`, `xain_on_foot()` wymagało `$52 & 0F = 2`. Kod: główny CPU zapisuje `$52` = 0 (start
+etapu), 2 (`83A7`), górne bity (`835F`, `864C`); pomocniczy 2 (`809B`), 3 (`8286`: typ etapu 7 i
+przewinięcie ≥ `$1600`; `893F`), 1 (`B246`). Procedura gracza `830A` (tablica `833B` według stanu
+obiektu) działa przy każdym `$52`, jeśli nie statek. Poprawka: na piechotę = `$52 & 0F` 2 albo 3.
+Sonda `build/probe/upjump_state.c` (stan ze zrzutu, góra przez 40 klatek): przycisk 2 dochodzi
+(`p1=24`), Y gracza 3000 → 5A80 → 3000 (skok).
+
+**F10 – zrzut do debugowania (0.9.10).** Gra trzyma wejścia ostatnich 1024 klatek (`rec_in`, po
+`read_inputs` i `xain_assist`) i stan automatu co 512 klatek (dwa bufory). F10 zapisuje, z pierwszym
+wolnym numerem N: `RAM:XainSleena-dumpN.bin` (powtórka: `XRP1`, klatka startu, liczba klatek, długość
+stanu – big endian, stan sprzed 512–1023 klatek, po 2 bajty wejść na klatkę), `stateN.bin` (stan teraz),
+`dumpN.txt` (wydanie, opcje, plansza: `$39`, `$41`, `$48`, `$53`, `$52`, wspólny RAM 0030–006F, PC
+procesorów, okno aktywne czy nie, `in_p1`/`in_p2`, joystick, wciśnięte klawisze, wejścia 16 ostatnich
+klatek, 32 ostatnie zdarzenia klawiszy z numerem klatki), `dumpN.ppm` (obraz okna, `p96ReadPixelArray`
+24 bit). PC: `xainsleena -rompath rom -dsw1 <z .txt> -replay dumpN.bin` (wejścia z nagrania bez
+`xain_assist`, potem klawiatura; z `-headless -frames N -shots`). Sprawdzenie: powtórka 698 klatek,
+ostatni obraz PC = obraz z Amigi. Pobieranie: `amiga_remote.py get RAM:XainSleena-dumpN.bin …`.
+Zrzuty użytkownika trzymać w `build/lag/` (poza repo), z opisem planszy z `.txt`.
+
 > **Gałęzie (17.10.2026, decyzja użytkownika):** `main` – emulacja procesorów (rdzeń asm 6809, bez
 > tłumacza); gałąź **`recompiler`** – to samo plus tłumacz 6809 → 68k opisany niżej (`m6809_tr.c`,
 > wzorce w `gen_6809_68k.py`, opcja `TR=ON`, `Lockstep … TR`, `tools/check_tpl_lst.py`). Opisy

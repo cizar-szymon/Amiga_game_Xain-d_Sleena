@@ -43,8 +43,9 @@ VIDEO=BLIT|WPA|WCP   [16/8 bit: BLIT, 32 bit: WPA, bez Picasso96: WCP]
   BLIT: obraz na karcie (friend bitmap), zmienione bloki zapisywane tylko
         dlugimi slowami, potem BltBitMapRastPort prostokata zmian. Przy
         16 bitach i SCALE=1|2 obraz rysowany pasami po 8 linii: dla kazdego
-        bloku 8x8 32-bitowy skrot, zmienione bloki zamieniane na kolory
-        karty wprost do VRAM (od 0.9.7).
+        bloku 8x8 32-bitowy skrot pikseli w formacie karty (od 0.9.8: zmiana
+        palety wysyla tylko bloki, ktore zmienily wyglad), zmienione bloki
+        do VRAM dlugimi slowami (od 0.9.7).
   WPA:  obraz w Fast RAM w formacie ekranu, p96WritePixelArray.
   WCP:  WriteChunkyPixels z piorami. NORTG = VIDEO=WCP.
 
@@ -57,7 +58,16 @@ REDRAW        (pomiary) kazdy rysowany obraz wysylany w calosci.
 MOVE16=OFF    (pomiary) kopie do VRAM dlugimi slowami zamiast MOVE16
               (stara droga; pasy zawsze dlugimi slowami).
 BANDS=OFF     (pomiary) stara droga: caly obraz, porownanie z poprzednim.
-BANDDIRECT=OFF (pomiary) pasy przez bufor w Fast RAM i kopie do VRAM.
+LAGLOG        (diagnostyka) co 10 s gry: spoznione klatki, czasy emulacji i
+              rysowania, bloki, zmiany palety, lot; przy zwolnieniach
+              (>= 30% spoznionych) stan automatu RAM:XainSleena-lagN.bin.
+              Raport RAM:XainSleena-lag.txt po wyjsciu z gry.
+INCR=OFF      (pomiary) kazdy pas rysowany zawsze (bez rysowania przyrostowego).
+VSKIP=n       (pomiary) pomin warstwy: 1 tekst, 2 BG1, 4 BG2, 8 sprite'y.
+RCHECK        (testy) kazdy pas narysowany tez rendererem w C i porownany.
+REPLAY=plik   (testy) powtorka z F10 (RAM:XainSleena-dumpN.bin): stan i nagrane
+              wejscia, potem koniec (VERIFY i liczby pasow na stdout, LAGLOG).
+VERIFY=n      (testy) VERIFY co n-ty rysowany obraz (VERIFY = co 30.).
 LOADSTATE=plik (testy) start od stanu automatu zapisanego klawiszem F10
               (przelaczniki DIP nie sa w stanie: np. DSW1=3f).
 PBENCH=n      (pomiary, z LOADSTATE) kazdy etap rysowania i wysylania
@@ -142,9 +152,10 @@ START=EASY|ARCADE   [EASY]
 LIVES=3|4|6|INF
   Przelaczniki DIP (DSW1 bity 7-6: C0, 80, 40, 00 = nieskonczone).
 
-DIFFICULTY=NORMAL|EASY|VERYEASY   [NORMAL]
+DIFFICULTY=NORMAL|EASY|VERYEASY|NODAMAGE   [NORMAL]
   EASY: na piechote polowa obrazen, VERYEASY: cwierc (4 -> 1, przy 1 co
-  czwarte trafienie). Zdrowie $0056 (bity 0-5, pelne 10,
+  czwarte trafienie), NODAMAGE: zadnych (zdrowie przywracane przy FF0D).
+  TEST = DIFFICULTY=NODAMAGE + LIVES=INF (do testow plansz; na koncu listy). Zdrowie $0056 (bity 0-5, pelne 10,
   bit 7 przerysuj pasek, bit 6 strona odrzutu) zmniejsza pomocniczy CPU
   w banku 1 7015 (przez FE36 -> FF00: STB $3000, JSR $7000, STB $3000).
   Przy zapisie banku z PC FF05 emulator dodaje 16 do zdrowia, przy

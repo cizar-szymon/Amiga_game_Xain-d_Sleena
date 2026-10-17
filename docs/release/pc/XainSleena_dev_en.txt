@@ -30,6 +30,8 @@ OPTIONS
   -lives N            3, 4, 6 or inf (DSW1 bits 7-6: C0, 80, 40, 00)
   -easy               half the damage on foot (see below)
   -veryeasy           a quarter of the damage on foot
+  -nodamage           no damage on foot
+  -test               -nodamage + -lives inf
   -arcade             start as the arcade (see below)
   -dsw0 HH -dsw1 HH   DIP switches [3F FF as MAME]. DSW0: bits 0-1 / 2-3
                       coins B / A, 4 demo sounds, 5 allow continue, 6

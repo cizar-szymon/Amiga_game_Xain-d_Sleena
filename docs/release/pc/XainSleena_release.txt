@@ -7,6 +7,58 @@ w automacie). Zglaszajac blad, podaj numer wydania - po nim widac, czy
 blad nie zostal juz poprawiony w nowszym.
 
 
+RELEASE 0.9.14  (17.10.2026)
+----------------------------
+
+Zmiany:
+- Bez zmian w grze na PC. Numer wydania jak w wersji Amigi.
+
+
+RELEASE 0.9.13  (17.10.2026)
+----------------------------
+
+Zmiany:
+- Bez zmian w grze na PC. Numer wydania jak w wersji Amigi.
+
+
+RELEASE 0.9.12  (17.10.2026)
+----------------------------
+
+Poprawki:
+- Po zniszczeniu bazy (odliczanie COUNT DOWN) strzalka w gore nie
+  skakala. Poprawione.
+
+
+RELEASE 0.9.11  (17.10.2026)
+----------------------------
+
+Dodatki:
+- -test: bez obrazen na piechote i nieskonczone zycia (do sprawdzania
+  plansz); -nodamage: sam brak obrazen.
+
+
+RELEASE 0.9.10  (17.10.2026)
+----------------------------
+
+Zmiany:
+- -replay PLIK: odtwarza powtorke zapisana klawiszem F10 na Amidze
+  (RAM:XainSleena-dumpN.bin): stan automatu i nagrane wejscia.
+
+
+RELEASE 0.9.9  (17.10.2026)
+---------------------------
+
+Zmiany:
+- Bez zmian w grze na PC. Numer wydania jak w wersji Amigi.
+
+
+RELEASE 0.9.8  (17.10.2026)
+---------------------------
+
+Zmiany:
+- Bez zmian w grze na PC. Numer wydania jak w wersji Amigi.
+
+
 RELEASE 0.9.7  (17.10.2026)
 ---------------------------
 

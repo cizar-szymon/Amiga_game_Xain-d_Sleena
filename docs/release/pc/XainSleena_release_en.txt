@@ -7,6 +7,58 @@ is as on the arcade). When reporting a bug, give the release number - it
 tells whether the bug has already been fixed in a newer one.
 
 
+RELEASE 0.9.14  (17.10.2026)
+----------------------------
+
+Changes:
+- No changes to the game on the PC. Same release number as the Amiga version.
+
+
+RELEASE 0.9.13  (17.10.2026)
+----------------------------
+
+Changes:
+- No changes to the game on the PC. Same release number as the Amiga version.
+
+
+RELEASE 0.9.12  (17.10.2026)
+----------------------------
+
+Fixes:
+- After the base is destroyed (COUNT DOWN) the up arrow did not jump.
+  Fixed.
+
+
+RELEASE 0.9.11  (17.10.2026)
+----------------------------
+
+Additions:
+- -test: no damage on foot and infinite lives (for checking stages);
+  -nodamage: only no damage.
+
+
+RELEASE 0.9.10  (17.10.2026)
+----------------------------
+
+Changes:
+- -replay FILE: plays a replay saved with F10 on the Amiga
+  (RAM:XainSleena-dumpN.bin): the machine state and the recorded inputs.
+
+
+RELEASE 0.9.9  (17.10.2026)
+---------------------------
+
+Changes:
+- No changes to the game on the PC. Same release number as the Amiga version.
+
+
+RELEASE 0.9.8  (17.10.2026)
+---------------------------
+
+Changes:
+- No changes to the game on the PC. Same release number as the Amiga version.
+
+
 RELEASE 0.9.7  (17.10.2026)
 ---------------------------
 

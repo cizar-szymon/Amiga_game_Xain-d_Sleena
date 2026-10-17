@@ -46,8 +46,9 @@ VIDEO=BLIT|WPA|WCP   [16/8 bit: BLIT, 32 bit: WPA, no Picasso96: WCP]
   BLIT: the picture on the card (friend bitmap), changed blocks written
         with long word writes only, then BltBitMapRastPort of the changed
         rectangle. With 16 bits and SCALE=1|2 the picture is drawn in bands
-        of 8 lines: a 32 bit hash per 8x8 block, changed blocks converted to
-        the card's colours straight into VRAM (since 0.9.7).
+        of 8 lines: a 32 bit hash per 8x8 block of the pixels in the screen
+        format (since 0.9.8 a palette change sends only the blocks that look
+        different), changed blocks to VRAM with long words (since 0.9.7).
   WPA:  the picture in Fast RAM in the screen format, p96WritePixelArray.
   WCP:  WriteChunkyPixels with pens. NORTG = VIDEO=WCP.
 
@@ -61,7 +62,16 @@ MOVE16=OFF    (measurements) copies to VRAM with long moves, not MOVE16
               (old way; the bands always use long moves).
 BANDS=OFF     (measurements) the old way: whole picture, compared with the
               previous one.
-BANDDIRECT=OFF (measurements) bands through a Fast RAM buffer and copies.
+LAGLOG        (diagnostics) per 10 s of play: late frames, emulation and
+              drawing times, blocks, palette changes, flying stage; on
+              slowdowns (>= 30% late) the machine state
+              RAM:XainSleena-lagN.bin. Report RAM:XainSleena-lag.txt at exit.
+INCR=OFF      (measurements) every band drawn always (no incremental drawing).
+VSKIP=n       (measurements) leave out layers: 1 text, 2 BG1, 4 BG2, 8 sprites.
+RCHECK        (tests) every band also drawn by the C renderer and compared.
+REPLAY=file   (tests) an F10 replay (RAM:XainSleena-dumpN.bin): state and
+              recorded inputs, then quit (VERIFY and band counts to stdout).
+VERIFY=n      (tests) VERIFY every n-th drawn picture (VERIFY = every 30th).
 LOADSTATE=file (tests) start from a machine state saved with F10 (the DIP
               switches are not in it: e.g. DSW1=3f).
 PBENCH=n      (measurements, with LOADSTATE) each stage of drawing and
@@ -146,7 +156,9 @@ START=EASY|ARCADE   [EASY]
 LIVES=3|4|6|INF
   DIP switches (DSW1 bits 7-6: C0, 80, 40, 00 = infinite).
 
-DIFFICULTY=NORMAL|EASY|VERYEASY   [NORMAL]
+DIFFICULTY=NORMAL|EASY|VERYEASY|NODAMAGE   [NORMAL]
+  NODAMAGE: no damage on foot at all. TEST = DIFFICULTY=NODAMAGE + LIVES=INF
+  (for testing stages; put it last).
   EASY: half the damage on foot, VERYEASY: a quarter (4 -> 1, a damage of
   1 counts every fourth hit). The health $0056 (bits 0-5, full 10, bit 7
   redraw the bar, bit 6 the knock-back side) is lowered by the sub CPU in
