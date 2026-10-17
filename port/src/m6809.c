@@ -894,7 +894,7 @@ int m6809_layout_ok(void)
            OFS(waiting) == 4199 && OFS(freerun) == 4200 && OFS(idle_len) == 4201 &&
            OFS(nidle) == 4209 && OFS(idle_valid) == 4210 && OFS(idle_regs) == 4211 &&
            OFS(idle_map) == M6809_OFS_IDLE_MAP && OFS(fast_addr) == 12416 && OFS(fast_val) == 12418 &&
-           OFS(fast_ok) == 12419;
+           OFS(fast_ok) == 12419 && OFS(trmap) == 12420;
 }
 
 /* memory accesses of the assembler core that have no direct page (I/O) */

@@ -21,6 +21,7 @@ S, Y, U and DP stay in the struct. Flags N Z V C come from the 68k CCR (same bit
 H is computed for ADD/ADC.
 """
 import os
+import re
 import sys
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "port", "src", "m6809_68k.s")
@@ -36,6 +37,11 @@ O_X, O_Y, O_U, O_S, O_PC = 4160, 4162, 4164, 4166, 4168
 O_A, O_B, O_DP, O_CC = 4190, 4191, 4192, 4193
 O_NMIP, O_FIRQ, O_IRQ, O_LDS, O_WAIT, O_FREE = 4197, 4195, 4196, 4198, 4199, 4200
 O_IVALID, O_IMAP = 4210, 4224
+O_TRMAP = 12420                 # translated code: map PC 8000-FFFF -> host code (NULL = none)
+
+# template mode (gen_templates): the handlers are generated again as templates for the
+# translator (m6809_tr.c): next_op leaves the marker @NEXT instead of the dispatch
+TPL = False
 
 lines = []
 label_no = [0]
@@ -150,14 +156,24 @@ def rel_jump():
 def sub_cycles(n):
     if n <= 0:
         return
+    if TPL == 2:                                      # specialized templates: the translator counts
+        ins("@CYC %d" % n)
+        return
     ins("subq.l #%d,d7" % n if n <= 8 else "sub.l #%d,d7" % n)
 
 
 def next_op(cycles):
+    if TPL == 2:
+        sub_cycles(cycles)
+        ins("@NEXT")
+        return
     sub_cycles(cycles)
     if cycles <= 0:
         ins("tst.l d7")
     ins("ble exit_loop")
+    if TPL:
+        ins("@NEXT")
+        return
     if TRACE:
         ins("bsr trace_rec")
     ins("moveq #0,d0")
@@ -167,6 +183,9 @@ def next_op(cycles):
 
 
 def go_check_ints(cycles):
+    if TPL == 2:
+        ins("@CHECK")
+        return
     sub_cycles(cycles)
     ins("bra check_ints")
 
@@ -195,6 +214,9 @@ def x_from_c(set_z=False):
 # Each returns the address in d0.l (upper word 0) and subtracts its cycles (not the opcode's).
 
 def ea_direct():
+    if TPL == 2:                                      # the translator inserts the address piece
+        ins("@EA1")
+        return 2
     ins("moveq #0,d0")
     ins("move.w %d(a5),d0" % O_DP)                    # DP:CC, the low byte is replaced
     ins("move.b (a4)+,d0")
@@ -202,6 +224,9 @@ def ea_direct():
 
 
 def ea_extended():
+    if TPL == 2:
+        ins("@EA3")
+        return 3
     ins("moveq #0,d0")
     ins("move.w (a4)+,d0")
     return 3
@@ -215,6 +240,9 @@ IDX_INLINE = [0x80, 0xa1, 0xa4, 0x81, 0xa0, 0xe4, 0x84]
 def ea_indexed():
     """the effective address of the postbyte in d0 (its cycles subtracted): 5 bit offsets and
     the frequent postbytes inline, the others through the handler idx_XX (jsr, rts)"""
+    if TPL == 2:                                      # the piece of the postbyte, its own cycles
+        ins("@EA2")
+        return 0
     done, hi, xreg, add = L(), L(), L(), L()
     ins("moveq #0,d0")
     ins("move.b (a4)+,d0")
@@ -1220,9 +1248,29 @@ check_ints:
 \ttst.b\t%(IRQ)d(a5)
 \tbne.s\tc_step
 dispatch:
+\tmove.l\t%(TRMAP)d(a5),d0
+\tbne.s\ttr_look
+dispatch_plain:
 \tmoveq\t#0,d0
 \tmove.b\t(a4)+,d0
 \tmove.l\t(a6,d0.w*4),a0
+\tjmp\t(a0)
+
+; after a control flow instruction of translated code (a4 = the new PC): its translation if
+; there is one (8000-FFFF), else the core
+tr_next:
+\tmove.l\t%(TRMAP)d(a5),d0
+\tbeq.s\tdispatch_plain
+tr_look:
+\tmove.l\ta4,d1
+\tsub.l\ta3,d1
+\ttst.w\td1
+\tbpl.s\tdispatch_plain
+\tand.l\t#$7fff,d1
+\tmove.l\td0,a0
+\tmove.l\t(a0,d1.l*4),d0
+\tbeq.s\tdispatch_plain
+\tmove.l\td0,a0
 \tjmp\t(a0)
 
 ; one instruction (or interrupt entry) by the C core: PC is at the instruction
@@ -1411,7 +1459,7 @@ rd16_slow:
 rd8_sub:
 """ % dict(ICOUNT=O_ICOUNT, TOTAL=O_TOTAL, IVALID=O_IVALID, RBASE=RBASE, WBASE=WBASE, CC=O_CC,
            A=O_A, B=O_B, X=O_X, PC=O_PC, WAIT=O_WAIT, FREE=O_FREE, NMIP=O_NMIP, FIRQ=O_FIRQ, IRQ=O_IRQ,
-           DP=O_DP, Y=O_Y, U=O_U, S=O_S, ISIG=4120, IICOUNT=4152, ISKIP=4156, IPC=4172, IAT=4188, ILEN=4201,
+           DP=O_DP, Y=O_Y, U=O_U, S=O_S, TRMAP=O_TRMAP, ISIG=4120, IICOUNT=4152, ISKIP=4156, IPC=4172, IAT=4188, ILEN=4201,
            NIDLE=4209, IREGS=4211))
     rd8()
     ins("rts")
@@ -1495,6 +1543,285 @@ trace_rec:
 """
 
 
+INV = {"eq": "ne", "ne": "eq", "cs": "cc", "cc": "cs", "mi": "pl", "pl": "mi", "vs": "vc", "vc": "vs",
+       "hi": "ls", "ls": "hi", "ge": "lt", "lt": "ge", "gt": "le", "le": "gt", "hs": "lo", "lo": "hs"}
+
+
+def gen_templates(core_labels):
+    """Templates for the translator (m6809_tr.c): every handler again, with @NEXT instead of the
+    dispatch and every reference outside the handler absolute (the code is copied elsewhere).
+    Table _m6809_tpl: per page (0, 10, 11) and opcode: start, end, flow (1 = the instruction
+    sets PC: the template ends with jmp tr_next); 0, 0 = no template (C core, prefix)."""
+    global TPL, lines
+    saved, lines, TPL = lines, [], True
+    gen_page0()
+    gen_page10()
+    gen_page11()
+    tl, lines, TPL = lines, saved, False
+    segs, cur = {}, None
+    for l in tl:
+        m = re.match(r"^(op_[0-9A-F]{2}|p1[01]_[0-9A-F]{2}):$", l)
+        if m:
+            cur = m.group(1)
+            segs[cur] = []
+            continue
+        if cur:
+            segs[cur].append(l)
+    ident = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+    out = ["", "; ---- templates for the translator (m6809_tr.c), generated, see gen_templates", "\tcnop\t0,4"]
+    entries = []
+    for page, prefix in ((0, "op_"), (1, "p10_"), (2, "p11_")):
+        for op in range(256):
+            name = "%s%02X" % (prefix, op)
+            body = segs.get(name)
+            code = [l for l in body if l.strip()] if body else []
+            if (not code or "bra c_step" in "\n".join(code) or (page == 0 and op in (0x10, 0x11))):
+                entries.append(None)
+                continue
+            tname = "tp_" + name
+            end = tname + "_end"
+            local = {l[:-1] for l in code if re.match(r"^[A-Za-z_.][A-Za-z0-9_.]*:$", l)} | {end}
+            flow = any(re.search(r",\s*a4\s*$", l.split(";")[0]) for l in code if l.startswith("\t"))
+            while code and code[-1] == "\t@NEXT" and not flow:
+                code.pop()                          # falls through into the next instruction
+            res = []
+            for l in code:
+                if l == "\t@NEXT":
+                    res.append("\tjmp (tr_next).l" if flow else "\tbra.w " + end)
+                    continue
+                m = re.match(r"^\t(\S+)\s+(.*?)\s*$", l)
+                if not m:
+                    res.append(l)
+                    continue
+                mn, opd = m.group(1), m.group(2)
+                base = mn.split(".")[0]
+                if ident.match(opd) and opd not in local and opd in core_labels:
+                    if base in ("bsr", "jsr"):
+                        res.append("\tjsr (%s).l" % opd)
+                        continue
+                    if base in ("bra", "jmp"):
+                        res.append("\tjmp (%s).l" % opd)
+                        continue
+                    if base[0] == "b" and base[1:] in INV:
+                        res.append("\tb%s.s *+8" % INV[base[1:]])
+                        res.append("\tjmp (%s).l" % opd)
+                        continue
+                    raise ValueError("%s: %s" % (name, l))
+                lm = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)(\(pc\))?,(a[0-6])$", opd)
+                if base == "lea" and lm and lm.group(1) not in local:
+                    # movea.l #label,An as raw words: vasm would make "move.l #label,An" a
+                    # PC-relative lea, which is wrong once the template is copied elsewhere
+                    res.append("\tdc.w $%04x" % (0x207c | int(lm.group(3)[1]) << 9))
+                    res.append("\tdc.l %s" % lm.group(1))
+                    continue
+                for tok in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", opd):
+                    if tok in core_labels and tok not in local:
+                        raise ValueError("%s: external reference %s" % (name, l))
+                res.append(l)
+            out.append(tname + ":")
+            out.extend(res)
+            out.append(end + ":")
+            entries.append((tname, end, 1 if flow else 0))
+    out += ["", "\tcnop\t0,4", "\tpublic\t_m6809_tpl", "_m6809_tpl:"]
+    for e in entries:
+        out.append("\tdc.l %s,%s,%d" % e if e else "\tdc.l 0,0,0")
+    return out, sum(1 for e in entries if e)
+
+
+def absolutize(name, code, local, core_labels):
+    """references outside a template made absolute (see gen_templates)"""
+    ident = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+    res = []
+    for l in code:
+        m = re.match(r"^\t(\S+)\s+(.*?)\s*$", l)
+        if not m:
+            res.append(l)
+            continue
+        mn, opd = m.group(1), m.group(2)
+        base = mn.split(".")[0]
+        if ident.match(opd) and opd not in local and opd in core_labels:
+            if base in ("bsr", "jsr"):
+                res.append("\tjsr (%s).l" % opd)
+                continue
+            if base in ("bra", "jmp"):
+                res.append("\tjmp (%s).l" % opd)
+                continue
+            if base[0] == "b" and base[1:] in INV:
+                res.append("\tb%s.s *+8" % INV[base[1:]])
+                res.append("\tjmp (%s).l" % opd)
+                continue
+            raise ValueError("%s: %s" % (name, l))
+        lm = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)(\(pc\))?,(a[0-6])$", opd)
+        if base == "lea" and lm and lm.group(1) not in local:
+            res.append("\tdc.w $%04x" % (0x207c | int(lm.group(3)[1]) << 9))
+            res.append("\tdc.l %s" % lm.group(1))
+            continue
+        for tok in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", opd):
+            if tok in core_labels and tok not in local:
+                raise ValueError("%s: external reference %s" % (name, l))
+        res.append(l)
+    return res
+
+
+HOLE_SEQ = [0]
+
+
+def tpl2_piece(name, code, core_labels):
+    """one specialized template (or address piece) from TPL == 2 code: None if it cannot be
+    specialized, else (parts, cycles, ea, holes): parts = [pre lines, post lines] (split at @EA),
+    holes = [(part, label, word)] in operand order. Rules: one exit (@NEXT at the end or none for
+    pieces), no interrupt check, a4 only read as (a4)+ (those become holes with the placeholders
+    $A5 / $A5A5), no cycles inside a conditional part."""
+    lines = [l for l in code if l.strip()]
+    if any(l.strip() in ("@CHECK",) or "c_step" in l for l in lines):
+        return None
+    nexts = [i for i, l in enumerate(lines) if l == "\t@NEXT"]
+    if len(nexts) > 1 or (nexts and nexts[0] != len(lines) - 1):
+        return None
+    if nexts:
+        lines = lines[:-1]
+    parts, part, ea, cyc, holes = [[], []], 0, 0, 0, []
+    open_br = set()
+    for l in lines:
+        s = l.strip()
+        if s.startswith("@EA"):
+            if ea:
+                return None
+            ea, part = int(s[3]), 1
+            continue
+        if s.startswith("@CYC"):
+            if open_br:
+                return None
+            cyc += int(s.split()[1])
+            continue
+        if s.startswith("@"):
+            return None
+        lab = re.match(r"^([A-Za-z_.][A-Za-z0-9_.]*):$", l)
+        if lab:
+            open_br.discard(lab.group(1))
+            parts[part].append(l)
+            continue
+        m = re.match(r"^\t(b\w+)(\.[sw])?\s+(L\d+)$", l)
+        if m:
+            open_br.add(m.group(3))
+        src = l.split(";")[0]
+        if re.search(r"\ba4\b", src.replace("(a4)+", "")):
+            return None
+        if "(a4)+" in src:
+            m = re.match(r"^\t(\w+)\.([bw])\s+\(a4\)\+,(.*)$", src.strip("\n"))
+            if not m or src.count("(a4)+") != 1:
+                return None
+            HOLE_SEQ[0] += 1
+            hl = "H%d" % HOLE_SEQ[0]
+            word = m.group(2) == "w"
+            parts[part].append(hl + ":")
+            parts[part].append("\t%s.%s #$%s,%s" % (m.group(1), m.group(2), "a5a5" if word else "a5", m.group(3)))
+            holes.append((part, hl, word))
+            continue
+        parts[part].append(l)
+    if len(holes) > 2:
+        return None
+    local = set()
+    for p in parts:
+        local |= {l[:-1] for l in p if re.match(r"^[A-Za-z_.][A-Za-z0-9_.]*:$", l)}
+    try:
+        parts = [absolutize(name, p, local, core_labels) for p in parts]
+    except ValueError:
+        return None
+    return parts, cyc, ea, holes
+
+
+def gen_templates2(core_labels):
+    """Specialized templates for the translator (m6809_tr.c, translation 2): the handlers without
+    reading operands from the code (holes for the translator), the address computation as a
+    separate piece (direct, extended, one per indexed postbyte), the cycles counted by the
+    translator. Tables:
+      _m6809_tq   768 rows (page 0, 10, 11) of: pre start, pre end, post start, post end,
+                  info (cycles | ea << 8 | holes << 12; ea 1 direct, 2 indexed, 3 extended),
+                  hole words (2 x: bit 15 post part, bit 14 word, offset of the instruction)
+      _m6809_tqea rows: direct, extended, indexed 00-FF: start, end, info (cycles | holes << 12),
+                  hole words; start 0 = not possible."""
+    global TPL, lines
+    saved, lines, TPL = lines, [], 2
+    gen_page0()
+    gen_page10()
+    gen_page11()
+    tl = lines
+    pieces = {}
+    lines = []
+    for post in range(256):
+        emit("ea_idx_%02X:" % post)
+        idx_body(post)
+    il = lines
+    lines, TPL = saved, False
+    segs, cur = {}, None
+    for l in tl + il:
+        m = re.match(r"^(op_[0-9A-F]{2}|p1[01]_[0-9A-F]{2}|ea_idx_[0-9A-F]{2}):$", l)
+        if m:
+            cur = m.group(1)
+            segs[cur] = []
+            continue
+        if cur:
+            segs[cur].append(l)
+    out = ["", "; ---- specialized templates (translation 2, m6809_tr.c), see gen_templates2", "\tcnop\t0,4"]
+    rows, n = [], 0
+
+    def hole_words(holes, starts):
+        ws = []
+        for part, hl, word in holes:
+            ws.append("%s-%s+%d" % (hl, starts[part], (0x8000 if part else 0) + (0x4000 if word else 0)))
+        while len(ws) < 2:
+            ws.append("0")
+        return ws
+
+    for page, prefix in ((0, "op_"), (1, "p10_"), (2, "p11_")):
+        for op in range(256):
+            name = "%s%02X" % (prefix, op)
+            r = tpl2_piece(name, segs.get(name, []), core_labels) if segs.get(name) else None
+            if r is None or (page == 0 and op in (0x10, 0x11)) or not (r[0][0] or r[0][1]) and not r[1]:
+                rows.append(None)
+                continue
+            parts, cyc, ea, holes = r
+            t = "tq_" + name
+            starts = [t + "_a", t + "_b"]
+            out.append(starts[0] + ":")
+            out.extend(parts[0])
+            out.append(starts[1] + ":")
+            out.extend(parts[1])
+            out.append(t + "_e:")
+            rows.append("\tdc.l %s,%s,%s,%s,%d\n\tdc.w %s" % (starts[0], starts[1], starts[1], t + "_e",
+                        cyc | ea << 8 | len(holes) << 12, ",".join(hole_words(holes, starts))))
+            n += 1
+    out += ["", "\tcnop\t0,4", "\tpublic\t_m6809_tq", "_m6809_tq:"]
+    for r in rows:
+        out.append(r if r else "\tdc.l 0,0,0,0,0\n\tdc.w 0,0")
+    # address pieces
+    ea_rows = []
+    direct = ["\tmoveq #0,d0", "\tmove.w %d(a5),d0" % O_DP, "Hd:", "\tmove.b #$a5,d0"]
+    ext = ["\tmoveq #0,d0", "Hx:", "\tmove.w #$a5a5,d0"]
+    out += ["", "tqd_s:"] + direct + ["tqd_e:", "tqx_s:"] + ext + ["tqx_e:"]
+    ea_rows.append("\tdc.l tqd_s,tqd_e,%d\n\tdc.w Hd-tqd_s,0" % (2 | 1 << 12))
+    ea_rows.append("\tdc.l tqx_s,tqx_e,%d\n\tdc.w Hx-tqx_s+$4000,0" % (3 | 1 << 12))
+    ni = 0
+    for post in range(256):
+        name = "ea_idx_%02X" % post
+        r = tpl2_piece(name, segs.get(name, []), core_labels)
+        mode = post & 0x0f
+        if r is None or r[2] or (post & 0x80 and mode in (0x07, 0x0a, 0x0e)):
+            ea_rows.append("\tdc.l 0,0,0\n\tdc.w 0,0")
+            continue
+        parts, cyc, _, holes = r
+        s, e = "tqi_%02X_s" % post, "tqi_%02X_e" % post
+        out.append(s + ":")
+        out.extend(parts[0])
+        out.append(e + ":")
+        ws = hole_words([(0, hl, w) for (_, hl, w) in holes], [s, s])
+        ea_rows.append("\tdc.l %s,%s,%d\n\tdc.w %s" % (s, e, cyc | len(holes) << 12, ",".join(ws)))
+        ni += 1
+    out += ["", "\tcnop\t0,4", "\tpublic\t_m6809_tqea", "_m6809_tqea:"] + ea_rows
+    return out, n, ni
+
+
 def main():
     gen_frame()
     gen_tfr_helpers()
@@ -1507,7 +1834,17 @@ def main():
     table("p10tab", p10)
     table("p11tab", p11)
     table("idxtab", ["idx_%02X" % i for i in range(256)])
+    core_labels = {l[:-1] for l in "\n".join(lines).split("\n") if re.match(r"^[A-Za-z_][A-Za-z0-9_]*:$", l)}
+    tpl, ntpl = gen_templates(core_labels)
+    lines.extend(tpl)
+    print("templates: %d" % ntpl)
+    tpl2, ntq, nqi = gen_templates2(core_labels)
+    lines.extend(tpl2)
+    print("specialized templates: %d, indexed address pieces: %d" % (ntq, nqi))
     text = "\n".join(lines) + "\n"
+    # entry points of the translated code for m6809_tr.c
+    for lab in ("tr_next", "dispatch_plain", "exit_loop", "c_step"):
+        text = text.replace("\n%s:\n" % lab, "\n\tpublic\t_m6809_%s\n_m6809_%s:\n%s:\n" % (lab, lab, lab), 1)
     if TRACE:
         text = text.replace("\ndispatch:\n", "\ndispatch:\n\tbsr\ttrace_rec\n", 1)
         text += TRACE_REC

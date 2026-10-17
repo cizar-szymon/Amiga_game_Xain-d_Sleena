@@ -589,6 +589,86 @@ Dalej: synteza YM2203 (największy koszt), rdzeń MCU, koszt wywołań C przy p�
 pętla opóźnienia CPU dźwięku `8810`. Wariant „próbki zamiast YM2203” odłożony; gdyby powstał –
 tylko przez AHI (decyzja użytkownika).
 
+**Spowolnienie przy wielu przeciwnikach (zgłoszenie 16.10.2026, 0.9.6).** Czy to automat? Sonda
+`build/probe/cpuload.c` (bez pomijania pętli, 20 000 klatek gry): główny CPU zajęty średnio
+40–55% klatki, pomocniczy 30–50%; pełne obciążenie prawie tylko w przejściach scen – automat sam
+w grze nie zwalnia. Ciężkie sceny: `build/probe/heavy.c` (gra z nieskończonymi życiami, `xain_assist`,
+zapis stanów) – wulkaniczna planeta z kamieniami i gejzerami, `heavy_ins.bin` (8370 instr. 6809 na
+klatkę, średnio ok. 7000) i `heavy_spr.bin` (15 sprite'ów). Nowa opcja Amigi **`LOADSTATE=plik`**
+(stan z F10 lub z sondy; DIP-y nie są w stanie, więc `DSW1=3f` dla nieskończonych żyć).
+A1200, `SCREEN=FULL SCALE=1 STATS`, logika / rysowane kl./s:
+
+| Zegar | `heavy_ins` | `heavy_spr` |
+|---|---|---|
+| 100 MHz | 57,2–57,8 / 20–21 | 57,1–57,8 / 21–46 |
+| 55 MHz (tak zastałem Amigę) | 34,0–34,7 / 9 | 34,6–52,1 / 9–16 |
+
+`STATS=FULL` przy 100 MHz (`heavy_ins`): emu 74–75% (A 20, B 14–17, MCU 7–8, reszta ok. 30% –
+kwanty, linie, I/O), render 9–10, present 13 (przeliczenie 7,7–8,0 ms na narysowaną klatkę),
+dźwięk 2,4%. Wniosek: przy 55 MHz gra zwalnia naprawdę (logika 34 zamiast 57,4), przy 100 MHz
+logika nadąża, ale rysowanych jest ok. 20 obrazów/s. Największe pozycje: rdzenie 6809 (A+B ok.
+35%) i narzut kwantów (ok. 30%) – **poprawka niżej: te 30% to głównie koszt samego pomiaru.**
+
+**Narzut kwantów – pomiar (17.10.2026, A1200 060/100, `FrameCost ROMDIR heavy_ins.bin 600`,
+`port/tests/framecost.c`, bez obrazu i dźwięku):** emulacja klatki **9,3 ms**. Kwanty 48 cykli
+(2× więcej) 11,1 ms, 32 cykle (3×) 12,9 ms → po odjęciu dodatkowych obrotów pętli oczekiwania
+ok. **5,7 µs na kwant, 1,5 ms na klatkę (ok. 17%)**. Bez tablicy kwantów 9,77 ms, bez `SUBFAST`
+9,8 ms. Jeden `ReadEClock` kosztuje ok. **14 µs** (1632 odczyty na klatkę = 23 ms!) – dlatego
+`STATS=FULL` tak zawyża „emu”. Podział po odjęciu kosztu odczytów (przybliżony): główny CPU
+4,3 ms, pomocniczy 3,2 ms, MCU 1,4 ms, reszta (linie, `3A05`, pętla) 0,25 ms, dźwięk 0,07 ms.
+Sonda `build/probe/iostat.c` (PC, ten sam stan): główny 4374 instrukcji na klatkę, pomocniczy
+3601; przez rdzeń C 0 (rzadkie opcody nie występują), przez procedury I/O ok. 140 odczytów (`3A05`
+97) i 270 zapisów (`3A09` 109) głównego, 33 pomocniczego, 18 przerwań. Czyli ok. 8000 instrukcji
+w ok. 7,5 ms = **ok. 90 cykli 68060 na instrukcję** (w `CpuBench` 33): kwanty i I/O tłumaczą ok.
+1,1 ms, reszta to sam rdzeń przy różnorodnym kodzie gry (rozproszone procedury opcodów,
+chybienia pamięci podręcznej 8 KB). Wniosek: rekompilacja ma sens – kod liniowy bez rozdziału.
+
+**Rekompilacja – prototyp 1 (17.10.2026), decyzje użytkownika: tłumaczenie przy starcie z ROM-ów
+użytkownika (w programie nie ma kodu gry), najpierw jedna procedura.** `tools/gen_6809_68k.py`
+wypisuje do `m6809_68k.s` także 274 wzorce (`_m6809_tpl`: każda procedura rdzenia jeszcze raz,
+`@NEXT` zamiast rozdziału, odwołania na zewnątrz bezwzględne: `jsr/jmp (x).l`, skok warunkowy
+na zewnątrz jako przeskok nad `jmp`, `movea.l #x,An` jako surowe `dc.w $207C` + `dc.l x`).
+`port/src/m6809_tr.c` przy starcie skleja dla każdej instrukcji zakresu `movea.l #host,a4`,
+`move.l #opcode,d0` i wzorzec; mapa `trmap` (pole `M6809` na 12420, PC 8000–FFFF → kod); rdzeń
+sprawdza ją w `dispatch` (początek kwantu, `check_ints`, `c_step`, pętle oczekiwania) i w
+`tr_next` (po instrukcjach sterujących). Opcje: gra `TR=ON`, `Lockstep … TR [TRTO=hex]
+[STATE=plik]`, `FrameCost` mierzy też wariant z tłumaczeniem. Sprawdzanie wzorców:
+`tools/check_tpl_lst.py` na listingu vasm (adresowanie względem PC, `bsr`).
+- Błąd pierwszej wersji: vasm sam zamienił `move.l #idxtab,a0` na `lea idxtab(pc),a0` – po
+  skopiowaniu wzorca adres zły → „Software Failure”, niedozwolona instrukcja (pierwszy długi
+  `Lockstep` skończył się resetem A1200). Po poprawce `check_tpl_lst.py`: 0 problemów.
+- `Lockstep Work:XainSleena/rom 20 0 TR STATE=heavy_ins.bin` (porównanie po każdym kwancie):
+  **20 klatek identycznych**, 205 instrukcji `DCEC`–`DE88`, 0 bez wzorca, 25 624 B kodu.
+- `FrameCost` (100 MHz, `heavy_ins`): bez tłumaczenia 9,37 ms, **z tłumaczeniem 10,1 ms – wolniej**.
+  Wzorce to całe procedury rdzenia (śr. 125 B na instrukcję, np. każdy tryb indeksowy z łańcuchem
+  porównań bajtu trybu) – kod procedury rośnie do 25 KB i nie mieści się w 8 KB pamięci podręcznej
+  instrukcji, a rozdział, który znika, kosztował tylko kilkanaście cykli. Wniosek: zysk da dopiero
+  kod wyspecjalizowany pod konkretną instrukcję (argumenty i adresy jako stałe, tryb indeksowy
+  wybrany przy tłumaczeniu, bez odczytu argumentów z ROM-u przez a4) – zwarty, kilka–kilkanaście
+  bajtów na instrukcję. `TR` zostaje domyślnie wyłączone.
+
+**Rekompilacja – wersja 2 (17.10.2026).** `gen_templates2` w generatorze: wzorce bez odczytu
+argumentów z kodu (miejsca na stałe z wartościami-wzorcami `$A5`/`$A5A5`, sprawdzanymi przez
+tłumacza), kawałki adresu (bezpośredni, rozszerzony, 216 bajtów trybu indeksowego), cykle liczone
+przez tłumacza (`_m6809_tq`, `_m6809_tqea`; 226 wzorców). `m6809_tr.c`: każda instrukcja to (1) kod
+dopasowany + `subq #cykle,d7` + `ble.w` do zimnej zaślepki (a4 = następna instrukcja,
+`exit_loop`), (2) skok `Bcc`/`LBcc`/`BRA` wewnątrz zakresu wprost do kodu celu (cele z mapy pętli
+oczekiwania – nie), (3) wzorzec wersji 1 (JSR, RTS, PSHS…), (4) krok rdzenia C (`c_step`).
+Lista sprite'ów: 205 instrukcji = 162 dopasowane, 32 skoki, 11 wzorców v1, 0 kroków C; **13 310 B**
+(v1: 25 624 B). Błąd po drodze: miejsce na stałą z przesunięciem 0 traktowane jak „brak” (`A=A5`
+w `Lockstep`) – liczba miejsc z pola `info`. Potem `Lockstep … TR STATE=heavy_ins.bin` 20 klatek
+identycznych po każdym kwancie.
+- `FrameCost` (100 MHz, `heavy_ins`, 600 klatek): bez 9300–9333 µs, **z tłumaczeniem 9200 µs**
+  (−0,13 ms, 1,4%).
+- Wniosek (poprawka wcześniejszego szacunku): procedura to 1360 instrukcji na klatkę; przy ok.
+  35–40 cyklach 68060 na instrukcję w rdzeniu to tylko ok. 0,5 ms z 9,3 ms. Wszystkie instrukcje
+  obu 6809 (ok. 8000 na klatkę) to ok. 2,8 ms – reszta emulacji to kwanty (3 procesory × 272),
+  MCU, procedury I/O w C, linie. Wcześniejsze „90 cykli na instrukcję” wynikało z przypisania
+  całego czasu `run_main`/`run_sub` (z narzutem kwantów i C) samym instrukcjom. Górna granica
+  zysku z rekompilacji całego kodu: ok. 1–1,8 ms (10–20%), realnie ok. 1 ms. Tłumacz zostaje
+  (`TR=ON`, domyślnie wyłączony); dalsze przyspieszanie lepiej zacząć od wysyłania obrazu (ok. 8 ms
+  na narysowaną klatkę) i od kosztu kwantów/MCU.
+
 ## 13. Dźwięk z sampli (zamiast emulacji procesora dźwięku i YM2203)
 
 Decyzja użytkownika (12.10.2026): emulacja dźwięku zabiera ok. 40% czasu 68060/50 (S 11% + YM
@@ -914,6 +994,18 @@ klawiatura jak joystick przy JOY1: strzałka w górę na piechotę = skok (`xain
 ruch; **Y** = przycisk 2 (dodatkowa broń); X dalej przycisk 2. Wersja PC:
 tylko klawiatura (obsługa pada SDL usunięta), te same klawisze. Tool Types ikony: `CONTROL=JOY1`,
 `(CONTROL=JOY2)`, `(CONTROL=KEYBOARD)`.
+
+**Skok w bok górą (zgłoszenie 15.10.2026, 0.9.6).** „W skoku nie da się zmienić kierunku, tylko
+w górę; ze strzałem już tak.” Pomiar na PC (`xain_test`, klatka 3400 na planecie, X gracza =
+`$00A9` + przewinięcie `$005A`): gra bierze kierunek skoku tylko w klatce przycisku 2 i w następnej
+– prawo w +0/+1 → X 107 → 157, prawo w +2 i później → skok pionowy (107); w powietrzu kierunku
+nie zmienia ani strzał, ani puszczenie góry. Strzał niczego nie odblokowuje – strzelając zwykle
+trzyma się już kierunek, więc skok idzie w bok od razu. Na klawiaturze strzałka w górę wyprzedza
+strzałkę w bok zwykle o więcej niż klatkę (joystick przechodzący na skos też potrafi). Poprawka:
+`xain_up_jump()` (`xain.c`, Amiga: klawiatura i JOY1, PC: klawiatura) – przy skoku górą przycisk 2
+czeka do `UP_JUMP_WAIT` = 3 klatek na lewo/prawo (od razu, gdy kierunek już jest). Sprawdzenie
+(symulacja z `xain_up_jump`): prawo w +2…+4 → 157 (wcześniej 107), +5 → 107. Klawisz X / Spacja /
+drugi przycisk bez zmian (bez opóźnienia). Koszt: pionowy skok górą ok. 3 klatki później.
 
 **Zawieszenia w grze (zgłoszenie 12.10.2026, dwa razy na A1200, start z ikony).** Obraz stoi
 (dżungla, w trakcie gry), muzyka z sampli gra dalej, sterowanie nie działa. Strażnik nie zapisał

@@ -74,6 +74,10 @@ struct M6809 {
     uint16_t fast_addr;                     /* 12416 */
     uint8_t fast_val, fast_ok;              /* 12418, 12419 */
 
+    /* 12420: translated code (m6809_tr.c, assembler core only): host code of each instruction
+       of 8000-FFFF (index PC - 8000), NULL = none; the whole pointer NULL = no translation */
+    void **trmap;                           /* 12420 */
+
     /* addresses where an IRQ is not taken (held until PC leaves them; C core only, which also
        takes the interrupts for the assembler core): the machine's fix for a race of the game */
     uint16_t irq_hold[8];
@@ -106,5 +110,16 @@ void m6809_run_spr(M6809 *cpu);
 uint32_t m6809_rd_slow(M6809 *cpu, uint32_t addr);
 void m6809_wr_slow(M6809 *cpu, uint32_t addr, uint32_t data);
 void m6809_idle_hit(M6809 *cpu);
+
+/* translation (m6809_tr.c): the instructions of from..to (8000-FFFF, read through rpage) become
+   68k code built from the templates of the assembler core; it runs the same handlers in the same
+   order, without the dispatch (exact). 1 = done (cpu->trmap set); 0 = not possible (no assembler
+   core, no memory). m6809_tr_free releases it. */
+int m6809_tr_build(M6809 *cpu, uint16_t from, uint16_t to);
+void m6809_tr_free(M6809 *cpu);
+/* statistics of the last build: instructions translated, without a template, code bytes */
+extern uint32_t m6809_tr_count, m6809_tr_missing, m6809_tr_bytes;
+/* instructions per kind: specialized, branch, translation 1 template, C core step */
+extern uint32_t m6809_tr_kinds[4];
 
 #endif

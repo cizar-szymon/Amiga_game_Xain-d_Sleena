@@ -78,6 +78,7 @@ static ScriptEvent script[4096];
 static int script_count;
 
 static uint8_t kb_p1, kb_p2, kb_y, script_p1, script_p2;   /* kb_y: Y = button 2 (extra weapon) */
+static uint8_t up_wait;                                  /* xain_up_jump: frames up waits for a side direction */
 
 static void usage(void)
 {
@@ -532,9 +533,9 @@ int main(int argc, char **argv)
                 else if (k == SDLK_F3) { xain_reset(&machine); sndplay_reset(&snd); }
             }
         }
-        machine.in_p1 = (uint8_t)(kb_p1 | kb_y | script_p1);
-        if ((kb_p1 & IN_UP) && xain_on_foot(&machine))
-            machine.in_p1 |= IN_BUTTON2;                /* up jumps on foot (as the Amiga's JOY1) */
+        /* up jumps on foot (as the Amiga's JOY1) */
+        machine.in_p1 = xain_up_jump(&up_wait, (uint8_t)(kb_p1 | kb_y | script_p1),
+                                     (kb_p1 & IN_UP) && xain_on_foot(&machine));
         machine.in_p2 = (uint8_t)(kb_p2 | script_p2);
         xain_assist(&machine);
 

@@ -73,12 +73,38 @@ check_ints:
 	tst.b	4196(a5)
 	bne.s	c_step
 dispatch:
+	move.l	12420(a5),d0
+	bne.s	tr_look
+	public	_m6809_dispatch_plain
+_m6809_dispatch_plain:
+dispatch_plain:
 	moveq	#0,d0
 	move.b	(a4)+,d0
 	move.l	(a6,d0.w*4),a0
 	jmp	(a0)
 
+; after a control flow instruction of translated code (a4 = the new PC): its translation if
+; there is one (8000-FFFF), else the core
+	public	_m6809_tr_next
+_m6809_tr_next:
+tr_next:
+	move.l	12420(a5),d0
+	beq.s	dispatch_plain
+tr_look:
+	move.l	a4,d1
+	sub.l	a3,d1
+	tst.w	d1
+	bpl.s	dispatch_plain
+	and.l	#$7fff,d1
+	move.l	d0,a0
+	move.l	(a0,d1.l*4),d0
+	beq.s	dispatch_plain
+	move.l	d0,a0
+	jmp	(a0)
+
 ; one instruction (or interrupt entry) by the C core: PC is at the instruction
+	public	_m6809_c_step
+_m6809_c_step:
 c_step:
 	bsr	store_regs
 	move.l	4116(a5),-(sp)           ; the total is counted at the exit
@@ -220,6 +246,8 @@ idle_hit:
 	clr.b	4210(a5)
 	bra	check_ints
 
+	public	_m6809_exit_loop
+_m6809_exit_loop:
 exit_loop:
 	bsr	store_regs
 	move.l	(sp)+,d0                     ; start - end = cycles executed
@@ -17416,3 +17444,20419 @@ idxtab
 	dc.l idx_E8,idx_E9,idx_EA,idx_EB,idx_EC,idx_ED,idx_EE,idx_EF
 	dc.l idx_F0,idx_F1,idx_F2,idx_F3,idx_F4,idx_F5,idx_F6,idx_F7
 	dc.l idx_F8,idx_F9,idx_FA,idx_FB,idx_FC,idx_FD,idx_FE,idx_FF
+
+; ---- templates for the translator (m6809_tr.c), generated, see gen_templates
+	cnop	0,4
+tp_op_00:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1403
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1404
+L1403:
+	jsr (rd_slow).l
+L1404:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1405
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1406
+L1405:
+	jsr (wr_slow).l
+L1406:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_00_end:
+tp_op_01:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1407
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1408
+L1407:
+	jsr (rd_slow).l
+L1408:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1409
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1410
+L1409:
+	jsr (wr_slow).l
+L1410:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_01_end:
+tp_op_03:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1411
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1412
+L1411:
+	jsr (rd_slow).l
+L1412:
+	not.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	or.b #1,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1413
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1414
+L1413:
+	jsr (wr_slow).l
+L1414:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_03_end:
+tp_op_04:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1415
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1416
+L1415:
+	jsr (rd_slow).l
+L1416:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1417
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1418
+L1417:
+	jsr (wr_slow).l
+L1418:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_04_end:
+tp_op_05:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1419
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1420
+L1419:
+	jsr (rd_slow).l
+L1420:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1421
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1422
+L1421:
+	jsr (wr_slow).l
+L1422:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_05_end:
+tp_op_06:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1423
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1424
+L1423:
+	jsr (rd_slow).l
+L1424:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1425
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1426
+L1425:
+	jsr (wr_slow).l
+L1426:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_06_end:
+tp_op_07:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1427
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1428
+L1427:
+	jsr (rd_slow).l
+L1428:
+	asr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1429
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1430
+L1429:
+	jsr (wr_slow).l
+L1430:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_07_end:
+tp_op_08:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1431
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1432
+L1431:
+	jsr (rd_slow).l
+L1432:
+	asl.b #1,d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1433
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1434
+L1433:
+	jsr (wr_slow).l
+L1434:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_08_end:
+tp_op_09:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1435
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1436
+L1435:
+	jsr (rd_slow).l
+L1436:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxl.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	btst #3,d2
+	beq.s L1437
+	bchg #1,d2
+L1437:
+	btst #0,d2
+	beq.s L1438
+	bchg #1,d2
+L1438:
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1439
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1440
+L1439:
+	jsr (wr_slow).l
+L1440:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_09_end:
+tp_op_0A:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1441
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1442
+L1441:
+	jsr (rd_slow).l
+L1442:
+	subq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1443
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1444
+L1443:
+	jsr (wr_slow).l
+L1444:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_0A_end:
+tp_op_0C:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1445
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1446
+L1445:
+	jsr (rd_slow).l
+L1446:
+	addq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1447
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1448
+L1447:
+	jsr (wr_slow).l
+L1448:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_0C_end:
+tp_op_0D:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1449
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1450
+L1449:
+	jsr (rd_slow).l
+L1450:
+	tst.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_0D_end:
+tp_op_0E:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_0E_end:
+tp_op_0F:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1451
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1452
+L1451:
+	jsr (rd_slow).l
+L1452:
+	moveq #0,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1453
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1454
+L1453:
+	jsr (wr_slow).l
+L1454:
+	and.b #$f0,d3
+	or.b #4,d3
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_0F_end:
+tp_op_12:
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_12_end:
+tp_op_16:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1455:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_16_end:
+tp_op_17:
+	move.w (a4)+,d0
+	move.l a4,d1
+	sub.l a3,d1
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1456
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1457
+L1456:
+	jsr (wr_slow).l
+L1457:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1458
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1459
+L1458:
+	jsr (wr_slow).l
+L1459:
+	move.w d0,4166(a5)
+	sub.l #9,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_17_end:
+tp_op_1A:
+	or.b (a4)+,d3
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_1A_end:
+tp_op_1B:
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_1B_end:
+tp_op_1C:
+	and.b (a4)+,d3
+	subq.l #3,d7
+	jmp (check_ints).l
+tp_op_1C_end:
+tp_op_1D:
+	move.b d5,d1
+	ext.w d1
+	move.w d1,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0c,d2
+	and.b #$f3,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_1D_end:
+tp_op_1E:
+	moveq #0,d1
+	move.b (a4)+,d1
+	move.w d1,-(sp)
+	moveq #0,d2
+	btst #7,d1
+	seq d2
+	move.w d2,-(sp)
+	lsr.b #4,d1
+	jsr (tfr_get).l
+	move.w d0,-(sp)
+	move.w 4(sp),d1
+	and.w #$0f,d1
+	move.w 2(sp),d2
+	jsr (tfr_get).l
+	move.w d0,2(sp)
+	move.w (sp)+,d0
+	move.w 2(sp),d1
+	and.w #$0f,d1
+	jsr (tfr_set).l
+	move.w (sp)+,d0
+	move.w (sp)+,d1
+	lsr.b #4,d1
+	jsr (tfr_set).l
+	subq.l #8,d7
+	jmp (check_ints).l
+tp_op_1E_end:
+tp_op_1F:
+	moveq #0,d1
+	move.b (a4)+,d1
+	move.w d1,-(sp)
+	lsr.b #4,d1
+	moveq #0,d2
+	jsr (tfr_get).l
+	move.w (sp)+,d1
+	and.w #$0f,d1
+	jsr (tfr_set).l
+	cmp.b #4,d1
+	bne.s *+8
+	move.b #1,4198(a5)
+	subq.l #6,d7
+	jmp (check_ints).l
+tp_op_1F_end:
+tp_op_20:
+	move.b (a4)+,d0
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1461
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1461:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_20_end:
+tp_op_21:
+	move.b (a4)+,d0
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_21_end:
+tp_op_22:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	bls.s L1463
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1464
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1464:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1463:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_22_end:
+tp_op_23:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	bhi.s L1465
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1466
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1466:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1465:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_23_end:
+tp_op_24:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	bcs.s L1467
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1468
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1468:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1467:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_24_end:
+tp_op_25:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	bcc.s L1469
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1470
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1470:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1469:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_25_end:
+tp_op_26:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	beq.s L1471
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1472
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1472:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1471:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_26_end:
+tp_op_27:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	bne.s L1473
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1474
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1474:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1473:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_27_end:
+tp_op_28:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	bvs.s L1475
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1476
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1476:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1475:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_28_end:
+tp_op_29:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	bvc.s L1477
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1478
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1478:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1477:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_29_end:
+tp_op_2A:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	bmi.s L1479
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1480
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1480:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1479:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_2A_end:
+tp_op_2B:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	bpl.s L1481
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1482
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1482:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1481:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_2B_end:
+tp_op_2C:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	blt.s L1483
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1484
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1484:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1483:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_2C_end:
+tp_op_2D:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	bge.s L1485
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1486
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1486:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1485:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_2D_end:
+tp_op_2E:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	ble.s L1487
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1488
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1488:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1487:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_2E_end:
+tp_op_2F:
+	move.b (a4)+,d0
+	move.w d3,ccr
+	bgt.s L1489
+	ext.w d0
+	lea (a4,d0.w),a4
+	tst.w d0
+	bmi.s L1490
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1490:
+	move.l a4,d0
+	sub.l a3,d0
+	subq.l #3,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L1489:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_2F_end:
+tp_op_30:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1492
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1493
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1494
+L1493:
+	move.w d6,d2
+L1494:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1491
+L1492:
+	cmp.b #$80,d0
+	bne L1495
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1491
+L1495:
+	cmp.b #$a1,d0
+	bne L1496
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1491
+L1496:
+	cmp.b #$a4,d0
+	bne L1497
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1491
+L1497:
+	cmp.b #$81,d0
+	bne L1498
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1491
+L1498:
+	cmp.b #$a0,d0
+	bne L1499
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1491
+L1499:
+	cmp.b #$e4,d0
+	bne L1500
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1491
+L1500:
+	cmp.b #$84,d0
+	bne L1501
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1491
+L1501:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1491:
+	move.w d0,d6
+	tst.w d0
+	move.w ccr,d2
+	and.b #$04,d2
+	and.b #$fb,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_30_end:
+tp_op_31:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1503
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1504
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1505
+L1504:
+	move.w d6,d2
+L1505:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1502
+L1503:
+	cmp.b #$80,d0
+	bne L1506
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1502
+L1506:
+	cmp.b #$a1,d0
+	bne L1507
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1502
+L1507:
+	cmp.b #$a4,d0
+	bne L1508
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1502
+L1508:
+	cmp.b #$81,d0
+	bne L1509
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1502
+L1509:
+	cmp.b #$a0,d0
+	bne L1510
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1502
+L1510:
+	cmp.b #$e4,d0
+	bne L1511
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1502
+L1511:
+	cmp.b #$84,d0
+	bne L1512
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1502
+L1512:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1502:
+	move.w d0,4162(a5)
+	tst.w d0
+	move.w ccr,d2
+	and.b #$04,d2
+	and.b #$fb,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_31_end:
+tp_op_32:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1514
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1515
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1516
+L1515:
+	move.w d6,d2
+L1516:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1513
+L1514:
+	cmp.b #$80,d0
+	bne L1517
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1513
+L1517:
+	cmp.b #$a1,d0
+	bne L1518
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1513
+L1518:
+	cmp.b #$a4,d0
+	bne L1519
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1513
+L1519:
+	cmp.b #$81,d0
+	bne L1520
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1513
+L1520:
+	cmp.b #$a0,d0
+	bne L1521
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1513
+L1521:
+	cmp.b #$e4,d0
+	bne L1522
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1513
+L1522:
+	cmp.b #$84,d0
+	bne L1523
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1513
+L1523:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1513:
+	move.w d0,4166(a5)
+	move.b #1,4198(a5)
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_32_end:
+tp_op_33:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1525
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1526
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1527
+L1526:
+	move.w d6,d2
+L1527:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1524
+L1525:
+	cmp.b #$80,d0
+	bne L1528
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1524
+L1528:
+	cmp.b #$a1,d0
+	bne L1529
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1524
+L1529:
+	cmp.b #$a4,d0
+	bne L1530
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1524
+L1530:
+	cmp.b #$81,d0
+	bne L1531
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1524
+L1531:
+	cmp.b #$a0,d0
+	bne L1532
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1524
+L1532:
+	cmp.b #$e4,d0
+	bne L1533
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1524
+L1533:
+	cmp.b #$84,d0
+	bne L1534
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1524
+L1534:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1524:
+	move.w d0,4164(a5)
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_33_end:
+tp_op_34:
+	move.b (a4)+,d1
+	move.b d1,-(sp)
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #5,d7
+	btst #7,(sp)
+	beq.s L1535
+	move.l a4,d1
+	sub.l a3,d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1536
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1537
+L1536:
+	jsr (wr_slow).l
+L1537:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1538
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1539
+L1538:
+	jsr (wr_slow).l
+L1539:
+	subq.l #2,d7
+L1535:
+	btst #6,(sp)
+	beq.s L1540
+	move.w 4164(a5),d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1541
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1542
+L1541:
+	jsr (wr_slow).l
+L1542:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1543
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1544
+L1543:
+	jsr (wr_slow).l
+L1544:
+	subq.l #2,d7
+L1540:
+	btst #5,(sp)
+	beq.s L1545
+	move.w 4162(a5),d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1546
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1547
+L1546:
+	jsr (wr_slow).l
+L1547:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1548
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1549
+L1548:
+	jsr (wr_slow).l
+L1549:
+	subq.l #2,d7
+L1545:
+	btst #4,(sp)
+	beq.s L1550
+	move.w d6,d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1551
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1552
+L1551:
+	jsr (wr_slow).l
+L1552:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1553
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1554
+L1553:
+	jsr (wr_slow).l
+L1554:
+	subq.l #2,d7
+L1550:
+	btst #3,(sp)
+	beq.s L1555
+	move.b 4192(a5),d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1556
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1557
+L1556:
+	jsr (wr_slow).l
+L1557:
+	subq.l #1,d7
+L1555:
+	btst #2,(sp)
+	beq.s L1558
+	move.b d5,d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1559
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1560
+L1559:
+	jsr (wr_slow).l
+L1560:
+	subq.l #1,d7
+L1558:
+	btst #1,(sp)
+	beq.s L1561
+	move.b d4,d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1562
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1563
+L1562:
+	jsr (wr_slow).l
+L1563:
+	subq.l #1,d7
+L1561:
+	btst #0,(sp)
+	beq.s L1564
+	move.b d3,d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1565
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1566
+L1565:
+	jsr (wr_slow).l
+L1566:
+	subq.l #1,d7
+L1564:
+	move.w d0,4166(a5)
+	addq.l #2,sp
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_34_end:
+tp_op_35:
+	move.b (a4)+,d1
+	move.b d1,-(sp)
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #5,d7
+	btst #0,(sp)
+	beq.s L1567
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1568
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1569
+L1568:
+	jsr (rd_slow).l
+L1569:
+	addq.w #1,d0
+	move.b d1,d3
+	subq.l #1,d7
+L1567:
+	btst #1,(sp)
+	beq.s L1570
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1571
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1572
+L1571:
+	jsr (rd_slow).l
+L1572:
+	addq.w #1,d0
+	move.b d1,d4
+	subq.l #1,d7
+L1570:
+	btst #2,(sp)
+	beq.s L1573
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1574
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1575
+L1574:
+	jsr (rd_slow).l
+L1575:
+	addq.w #1,d0
+	move.b d1,d5
+	subq.l #1,d7
+L1573:
+	btst #3,(sp)
+	beq.s L1576
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1577
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1578
+L1577:
+	jsr (rd_slow).l
+L1578:
+	addq.w #1,d0
+	move.b d1,4192(a5)
+	subq.l #1,d7
+L1576:
+	btst #4,(sp)
+	beq.s L1579
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1580
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1581
+L1580:
+	jsr (rd_slow).l
+L1581:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1582
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1583
+L1582:
+	jsr (rd_slow).l
+L1583:
+	addq.w #1,d0
+	move.w d1,d6
+	subq.l #2,d7
+L1579:
+	btst #5,(sp)
+	beq.s L1584
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1585
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1586
+L1585:
+	jsr (rd_slow).l
+L1586:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1587
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1588
+L1587:
+	jsr (rd_slow).l
+L1588:
+	addq.w #1,d0
+	move.w d1,4162(a5)
+	subq.l #2,d7
+L1584:
+	btst #6,(sp)
+	beq.s L1589
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1590
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1591
+L1590:
+	jsr (rd_slow).l
+L1591:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1592
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1593
+L1592:
+	jsr (rd_slow).l
+L1593:
+	addq.w #1,d0
+	move.w d1,4164(a5)
+	subq.l #2,d7
+L1589:
+	btst #7,(sp)
+	beq.s L1594
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1595
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1596
+L1595:
+	jsr (rd_slow).l
+L1596:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1597
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1598
+L1597:
+	jsr (rd_slow).l
+L1598:
+	addq.w #1,d0
+	move.w d0,4166(a5)
+	moveq #0,d0
+	move.w d1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+L1594:
+	move.w d0,4166(a5)
+	btst #0,(sp)+
+	beq.s L1599
+	jmp (check_ints).l
+L1599:
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_35_end:
+tp_op_36:
+	move.b (a4)+,d1
+	move.b d1,-(sp)
+	moveq #0,d0
+	move.w 4164(a5),d0
+	subq.l #5,d7
+	btst #7,(sp)
+	beq.s L1600
+	move.l a4,d1
+	sub.l a3,d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1601
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1602
+L1601:
+	jsr (wr_slow).l
+L1602:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1603
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1604
+L1603:
+	jsr (wr_slow).l
+L1604:
+	subq.l #2,d7
+L1600:
+	btst #6,(sp)
+	beq.s L1605
+	move.w 4166(a5),d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1606
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1607
+L1606:
+	jsr (wr_slow).l
+L1607:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1608
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1609
+L1608:
+	jsr (wr_slow).l
+L1609:
+	subq.l #2,d7
+L1605:
+	btst #5,(sp)
+	beq.s L1610
+	move.w 4162(a5),d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1611
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1612
+L1611:
+	jsr (wr_slow).l
+L1612:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1613
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1614
+L1613:
+	jsr (wr_slow).l
+L1614:
+	subq.l #2,d7
+L1610:
+	btst #4,(sp)
+	beq.s L1615
+	move.w d6,d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1616
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1617
+L1616:
+	jsr (wr_slow).l
+L1617:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1618
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1619
+L1618:
+	jsr (wr_slow).l
+L1619:
+	subq.l #2,d7
+L1615:
+	btst #3,(sp)
+	beq.s L1620
+	move.b 4192(a5),d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1621
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1622
+L1621:
+	jsr (wr_slow).l
+L1622:
+	subq.l #1,d7
+L1620:
+	btst #2,(sp)
+	beq.s L1623
+	move.b d5,d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1624
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1625
+L1624:
+	jsr (wr_slow).l
+L1625:
+	subq.l #1,d7
+L1623:
+	btst #1,(sp)
+	beq.s L1626
+	move.b d4,d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1627
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1628
+L1627:
+	jsr (wr_slow).l
+L1628:
+	subq.l #1,d7
+L1626:
+	btst #0,(sp)
+	beq.s L1629
+	move.b d3,d1
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1630
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1631
+L1630:
+	jsr (wr_slow).l
+L1631:
+	subq.l #1,d7
+L1629:
+	move.w d0,4164(a5)
+	addq.l #2,sp
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_36_end:
+tp_op_37:
+	move.b (a4)+,d1
+	move.b d1,-(sp)
+	moveq #0,d0
+	move.w 4164(a5),d0
+	subq.l #5,d7
+	btst #0,(sp)
+	beq.s L1632
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1633
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1634
+L1633:
+	jsr (rd_slow).l
+L1634:
+	addq.w #1,d0
+	move.b d1,d3
+	subq.l #1,d7
+L1632:
+	btst #1,(sp)
+	beq.s L1635
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1636
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1637
+L1636:
+	jsr (rd_slow).l
+L1637:
+	addq.w #1,d0
+	move.b d1,d4
+	subq.l #1,d7
+L1635:
+	btst #2,(sp)
+	beq.s L1638
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1639
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1640
+L1639:
+	jsr (rd_slow).l
+L1640:
+	addq.w #1,d0
+	move.b d1,d5
+	subq.l #1,d7
+L1638:
+	btst #3,(sp)
+	beq.s L1641
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1642
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1643
+L1642:
+	jsr (rd_slow).l
+L1643:
+	addq.w #1,d0
+	move.b d1,4192(a5)
+	subq.l #1,d7
+L1641:
+	btst #4,(sp)
+	beq.s L1644
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1645
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1646
+L1645:
+	jsr (rd_slow).l
+L1646:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1647
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1648
+L1647:
+	jsr (rd_slow).l
+L1648:
+	addq.w #1,d0
+	move.w d1,d6
+	subq.l #2,d7
+L1644:
+	btst #5,(sp)
+	beq.s L1649
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1650
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1651
+L1650:
+	jsr (rd_slow).l
+L1651:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1652
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1653
+L1652:
+	jsr (rd_slow).l
+L1653:
+	addq.w #1,d0
+	move.w d1,4162(a5)
+	subq.l #2,d7
+L1649:
+	btst #6,(sp)
+	beq.s L1654
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1655
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1656
+L1655:
+	jsr (rd_slow).l
+L1656:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1657
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1658
+L1657:
+	jsr (rd_slow).l
+L1658:
+	addq.w #1,d0
+	move.w d1,4166(a5)
+	subq.l #2,d7
+L1654:
+	btst #7,(sp)
+	beq.s L1659
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1660
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1661
+L1660:
+	jsr (rd_slow).l
+L1661:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1662
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1663
+L1662:
+	jsr (rd_slow).l
+L1663:
+	addq.w #1,d0
+	move.w d0,4164(a5)
+	moveq #0,d0
+	move.w d1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	moveq #0,d0
+	move.w 4164(a5),d0
+	subq.l #2,d7
+L1659:
+	move.w d0,4164(a5)
+	btst #0,(sp)+
+	beq.s L1664
+	jmp (check_ints).l
+L1664:
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_37_end:
+tp_op_39:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1665
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1666
+L1665:
+	jsr (rd_slow).l
+L1666:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1667
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1668
+L1667:
+	jsr (rd_slow).l
+L1668:
+	addq.w #1,d0
+	move.w d0,4166(a5)
+	moveq #0,d0
+	move.w d1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_39_end:
+tp_op_3A:
+	moveq #0,d1
+	move.b d5,d1
+	add.w d1,d6
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_3A_end:
+tp_op_3B:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1669
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1670
+L1669:
+	jsr (rd_slow).l
+L1670:
+	move.b d1,d3
+	addq.w #1,d0
+	move.b #$80,d1
+	btst #7,d3
+	beq.s *+6
+	move.b #$fe,d1
+	move.b d1,-(sp)
+	subq.l #4,d7
+	btst #0,(sp)
+	beq.s L1671
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1672
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1673
+L1672:
+	jsr (rd_slow).l
+L1673:
+	addq.w #1,d0
+	move.b d1,d3
+	subq.l #1,d7
+L1671:
+	btst #1,(sp)
+	beq.s L1674
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1675
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1676
+L1675:
+	jsr (rd_slow).l
+L1676:
+	addq.w #1,d0
+	move.b d1,d4
+	subq.l #1,d7
+L1674:
+	btst #2,(sp)
+	beq.s L1677
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1678
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1679
+L1678:
+	jsr (rd_slow).l
+L1679:
+	addq.w #1,d0
+	move.b d1,d5
+	subq.l #1,d7
+L1677:
+	btst #3,(sp)
+	beq.s L1680
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1681
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1682
+L1681:
+	jsr (rd_slow).l
+L1682:
+	addq.w #1,d0
+	move.b d1,4192(a5)
+	subq.l #1,d7
+L1680:
+	btst #4,(sp)
+	beq.s L1683
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1684
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1685
+L1684:
+	jsr (rd_slow).l
+L1685:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1686
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1687
+L1686:
+	jsr (rd_slow).l
+L1687:
+	addq.w #1,d0
+	move.w d1,d6
+	subq.l #2,d7
+L1683:
+	btst #5,(sp)
+	beq.s L1688
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1689
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1690
+L1689:
+	jsr (rd_slow).l
+L1690:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1691
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1692
+L1691:
+	jsr (rd_slow).l
+L1692:
+	addq.w #1,d0
+	move.w d1,4162(a5)
+	subq.l #2,d7
+L1688:
+	btst #6,(sp)
+	beq.s L1693
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1694
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1695
+L1694:
+	jsr (rd_slow).l
+L1695:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1696
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1697
+L1696:
+	jsr (rd_slow).l
+L1697:
+	addq.w #1,d0
+	move.w d1,4164(a5)
+	subq.l #2,d7
+L1693:
+	btst #7,(sp)
+	beq.s L1698
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1699
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1700
+L1699:
+	jsr (rd_slow).l
+L1700:
+	lsl.w #8,d1
+	addq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1701
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1702
+L1701:
+	jsr (rd_slow).l
+L1702:
+	addq.w #1,d0
+	move.w d0,4166(a5)
+	moveq #0,d0
+	move.w d1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+L1698:
+	move.w d0,4166(a5)
+	addq.l #2,sp
+	jmp (check_ints).l
+tp_op_3B_end:
+tp_op_3D:
+	moveq #0,d0
+	move.b d4,d0
+	moveq #0,d1
+	move.b d5,d1
+	mulu.w d1,d0
+	move.b d0,d5
+	move.w d0,d1
+	lsr.w #8,d1
+	move.b d1,d4
+	and.b #$fa,d3
+	tst.w d0
+	bne.s L1703
+	or.b #4,d3
+L1703:
+	btst #7,d0
+	beq.s L1704
+	or.b #1,d3
+L1704:
+	sub.l #11,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_3D_end:
+tp_op_40:
+	neg.b d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_40_end:
+tp_op_41:
+	neg.b d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_41_end:
+tp_op_43:
+	not.b d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	or.b #1,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_43_end:
+tp_op_44:
+	lsr.b #1,d4
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_44_end:
+tp_op_45:
+	lsr.b #1,d4
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_45_end:
+tp_op_46:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxr.b #1,d4
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_46_end:
+tp_op_47:
+	asr.b #1,d4
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_47_end:
+tp_op_48:
+	asl.b #1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_48_end:
+tp_op_49:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxl.b #1,d4
+	move.w ccr,d2
+	and.b #$0d,d2
+	btst #3,d2
+	beq.s L1705
+	bchg #1,d2
+L1705:
+	btst #0,d2
+	beq.s L1706
+	bchg #1,d2
+L1706:
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_49_end:
+tp_op_4A:
+	subq.b #1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_4A_end:
+tp_op_4C:
+	addq.b #1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_4C_end:
+tp_op_4D:
+	tst.b d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_4D_end:
+tp_op_4F:
+	clr.b d4
+	and.b #$f0,d3
+	or.b #4,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_4F_end:
+tp_op_50:
+	neg.b d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_50_end:
+tp_op_51:
+	neg.b d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_51_end:
+tp_op_53:
+	not.b d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	or.b #1,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_53_end:
+tp_op_54:
+	lsr.b #1,d5
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_54_end:
+tp_op_55:
+	lsr.b #1,d5
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_55_end:
+tp_op_56:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxr.b #1,d5
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_56_end:
+tp_op_57:
+	asr.b #1,d5
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_57_end:
+tp_op_58:
+	asl.b #1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_58_end:
+tp_op_59:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxl.b #1,d5
+	move.w ccr,d2
+	and.b #$0d,d2
+	btst #3,d2
+	beq.s L1707
+	bchg #1,d2
+L1707:
+	btst #0,d2
+	beq.s L1708
+	bchg #1,d2
+L1708:
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_59_end:
+tp_op_5A:
+	subq.b #1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_5A_end:
+tp_op_5C:
+	addq.b #1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_5C_end:
+tp_op_5D:
+	tst.b d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_5D_end:
+tp_op_5F:
+	clr.b d5
+	and.b #$f0,d3
+	or.b #4,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_5F_end:
+tp_op_60:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1710
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1711
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1712
+L1711:
+	move.w d6,d2
+L1712:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1709
+L1710:
+	cmp.b #$80,d0
+	bne L1713
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1709
+L1713:
+	cmp.b #$a1,d0
+	bne L1714
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1709
+L1714:
+	cmp.b #$a4,d0
+	bne L1715
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1709
+L1715:
+	cmp.b #$81,d0
+	bne L1716
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1709
+L1716:
+	cmp.b #$a0,d0
+	bne L1717
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1709
+L1717:
+	cmp.b #$e4,d0
+	bne L1718
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1709
+L1718:
+	cmp.b #$84,d0
+	bne L1719
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1709
+L1719:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1709:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1720
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1721
+L1720:
+	jsr (rd_slow).l
+L1721:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1722
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1723
+L1722:
+	jsr (wr_slow).l
+L1723:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_60_end:
+tp_op_61:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1725
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1726
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1727
+L1726:
+	move.w d6,d2
+L1727:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1724
+L1725:
+	cmp.b #$80,d0
+	bne L1728
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1724
+L1728:
+	cmp.b #$a1,d0
+	bne L1729
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1724
+L1729:
+	cmp.b #$a4,d0
+	bne L1730
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1724
+L1730:
+	cmp.b #$81,d0
+	bne L1731
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1724
+L1731:
+	cmp.b #$a0,d0
+	bne L1732
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1724
+L1732:
+	cmp.b #$e4,d0
+	bne L1733
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1724
+L1733:
+	cmp.b #$84,d0
+	bne L1734
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1724
+L1734:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1724:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1735
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1736
+L1735:
+	jsr (rd_slow).l
+L1736:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1737
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1738
+L1737:
+	jsr (wr_slow).l
+L1738:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_61_end:
+tp_op_63:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1740
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1741
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1742
+L1741:
+	move.w d6,d2
+L1742:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1739
+L1740:
+	cmp.b #$80,d0
+	bne L1743
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1739
+L1743:
+	cmp.b #$a1,d0
+	bne L1744
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1739
+L1744:
+	cmp.b #$a4,d0
+	bne L1745
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1739
+L1745:
+	cmp.b #$81,d0
+	bne L1746
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1739
+L1746:
+	cmp.b #$a0,d0
+	bne L1747
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1739
+L1747:
+	cmp.b #$e4,d0
+	bne L1748
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1739
+L1748:
+	cmp.b #$84,d0
+	bne L1749
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1739
+L1749:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1739:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1750
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1751
+L1750:
+	jsr (rd_slow).l
+L1751:
+	not.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	or.b #1,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1752
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1753
+L1752:
+	jsr (wr_slow).l
+L1753:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_63_end:
+tp_op_64:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1755
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1756
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1757
+L1756:
+	move.w d6,d2
+L1757:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1754
+L1755:
+	cmp.b #$80,d0
+	bne L1758
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1754
+L1758:
+	cmp.b #$a1,d0
+	bne L1759
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1754
+L1759:
+	cmp.b #$a4,d0
+	bne L1760
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1754
+L1760:
+	cmp.b #$81,d0
+	bne L1761
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1754
+L1761:
+	cmp.b #$a0,d0
+	bne L1762
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1754
+L1762:
+	cmp.b #$e4,d0
+	bne L1763
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1754
+L1763:
+	cmp.b #$84,d0
+	bne L1764
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1754
+L1764:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1754:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1765
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1766
+L1765:
+	jsr (rd_slow).l
+L1766:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1767
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1768
+L1767:
+	jsr (wr_slow).l
+L1768:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_64_end:
+tp_op_65:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1770
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1771
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1772
+L1771:
+	move.w d6,d2
+L1772:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1769
+L1770:
+	cmp.b #$80,d0
+	bne L1773
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1769
+L1773:
+	cmp.b #$a1,d0
+	bne L1774
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1769
+L1774:
+	cmp.b #$a4,d0
+	bne L1775
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1769
+L1775:
+	cmp.b #$81,d0
+	bne L1776
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1769
+L1776:
+	cmp.b #$a0,d0
+	bne L1777
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1769
+L1777:
+	cmp.b #$e4,d0
+	bne L1778
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1769
+L1778:
+	cmp.b #$84,d0
+	bne L1779
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1769
+L1779:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1769:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1780
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1781
+L1780:
+	jsr (rd_slow).l
+L1781:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1782
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1783
+L1782:
+	jsr (wr_slow).l
+L1783:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_65_end:
+tp_op_66:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1785
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1786
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1787
+L1786:
+	move.w d6,d2
+L1787:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1784
+L1785:
+	cmp.b #$80,d0
+	bne L1788
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1784
+L1788:
+	cmp.b #$a1,d0
+	bne L1789
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1784
+L1789:
+	cmp.b #$a4,d0
+	bne L1790
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1784
+L1790:
+	cmp.b #$81,d0
+	bne L1791
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1784
+L1791:
+	cmp.b #$a0,d0
+	bne L1792
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1784
+L1792:
+	cmp.b #$e4,d0
+	bne L1793
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1784
+L1793:
+	cmp.b #$84,d0
+	bne L1794
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1784
+L1794:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1784:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1795
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1796
+L1795:
+	jsr (rd_slow).l
+L1796:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1797
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1798
+L1797:
+	jsr (wr_slow).l
+L1798:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_66_end:
+tp_op_67:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1800
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1801
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1802
+L1801:
+	move.w d6,d2
+L1802:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1799
+L1800:
+	cmp.b #$80,d0
+	bne L1803
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1799
+L1803:
+	cmp.b #$a1,d0
+	bne L1804
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1799
+L1804:
+	cmp.b #$a4,d0
+	bne L1805
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1799
+L1805:
+	cmp.b #$81,d0
+	bne L1806
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1799
+L1806:
+	cmp.b #$a0,d0
+	bne L1807
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1799
+L1807:
+	cmp.b #$e4,d0
+	bne L1808
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1799
+L1808:
+	cmp.b #$84,d0
+	bne L1809
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1799
+L1809:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1799:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1810
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1811
+L1810:
+	jsr (rd_slow).l
+L1811:
+	asr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1812
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1813
+L1812:
+	jsr (wr_slow).l
+L1813:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_67_end:
+tp_op_68:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1815
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1816
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1817
+L1816:
+	move.w d6,d2
+L1817:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1814
+L1815:
+	cmp.b #$80,d0
+	bne L1818
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1814
+L1818:
+	cmp.b #$a1,d0
+	bne L1819
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1814
+L1819:
+	cmp.b #$a4,d0
+	bne L1820
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1814
+L1820:
+	cmp.b #$81,d0
+	bne L1821
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1814
+L1821:
+	cmp.b #$a0,d0
+	bne L1822
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1814
+L1822:
+	cmp.b #$e4,d0
+	bne L1823
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1814
+L1823:
+	cmp.b #$84,d0
+	bne L1824
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1814
+L1824:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1814:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1825
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1826
+L1825:
+	jsr (rd_slow).l
+L1826:
+	asl.b #1,d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1827
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1828
+L1827:
+	jsr (wr_slow).l
+L1828:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_68_end:
+tp_op_69:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1830
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1831
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1832
+L1831:
+	move.w d6,d2
+L1832:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1829
+L1830:
+	cmp.b #$80,d0
+	bne L1833
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1829
+L1833:
+	cmp.b #$a1,d0
+	bne L1834
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1829
+L1834:
+	cmp.b #$a4,d0
+	bne L1835
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1829
+L1835:
+	cmp.b #$81,d0
+	bne L1836
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1829
+L1836:
+	cmp.b #$a0,d0
+	bne L1837
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1829
+L1837:
+	cmp.b #$e4,d0
+	bne L1838
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1829
+L1838:
+	cmp.b #$84,d0
+	bne L1839
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1829
+L1839:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1829:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1840
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1841
+L1840:
+	jsr (rd_slow).l
+L1841:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxl.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	btst #3,d2
+	beq.s L1842
+	bchg #1,d2
+L1842:
+	btst #0,d2
+	beq.s L1843
+	bchg #1,d2
+L1843:
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1844
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1845
+L1844:
+	jsr (wr_slow).l
+L1845:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_69_end:
+tp_op_6A:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1847
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1848
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1849
+L1848:
+	move.w d6,d2
+L1849:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1846
+L1847:
+	cmp.b #$80,d0
+	bne L1850
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1846
+L1850:
+	cmp.b #$a1,d0
+	bne L1851
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1846
+L1851:
+	cmp.b #$a4,d0
+	bne L1852
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1846
+L1852:
+	cmp.b #$81,d0
+	bne L1853
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1846
+L1853:
+	cmp.b #$a0,d0
+	bne L1854
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1846
+L1854:
+	cmp.b #$e4,d0
+	bne L1855
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1846
+L1855:
+	cmp.b #$84,d0
+	bne L1856
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1846
+L1856:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1846:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1857
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1858
+L1857:
+	jsr (rd_slow).l
+L1858:
+	subq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1859
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1860
+L1859:
+	jsr (wr_slow).l
+L1860:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_6A_end:
+tp_op_6C:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1862
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1863
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1864
+L1863:
+	move.w d6,d2
+L1864:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1861
+L1862:
+	cmp.b #$80,d0
+	bne L1865
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1861
+L1865:
+	cmp.b #$a1,d0
+	bne L1866
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1861
+L1866:
+	cmp.b #$a4,d0
+	bne L1867
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1861
+L1867:
+	cmp.b #$81,d0
+	bne L1868
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1861
+L1868:
+	cmp.b #$a0,d0
+	bne L1869
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1861
+L1869:
+	cmp.b #$e4,d0
+	bne L1870
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1861
+L1870:
+	cmp.b #$84,d0
+	bne L1871
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1861
+L1871:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1861:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1872
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1873
+L1872:
+	jsr (rd_slow).l
+L1873:
+	addq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1874
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1875
+L1874:
+	jsr (wr_slow).l
+L1875:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_6C_end:
+tp_op_6D:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1877
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1878
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1879
+L1878:
+	move.w d6,d2
+L1879:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1876
+L1877:
+	cmp.b #$80,d0
+	bne L1880
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1876
+L1880:
+	cmp.b #$a1,d0
+	bne L1881
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1876
+L1881:
+	cmp.b #$a4,d0
+	bne L1882
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1876
+L1882:
+	cmp.b #$81,d0
+	bne L1883
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1876
+L1883:
+	cmp.b #$a0,d0
+	bne L1884
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1876
+L1884:
+	cmp.b #$e4,d0
+	bne L1885
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1876
+L1885:
+	cmp.b #$84,d0
+	bne L1886
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1876
+L1886:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1876:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1887
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1888
+L1887:
+	jsr (rd_slow).l
+L1888:
+	tst.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_6D_end:
+tp_op_6E:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1890
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1891
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1892
+L1891:
+	move.w d6,d2
+L1892:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1889
+L1890:
+	cmp.b #$80,d0
+	bne L1893
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1889
+L1893:
+	cmp.b #$a1,d0
+	bne L1894
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1889
+L1894:
+	cmp.b #$a4,d0
+	bne L1895
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1889
+L1895:
+	cmp.b #$81,d0
+	bne L1896
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1889
+L1896:
+	cmp.b #$a0,d0
+	bne L1897
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1889
+L1897:
+	cmp.b #$e4,d0
+	bne L1898
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1889
+L1898:
+	cmp.b #$84,d0
+	bne L1899
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1889
+L1899:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1889:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #1,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_6E_end:
+tp_op_6F:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L1901
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L1902
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L1903
+L1902:
+	move.w d6,d2
+L1903:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L1900
+L1901:
+	cmp.b #$80,d0
+	bne L1904
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L1900
+L1904:
+	cmp.b #$a1,d0
+	bne L1905
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L1900
+L1905:
+	cmp.b #$a4,d0
+	bne L1906
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L1900
+L1906:
+	cmp.b #$81,d0
+	bne L1907
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L1900
+L1907:
+	cmp.b #$a0,d0
+	bne L1908
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L1900
+L1908:
+	cmp.b #$e4,d0
+	bne L1909
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L1900
+L1909:
+	cmp.b #$84,d0
+	bne L1910
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L1900
+L1910:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L1900:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1911
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1912
+L1911:
+	jsr (rd_slow).l
+L1912:
+	moveq #0,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1913
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1914
+L1913:
+	jsr (wr_slow).l
+L1914:
+	and.b #$f0,d3
+	or.b #4,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_6F_end:
+tp_op_70:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1915
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1916
+L1915:
+	jsr (rd_slow).l
+L1916:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1917
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1918
+L1917:
+	jsr (wr_slow).l
+L1918:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_70_end:
+tp_op_71:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1919
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1920
+L1919:
+	jsr (rd_slow).l
+L1920:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1921
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1922
+L1921:
+	jsr (wr_slow).l
+L1922:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_71_end:
+tp_op_73:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1923
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1924
+L1923:
+	jsr (rd_slow).l
+L1924:
+	not.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	or.b #1,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1925
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1926
+L1925:
+	jsr (wr_slow).l
+L1926:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_73_end:
+tp_op_74:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1927
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1928
+L1927:
+	jsr (rd_slow).l
+L1928:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1929
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1930
+L1929:
+	jsr (wr_slow).l
+L1930:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_74_end:
+tp_op_75:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1931
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1932
+L1931:
+	jsr (rd_slow).l
+L1932:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1933
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1934
+L1933:
+	jsr (wr_slow).l
+L1934:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_75_end:
+tp_op_76:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1935
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1936
+L1935:
+	jsr (rd_slow).l
+L1936:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1937
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1938
+L1937:
+	jsr (wr_slow).l
+L1938:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_76_end:
+tp_op_77:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1939
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1940
+L1939:
+	jsr (rd_slow).l
+L1940:
+	asr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1941
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1942
+L1941:
+	jsr (wr_slow).l
+L1942:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_77_end:
+tp_op_78:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1943
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1944
+L1943:
+	jsr (rd_slow).l
+L1944:
+	asl.b #1,d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1945
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1946
+L1945:
+	jsr (wr_slow).l
+L1946:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_78_end:
+tp_op_79:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1947
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1948
+L1947:
+	jsr (rd_slow).l
+L1948:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxl.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	btst #3,d2
+	beq.s L1949
+	bchg #1,d2
+L1949:
+	btst #0,d2
+	beq.s L1950
+	bchg #1,d2
+L1950:
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1951
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1952
+L1951:
+	jsr (wr_slow).l
+L1952:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_79_end:
+tp_op_7A:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1953
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1954
+L1953:
+	jsr (rd_slow).l
+L1954:
+	subq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1955
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1956
+L1955:
+	jsr (wr_slow).l
+L1956:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_7A_end:
+tp_op_7C:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1957
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1958
+L1957:
+	jsr (rd_slow).l
+L1958:
+	addq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1959
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1960
+L1959:
+	jsr (wr_slow).l
+L1960:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_7C_end:
+tp_op_7D:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1961
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1962
+L1961:
+	jsr (rd_slow).l
+L1962:
+	tst.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_7D_end:
+tp_op_7E:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #4,d7
+	move.w d0,d1
+	lsr.w #3,d1
+	btst d0,(4224,a5,d1.w)
+	beq.s *+8
+	jmp (idle_hit).l
+	tst.l d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_7E_end:
+tp_op_7F:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1963
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1964
+L1963:
+	jsr (rd_slow).l
+L1964:
+	moveq #0,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1965
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1966
+L1965:
+	jsr (wr_slow).l
+L1966:
+	and.b #$f0,d3
+	or.b #4,d3
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_7F_end:
+tp_op_80:
+	move.b (a4)+,d1
+	sub.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_80_end:
+tp_op_81:
+	move.b (a4)+,d1
+	cmp.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_81_end:
+tp_op_82:
+	move.b (a4)+,d1
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_82_end:
+tp_op_83:
+	move.w (a4)+,d1
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	sub.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_83_end:
+tp_op_84:
+	move.b (a4)+,d1
+	and.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_84_end:
+tp_op_85:
+	move.b (a4)+,d1
+	move.b d4,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_85_end:
+tp_op_86:
+	move.b (a4)+,d1
+	move.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_86_end:
+tp_op_88:
+	move.b (a4)+,d1
+	eor.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_88_end:
+tp_op_89:
+	move.b (a4)+,d1
+	move.b d4,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_89_end:
+tp_op_8A:
+	move.b (a4)+,d1
+	or.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_8A_end:
+tp_op_8B:
+	move.b (a4)+,d1
+	move.b d4,d0
+	add.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_8B_end:
+tp_op_8C:
+	move.w (a4)+,d1
+	cmp.w d1,d6
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_8C_end:
+tp_op_8D:
+	move.b (a4)+,d0
+	ext.w d0
+	move.l a4,d1
+	sub.l a3,d1
+	lea (a4,d0.w),a4
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1967
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1968
+L1967:
+	jsr (wr_slow).l
+L1968:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1969
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1970
+L1969:
+	jsr (wr_slow).l
+L1970:
+	move.w d0,4166(a5)
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_8D_end:
+tp_op_8E:
+	move.w (a4)+,d1
+	move.w d1,d6
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_8E_end:
+tp_op_90:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1971
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1972
+L1971:
+	jsr (rd_slow).l
+L1972:
+	sub.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_90_end:
+tp_op_91:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1973
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1974
+L1973:
+	jsr (rd_slow).l
+L1974:
+	cmp.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_91_end:
+tp_op_92:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1975
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1976
+L1975:
+	jsr (rd_slow).l
+L1976:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_92_end:
+tp_op_93:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1977
+	cmp.b #$ff,d0
+	beq.s L1977
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L1978
+L1977:
+	jsr (rd16_slow).l
+L1978:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	sub.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_93_end:
+tp_op_94:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1979
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1980
+L1979:
+	jsr (rd_slow).l
+L1980:
+	and.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_94_end:
+tp_op_95:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1981
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1982
+L1981:
+	jsr (rd_slow).l
+L1982:
+	move.b d4,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_95_end:
+tp_op_96:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1983
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1984
+L1983:
+	jsr (rd_slow).l
+L1984:
+	move.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_96_end:
+tp_op_97:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.b d4,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1985
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1986
+L1985:
+	jsr (wr_slow).l
+L1986:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_97_end:
+tp_op_98:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1987
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1988
+L1987:
+	jsr (rd_slow).l
+L1988:
+	eor.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_98_end:
+tp_op_99:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1989
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1990
+L1989:
+	jsr (rd_slow).l
+L1990:
+	move.b d4,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_99_end:
+tp_op_9A:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1991
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1992
+L1991:
+	jsr (rd_slow).l
+L1992:
+	or.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_9A_end:
+tp_op_9B:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1993
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L1994
+L1993:
+	jsr (rd_slow).l
+L1994:
+	move.b d4,d0
+	add.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_9B_end:
+tp_op_9C:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L1995
+	cmp.b #$ff,d0
+	beq.s L1995
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L1996
+L1995:
+	jsr (rd16_slow).l
+L1996:
+	cmp.w d1,d6
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_9C_end:
+tp_op_9D:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.l a4,d1
+	sub.l a3,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1997
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L1998
+L1997:
+	jsr (wr_slow).l
+L1998:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L1999
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2000
+L1999:
+	jsr (wr_slow).l
+L2000:
+	move.w d0,4166(a5)
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_9D_end:
+tp_op_9E:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2001
+	cmp.b #$ff,d0
+	beq.s L2001
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2002
+L2001:
+	jsr (rd16_slow).l
+L2002:
+	move.w d1,d6
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_9E_end:
+tp_op_9F:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d6,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2003
+	cmp.b #$ff,d0
+	beq.s L2003
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2004
+L2003:
+	jsr (wr16_slow).l
+L2004:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_9F_end:
+tp_op_A0:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2006
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2007
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2008
+L2007:
+	move.w d6,d2
+L2008:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2005
+L2006:
+	cmp.b #$80,d0
+	bne L2009
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2005
+L2009:
+	cmp.b #$a1,d0
+	bne L2010
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2005
+L2010:
+	cmp.b #$a4,d0
+	bne L2011
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2005
+L2011:
+	cmp.b #$81,d0
+	bne L2012
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2005
+L2012:
+	cmp.b #$a0,d0
+	bne L2013
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2005
+L2013:
+	cmp.b #$e4,d0
+	bne L2014
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2005
+L2014:
+	cmp.b #$84,d0
+	bne L2015
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2005
+L2015:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2005:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2016
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2017
+L2016:
+	jsr (rd_slow).l
+L2017:
+	sub.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_A0_end:
+tp_op_A1:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2019
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2020
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2021
+L2020:
+	move.w d6,d2
+L2021:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2018
+L2019:
+	cmp.b #$80,d0
+	bne L2022
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2018
+L2022:
+	cmp.b #$a1,d0
+	bne L2023
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2018
+L2023:
+	cmp.b #$a4,d0
+	bne L2024
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2018
+L2024:
+	cmp.b #$81,d0
+	bne L2025
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2018
+L2025:
+	cmp.b #$a0,d0
+	bne L2026
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2018
+L2026:
+	cmp.b #$e4,d0
+	bne L2027
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2018
+L2027:
+	cmp.b #$84,d0
+	bne L2028
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2018
+L2028:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2018:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2029
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2030
+L2029:
+	jsr (rd_slow).l
+L2030:
+	cmp.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_A1_end:
+tp_op_A2:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2032
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2033
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2034
+L2033:
+	move.w d6,d2
+L2034:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2031
+L2032:
+	cmp.b #$80,d0
+	bne L2035
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2031
+L2035:
+	cmp.b #$a1,d0
+	bne L2036
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2031
+L2036:
+	cmp.b #$a4,d0
+	bne L2037
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2031
+L2037:
+	cmp.b #$81,d0
+	bne L2038
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2031
+L2038:
+	cmp.b #$a0,d0
+	bne L2039
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2031
+L2039:
+	cmp.b #$e4,d0
+	bne L2040
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2031
+L2040:
+	cmp.b #$84,d0
+	bne L2041
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2031
+L2041:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2031:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2042
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2043
+L2042:
+	jsr (rd_slow).l
+L2043:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_A2_end:
+tp_op_A3:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2045
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2046
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2047
+L2046:
+	move.w d6,d2
+L2047:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2044
+L2045:
+	cmp.b #$80,d0
+	bne L2048
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2044
+L2048:
+	cmp.b #$a1,d0
+	bne L2049
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2044
+L2049:
+	cmp.b #$a4,d0
+	bne L2050
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2044
+L2050:
+	cmp.b #$81,d0
+	bne L2051
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2044
+L2051:
+	cmp.b #$a0,d0
+	bne L2052
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2044
+L2052:
+	cmp.b #$e4,d0
+	bne L2053
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2044
+L2053:
+	cmp.b #$84,d0
+	bne L2054
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2044
+L2054:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2044:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2055
+	cmp.b #$ff,d0
+	beq.s L2055
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2056
+L2055:
+	jsr (rd16_slow).l
+L2056:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	sub.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_A3_end:
+tp_op_A4:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2058
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2059
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2060
+L2059:
+	move.w d6,d2
+L2060:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2057
+L2058:
+	cmp.b #$80,d0
+	bne L2061
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2057
+L2061:
+	cmp.b #$a1,d0
+	bne L2062
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2057
+L2062:
+	cmp.b #$a4,d0
+	bne L2063
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2057
+L2063:
+	cmp.b #$81,d0
+	bne L2064
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2057
+L2064:
+	cmp.b #$a0,d0
+	bne L2065
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2057
+L2065:
+	cmp.b #$e4,d0
+	bne L2066
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2057
+L2066:
+	cmp.b #$84,d0
+	bne L2067
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2057
+L2067:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2057:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2068
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2069
+L2068:
+	jsr (rd_slow).l
+L2069:
+	and.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_A4_end:
+tp_op_A5:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2071
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2072
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2073
+L2072:
+	move.w d6,d2
+L2073:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2070
+L2071:
+	cmp.b #$80,d0
+	bne L2074
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2070
+L2074:
+	cmp.b #$a1,d0
+	bne L2075
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2070
+L2075:
+	cmp.b #$a4,d0
+	bne L2076
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2070
+L2076:
+	cmp.b #$81,d0
+	bne L2077
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2070
+L2077:
+	cmp.b #$a0,d0
+	bne L2078
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2070
+L2078:
+	cmp.b #$e4,d0
+	bne L2079
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2070
+L2079:
+	cmp.b #$84,d0
+	bne L2080
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2070
+L2080:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2070:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2081
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2082
+L2081:
+	jsr (rd_slow).l
+L2082:
+	move.b d4,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_A5_end:
+tp_op_A6:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2084
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2085
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2086
+L2085:
+	move.w d6,d2
+L2086:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2083
+L2084:
+	cmp.b #$80,d0
+	bne L2087
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2083
+L2087:
+	cmp.b #$a1,d0
+	bne L2088
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2083
+L2088:
+	cmp.b #$a4,d0
+	bne L2089
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2083
+L2089:
+	cmp.b #$81,d0
+	bne L2090
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2083
+L2090:
+	cmp.b #$a0,d0
+	bne L2091
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2083
+L2091:
+	cmp.b #$e4,d0
+	bne L2092
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2083
+L2092:
+	cmp.b #$84,d0
+	bne L2093
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2083
+L2093:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2083:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2094
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2095
+L2094:
+	jsr (rd_slow).l
+L2095:
+	move.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_A6_end:
+tp_op_A7:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2097
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2098
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2099
+L2098:
+	move.w d6,d2
+L2099:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2096
+L2097:
+	cmp.b #$80,d0
+	bne L2100
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2096
+L2100:
+	cmp.b #$a1,d0
+	bne L2101
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2096
+L2101:
+	cmp.b #$a4,d0
+	bne L2102
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2096
+L2102:
+	cmp.b #$81,d0
+	bne L2103
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2096
+L2103:
+	cmp.b #$a0,d0
+	bne L2104
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2096
+L2104:
+	cmp.b #$e4,d0
+	bne L2105
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2096
+L2105:
+	cmp.b #$84,d0
+	bne L2106
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2096
+L2106:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2096:
+	move.b d4,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2107
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2108
+L2107:
+	jsr (wr_slow).l
+L2108:
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_A7_end:
+tp_op_A8:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2110
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2111
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2112
+L2111:
+	move.w d6,d2
+L2112:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2109
+L2110:
+	cmp.b #$80,d0
+	bne L2113
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2109
+L2113:
+	cmp.b #$a1,d0
+	bne L2114
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2109
+L2114:
+	cmp.b #$a4,d0
+	bne L2115
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2109
+L2115:
+	cmp.b #$81,d0
+	bne L2116
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2109
+L2116:
+	cmp.b #$a0,d0
+	bne L2117
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2109
+L2117:
+	cmp.b #$e4,d0
+	bne L2118
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2109
+L2118:
+	cmp.b #$84,d0
+	bne L2119
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2109
+L2119:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2109:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2120
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2121
+L2120:
+	jsr (rd_slow).l
+L2121:
+	eor.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_A8_end:
+tp_op_A9:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2123
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2124
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2125
+L2124:
+	move.w d6,d2
+L2125:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2122
+L2123:
+	cmp.b #$80,d0
+	bne L2126
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2122
+L2126:
+	cmp.b #$a1,d0
+	bne L2127
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2122
+L2127:
+	cmp.b #$a4,d0
+	bne L2128
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2122
+L2128:
+	cmp.b #$81,d0
+	bne L2129
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2122
+L2129:
+	cmp.b #$a0,d0
+	bne L2130
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2122
+L2130:
+	cmp.b #$e4,d0
+	bne L2131
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2122
+L2131:
+	cmp.b #$84,d0
+	bne L2132
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2122
+L2132:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2122:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2133
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2134
+L2133:
+	jsr (rd_slow).l
+L2134:
+	move.b d4,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_A9_end:
+tp_op_AA:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2136
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2137
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2138
+L2137:
+	move.w d6,d2
+L2138:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2135
+L2136:
+	cmp.b #$80,d0
+	bne L2139
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2135
+L2139:
+	cmp.b #$a1,d0
+	bne L2140
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2135
+L2140:
+	cmp.b #$a4,d0
+	bne L2141
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2135
+L2141:
+	cmp.b #$81,d0
+	bne L2142
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2135
+L2142:
+	cmp.b #$a0,d0
+	bne L2143
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2135
+L2143:
+	cmp.b #$e4,d0
+	bne L2144
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2135
+L2144:
+	cmp.b #$84,d0
+	bne L2145
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2135
+L2145:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2135:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2146
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2147
+L2146:
+	jsr (rd_slow).l
+L2147:
+	or.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_AA_end:
+tp_op_AB:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2149
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2150
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2151
+L2150:
+	move.w d6,d2
+L2151:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2148
+L2149:
+	cmp.b #$80,d0
+	bne L2152
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2148
+L2152:
+	cmp.b #$a1,d0
+	bne L2153
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2148
+L2153:
+	cmp.b #$a4,d0
+	bne L2154
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2148
+L2154:
+	cmp.b #$81,d0
+	bne L2155
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2148
+L2155:
+	cmp.b #$a0,d0
+	bne L2156
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2148
+L2156:
+	cmp.b #$e4,d0
+	bne L2157
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2148
+L2157:
+	cmp.b #$84,d0
+	bne L2158
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2148
+L2158:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2148:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2159
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2160
+L2159:
+	jsr (rd_slow).l
+L2160:
+	move.b d4,d0
+	add.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_AB_end:
+tp_op_AC:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2162
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2163
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2164
+L2163:
+	move.w d6,d2
+L2164:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2161
+L2162:
+	cmp.b #$80,d0
+	bne L2165
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2161
+L2165:
+	cmp.b #$a1,d0
+	bne L2166
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2161
+L2166:
+	cmp.b #$a4,d0
+	bne L2167
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2161
+L2167:
+	cmp.b #$81,d0
+	bne L2168
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2161
+L2168:
+	cmp.b #$a0,d0
+	bne L2169
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2161
+L2169:
+	cmp.b #$e4,d0
+	bne L2170
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2161
+L2170:
+	cmp.b #$84,d0
+	bne L2171
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2161
+L2171:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2161:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2172
+	cmp.b #$ff,d0
+	beq.s L2172
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2173
+L2172:
+	jsr (rd16_slow).l
+L2173:
+	cmp.w d1,d6
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_AC_end:
+tp_op_AD:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2175
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2176
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2177
+L2176:
+	move.w d6,d2
+L2177:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2174
+L2175:
+	cmp.b #$80,d0
+	bne L2178
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2174
+L2178:
+	cmp.b #$a1,d0
+	bne L2179
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2174
+L2179:
+	cmp.b #$a4,d0
+	bne L2180
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2174
+L2180:
+	cmp.b #$81,d0
+	bne L2181
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2174
+L2181:
+	cmp.b #$a0,d0
+	bne L2182
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2174
+L2182:
+	cmp.b #$e4,d0
+	bne L2183
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2174
+L2183:
+	cmp.b #$84,d0
+	bne L2184
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2174
+L2184:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2174:
+	move.l a4,d1
+	sub.l a3,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2185
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2186
+L2185:
+	jsr (wr_slow).l
+L2186:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2187
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2188
+L2187:
+	jsr (wr_slow).l
+L2188:
+	move.w d0,4166(a5)
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_AD_end:
+tp_op_AE:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2190
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2191
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2192
+L2191:
+	move.w d6,d2
+L2192:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2189
+L2190:
+	cmp.b #$80,d0
+	bne L2193
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2189
+L2193:
+	cmp.b #$a1,d0
+	bne L2194
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2189
+L2194:
+	cmp.b #$a4,d0
+	bne L2195
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2189
+L2195:
+	cmp.b #$81,d0
+	bne L2196
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2189
+L2196:
+	cmp.b #$a0,d0
+	bne L2197
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2189
+L2197:
+	cmp.b #$e4,d0
+	bne L2198
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2189
+L2198:
+	cmp.b #$84,d0
+	bne L2199
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2189
+L2199:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2189:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2200
+	cmp.b #$ff,d0
+	beq.s L2200
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2201
+L2200:
+	jsr (rd16_slow).l
+L2201:
+	move.w d1,d6
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_AE_end:
+tp_op_AF:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2203
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2204
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2205
+L2204:
+	move.w d6,d2
+L2205:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2202
+L2203:
+	cmp.b #$80,d0
+	bne L2206
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2202
+L2206:
+	cmp.b #$a1,d0
+	bne L2207
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2202
+L2207:
+	cmp.b #$a4,d0
+	bne L2208
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2202
+L2208:
+	cmp.b #$81,d0
+	bne L2209
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2202
+L2209:
+	cmp.b #$a0,d0
+	bne L2210
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2202
+L2210:
+	cmp.b #$e4,d0
+	bne L2211
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2202
+L2211:
+	cmp.b #$84,d0
+	bne L2212
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2202
+L2212:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2202:
+	move.w d6,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2213
+	cmp.b #$ff,d0
+	beq.s L2213
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2214
+L2213:
+	jsr (wr16_slow).l
+L2214:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_AF_end:
+tp_op_B0:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2215
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2216
+L2215:
+	jsr (rd_slow).l
+L2216:
+	sub.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_B0_end:
+tp_op_B1:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2217
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2218
+L2217:
+	jsr (rd_slow).l
+L2218:
+	cmp.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_B1_end:
+tp_op_B2:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2219
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2220
+L2219:
+	jsr (rd_slow).l
+L2220:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_B2_end:
+tp_op_B3:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2221
+	cmp.b #$ff,d0
+	beq.s L2221
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2222
+L2221:
+	jsr (rd16_slow).l
+L2222:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	sub.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_B3_end:
+tp_op_B4:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2223
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2224
+L2223:
+	jsr (rd_slow).l
+L2224:
+	and.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_B4_end:
+tp_op_B5:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2225
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2226
+L2225:
+	jsr (rd_slow).l
+L2226:
+	move.b d4,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_B5_end:
+tp_op_B6:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2227
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2228
+L2227:
+	jsr (rd_slow).l
+L2228:
+	move.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_B6_end:
+tp_op_B7:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.b d4,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2229
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2230
+L2229:
+	jsr (wr_slow).l
+L2230:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_B7_end:
+tp_op_B8:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2231
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2232
+L2231:
+	jsr (rd_slow).l
+L2232:
+	eor.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_B8_end:
+tp_op_B9:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2233
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2234
+L2233:
+	jsr (rd_slow).l
+L2234:
+	move.b d4,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_B9_end:
+tp_op_BA:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2235
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2236
+L2235:
+	jsr (rd_slow).l
+L2236:
+	or.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_BA_end:
+tp_op_BB:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2237
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2238
+L2237:
+	jsr (rd_slow).l
+L2238:
+	move.b d4,d0
+	add.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_BB_end:
+tp_op_BC:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2239
+	cmp.b #$ff,d0
+	beq.s L2239
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2240
+L2239:
+	jsr (rd16_slow).l
+L2240:
+	cmp.w d1,d6
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_BC_end:
+tp_op_BD:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.l a4,d1
+	sub.l a3,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.w #1,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2241
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2242
+L2241:
+	jsr (wr_slow).l
+L2242:
+	subq.w #1,d0
+	ror.w #8,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2243
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2244
+L2243:
+	jsr (wr_slow).l
+L2244:
+	move.w d0,4166(a5)
+	subq.l #8,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_op_BD_end:
+tp_op_BE:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2245
+	cmp.b #$ff,d0
+	beq.s L2245
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2246
+L2245:
+	jsr (rd16_slow).l
+L2246:
+	move.w d1,d6
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_BE_end:
+tp_op_BF:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d6,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2247
+	cmp.b #$ff,d0
+	beq.s L2247
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2248
+L2247:
+	jsr (wr16_slow).l
+L2248:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_BF_end:
+tp_op_C0:
+	move.b (a4)+,d1
+	sub.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_C0_end:
+tp_op_C1:
+	move.b (a4)+,d1
+	cmp.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_C1_end:
+tp_op_C2:
+	move.b (a4)+,d1
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_C2_end:
+tp_op_C3:
+	move.w (a4)+,d1
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	add.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_C3_end:
+tp_op_C4:
+	move.b (a4)+,d1
+	and.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_C4_end:
+tp_op_C5:
+	move.b (a4)+,d1
+	move.b d5,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_C5_end:
+tp_op_C6:
+	move.b (a4)+,d1
+	move.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_C6_end:
+tp_op_C8:
+	move.b (a4)+,d1
+	eor.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_C8_end:
+tp_op_C9:
+	move.b (a4)+,d1
+	move.b d5,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_C9_end:
+tp_op_CA:
+	move.b (a4)+,d1
+	or.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_CA_end:
+tp_op_CB:
+	move.b (a4)+,d1
+	move.b d5,d0
+	add.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_CB_end:
+tp_op_CC:
+	move.w (a4)+,d1
+	move.b d1,d5
+	move.w d1,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_CC_end:
+tp_op_CE:
+	move.w (a4)+,d1
+	move.w d1,4164(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_CE_end:
+tp_op_D0:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2249
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2250
+L2249:
+	jsr (rd_slow).l
+L2250:
+	sub.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_D0_end:
+tp_op_D1:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2251
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2252
+L2251:
+	jsr (rd_slow).l
+L2252:
+	cmp.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_D1_end:
+tp_op_D2:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2253
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2254
+L2253:
+	jsr (rd_slow).l
+L2254:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_D2_end:
+tp_op_D3:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2255
+	cmp.b #$ff,d0
+	beq.s L2255
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2256
+L2255:
+	jsr (rd16_slow).l
+L2256:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	add.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_D3_end:
+tp_op_D4:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2257
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2258
+L2257:
+	jsr (rd_slow).l
+L2258:
+	and.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_D4_end:
+tp_op_D5:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2259
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2260
+L2259:
+	jsr (rd_slow).l
+L2260:
+	move.b d5,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_D5_end:
+tp_op_D6:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2261
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2262
+L2261:
+	jsr (rd_slow).l
+L2262:
+	move.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_D6_end:
+tp_op_D7:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.b d5,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2263
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2264
+L2263:
+	jsr (wr_slow).l
+L2264:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_D7_end:
+tp_op_D8:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2265
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2266
+L2265:
+	jsr (rd_slow).l
+L2266:
+	eor.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_D8_end:
+tp_op_D9:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2267
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2268
+L2267:
+	jsr (rd_slow).l
+L2268:
+	move.b d5,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_D9_end:
+tp_op_DA:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2269
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2270
+L2269:
+	jsr (rd_slow).l
+L2270:
+	or.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_DA_end:
+tp_op_DB:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2271
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2272
+L2271:
+	jsr (rd_slow).l
+L2272:
+	move.b d5,d0
+	add.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_DB_end:
+tp_op_DC:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2273
+	cmp.b #$ff,d0
+	beq.s L2273
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2274
+L2273:
+	jsr (rd16_slow).l
+L2274:
+	move.b d1,d5
+	move.w d1,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_DC_end:
+tp_op_DD:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.b d4,d1
+	lsl.w #8,d1
+	move.b d5,d1
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2275
+	cmp.b #$ff,d0
+	beq.s L2275
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2276
+L2275:
+	jsr (wr16_slow).l
+L2276:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_DD_end:
+tp_op_DE:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2277
+	cmp.b #$ff,d0
+	beq.s L2277
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2278
+L2277:
+	jsr (rd16_slow).l
+L2278:
+	move.w d1,4164(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_DE_end:
+tp_op_DF:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w 4164(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2279
+	cmp.b #$ff,d0
+	beq.s L2279
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2280
+L2279:
+	jsr (wr16_slow).l
+L2280:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_DF_end:
+tp_op_E0:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2282
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2283
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2284
+L2283:
+	move.w d6,d2
+L2284:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2281
+L2282:
+	cmp.b #$80,d0
+	bne L2285
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2281
+L2285:
+	cmp.b #$a1,d0
+	bne L2286
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2281
+L2286:
+	cmp.b #$a4,d0
+	bne L2287
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2281
+L2287:
+	cmp.b #$81,d0
+	bne L2288
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2281
+L2288:
+	cmp.b #$a0,d0
+	bne L2289
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2281
+L2289:
+	cmp.b #$e4,d0
+	bne L2290
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2281
+L2290:
+	cmp.b #$84,d0
+	bne L2291
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2281
+L2291:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2281:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2292
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2293
+L2292:
+	jsr (rd_slow).l
+L2293:
+	sub.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_E0_end:
+tp_op_E1:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2295
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2296
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2297
+L2296:
+	move.w d6,d2
+L2297:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2294
+L2295:
+	cmp.b #$80,d0
+	bne L2298
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2294
+L2298:
+	cmp.b #$a1,d0
+	bne L2299
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2294
+L2299:
+	cmp.b #$a4,d0
+	bne L2300
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2294
+L2300:
+	cmp.b #$81,d0
+	bne L2301
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2294
+L2301:
+	cmp.b #$a0,d0
+	bne L2302
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2294
+L2302:
+	cmp.b #$e4,d0
+	bne L2303
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2294
+L2303:
+	cmp.b #$84,d0
+	bne L2304
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2294
+L2304:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2294:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2305
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2306
+L2305:
+	jsr (rd_slow).l
+L2306:
+	cmp.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_E1_end:
+tp_op_E2:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2308
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2309
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2310
+L2309:
+	move.w d6,d2
+L2310:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2307
+L2308:
+	cmp.b #$80,d0
+	bne L2311
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2307
+L2311:
+	cmp.b #$a1,d0
+	bne L2312
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2307
+L2312:
+	cmp.b #$a4,d0
+	bne L2313
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2307
+L2313:
+	cmp.b #$81,d0
+	bne L2314
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2307
+L2314:
+	cmp.b #$a0,d0
+	bne L2315
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2307
+L2315:
+	cmp.b #$e4,d0
+	bne L2316
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2307
+L2316:
+	cmp.b #$84,d0
+	bne L2317
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2307
+L2317:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2307:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2318
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2319
+L2318:
+	jsr (rd_slow).l
+L2319:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_E2_end:
+tp_op_E3:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2321
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2322
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2323
+L2322:
+	move.w d6,d2
+L2323:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2320
+L2321:
+	cmp.b #$80,d0
+	bne L2324
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2320
+L2324:
+	cmp.b #$a1,d0
+	bne L2325
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2320
+L2325:
+	cmp.b #$a4,d0
+	bne L2326
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2320
+L2326:
+	cmp.b #$81,d0
+	bne L2327
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2320
+L2327:
+	cmp.b #$a0,d0
+	bne L2328
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2320
+L2328:
+	cmp.b #$e4,d0
+	bne L2329
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2320
+L2329:
+	cmp.b #$84,d0
+	bne L2330
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2320
+L2330:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2320:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2331
+	cmp.b #$ff,d0
+	beq.s L2331
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2332
+L2331:
+	jsr (rd16_slow).l
+L2332:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	add.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_E3_end:
+tp_op_E4:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2334
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2335
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2336
+L2335:
+	move.w d6,d2
+L2336:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2333
+L2334:
+	cmp.b #$80,d0
+	bne L2337
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2333
+L2337:
+	cmp.b #$a1,d0
+	bne L2338
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2333
+L2338:
+	cmp.b #$a4,d0
+	bne L2339
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2333
+L2339:
+	cmp.b #$81,d0
+	bne L2340
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2333
+L2340:
+	cmp.b #$a0,d0
+	bne L2341
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2333
+L2341:
+	cmp.b #$e4,d0
+	bne L2342
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2333
+L2342:
+	cmp.b #$84,d0
+	bne L2343
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2333
+L2343:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2333:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2344
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2345
+L2344:
+	jsr (rd_slow).l
+L2345:
+	and.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_E4_end:
+tp_op_E5:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2347
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2348
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2349
+L2348:
+	move.w d6,d2
+L2349:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2346
+L2347:
+	cmp.b #$80,d0
+	bne L2350
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2346
+L2350:
+	cmp.b #$a1,d0
+	bne L2351
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2346
+L2351:
+	cmp.b #$a4,d0
+	bne L2352
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2346
+L2352:
+	cmp.b #$81,d0
+	bne L2353
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2346
+L2353:
+	cmp.b #$a0,d0
+	bne L2354
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2346
+L2354:
+	cmp.b #$e4,d0
+	bne L2355
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2346
+L2355:
+	cmp.b #$84,d0
+	bne L2356
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2346
+L2356:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2346:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2357
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2358
+L2357:
+	jsr (rd_slow).l
+L2358:
+	move.b d5,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_E5_end:
+tp_op_E6:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2360
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2361
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2362
+L2361:
+	move.w d6,d2
+L2362:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2359
+L2360:
+	cmp.b #$80,d0
+	bne L2363
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2359
+L2363:
+	cmp.b #$a1,d0
+	bne L2364
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2359
+L2364:
+	cmp.b #$a4,d0
+	bne L2365
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2359
+L2365:
+	cmp.b #$81,d0
+	bne L2366
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2359
+L2366:
+	cmp.b #$a0,d0
+	bne L2367
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2359
+L2367:
+	cmp.b #$e4,d0
+	bne L2368
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2359
+L2368:
+	cmp.b #$84,d0
+	bne L2369
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2359
+L2369:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2359:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2370
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2371
+L2370:
+	jsr (rd_slow).l
+L2371:
+	move.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_E6_end:
+tp_op_E7:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2373
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2374
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2375
+L2374:
+	move.w d6,d2
+L2375:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2372
+L2373:
+	cmp.b #$80,d0
+	bne L2376
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2372
+L2376:
+	cmp.b #$a1,d0
+	bne L2377
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2372
+L2377:
+	cmp.b #$a4,d0
+	bne L2378
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2372
+L2378:
+	cmp.b #$81,d0
+	bne L2379
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2372
+L2379:
+	cmp.b #$a0,d0
+	bne L2380
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2372
+L2380:
+	cmp.b #$e4,d0
+	bne L2381
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2372
+L2381:
+	cmp.b #$84,d0
+	bne L2382
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2372
+L2382:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2372:
+	move.b d5,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2383
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2384
+L2383:
+	jsr (wr_slow).l
+L2384:
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_E7_end:
+tp_op_E8:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2386
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2387
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2388
+L2387:
+	move.w d6,d2
+L2388:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2385
+L2386:
+	cmp.b #$80,d0
+	bne L2389
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2385
+L2389:
+	cmp.b #$a1,d0
+	bne L2390
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2385
+L2390:
+	cmp.b #$a4,d0
+	bne L2391
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2385
+L2391:
+	cmp.b #$81,d0
+	bne L2392
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2385
+L2392:
+	cmp.b #$a0,d0
+	bne L2393
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2385
+L2393:
+	cmp.b #$e4,d0
+	bne L2394
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2385
+L2394:
+	cmp.b #$84,d0
+	bne L2395
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2385
+L2395:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2385:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2396
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2397
+L2396:
+	jsr (rd_slow).l
+L2397:
+	eor.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_E8_end:
+tp_op_E9:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2399
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2400
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2401
+L2400:
+	move.w d6,d2
+L2401:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2398
+L2399:
+	cmp.b #$80,d0
+	bne L2402
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2398
+L2402:
+	cmp.b #$a1,d0
+	bne L2403
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2398
+L2403:
+	cmp.b #$a4,d0
+	bne L2404
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2398
+L2404:
+	cmp.b #$81,d0
+	bne L2405
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2398
+L2405:
+	cmp.b #$a0,d0
+	bne L2406
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2398
+L2406:
+	cmp.b #$e4,d0
+	bne L2407
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2398
+L2407:
+	cmp.b #$84,d0
+	bne L2408
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2398
+L2408:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2398:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2409
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2410
+L2409:
+	jsr (rd_slow).l
+L2410:
+	move.b d5,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_E9_end:
+tp_op_EA:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2412
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2413
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2414
+L2413:
+	move.w d6,d2
+L2414:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2411
+L2412:
+	cmp.b #$80,d0
+	bne L2415
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2411
+L2415:
+	cmp.b #$a1,d0
+	bne L2416
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2411
+L2416:
+	cmp.b #$a4,d0
+	bne L2417
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2411
+L2417:
+	cmp.b #$81,d0
+	bne L2418
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2411
+L2418:
+	cmp.b #$a0,d0
+	bne L2419
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2411
+L2419:
+	cmp.b #$e4,d0
+	bne L2420
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2411
+L2420:
+	cmp.b #$84,d0
+	bne L2421
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2411
+L2421:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2411:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2422
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2423
+L2422:
+	jsr (rd_slow).l
+L2423:
+	or.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_EA_end:
+tp_op_EB:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2425
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2426
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2427
+L2426:
+	move.w d6,d2
+L2427:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2424
+L2425:
+	cmp.b #$80,d0
+	bne L2428
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2424
+L2428:
+	cmp.b #$a1,d0
+	bne L2429
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2424
+L2429:
+	cmp.b #$a4,d0
+	bne L2430
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2424
+L2430:
+	cmp.b #$81,d0
+	bne L2431
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2424
+L2431:
+	cmp.b #$a0,d0
+	bne L2432
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2424
+L2432:
+	cmp.b #$e4,d0
+	bne L2433
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2424
+L2433:
+	cmp.b #$84,d0
+	bne L2434
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2424
+L2434:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2424:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2435
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2436
+L2435:
+	jsr (rd_slow).l
+L2436:
+	move.b d5,d0
+	add.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #2,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_EB_end:
+tp_op_EC:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2438
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2439
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2440
+L2439:
+	move.w d6,d2
+L2440:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2437
+L2438:
+	cmp.b #$80,d0
+	bne L2441
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2437
+L2441:
+	cmp.b #$a1,d0
+	bne L2442
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2437
+L2442:
+	cmp.b #$a4,d0
+	bne L2443
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2437
+L2443:
+	cmp.b #$81,d0
+	bne L2444
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2437
+L2444:
+	cmp.b #$a0,d0
+	bne L2445
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2437
+L2445:
+	cmp.b #$e4,d0
+	bne L2446
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2437
+L2446:
+	cmp.b #$84,d0
+	bne L2447
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2437
+L2447:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2437:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2448
+	cmp.b #$ff,d0
+	beq.s L2448
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2449
+L2448:
+	jsr (rd16_slow).l
+L2449:
+	move.b d1,d5
+	move.w d1,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_EC_end:
+tp_op_ED:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2451
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2452
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2453
+L2452:
+	move.w d6,d2
+L2453:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2450
+L2451:
+	cmp.b #$80,d0
+	bne L2454
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2450
+L2454:
+	cmp.b #$a1,d0
+	bne L2455
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2450
+L2455:
+	cmp.b #$a4,d0
+	bne L2456
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2450
+L2456:
+	cmp.b #$81,d0
+	bne L2457
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2450
+L2457:
+	cmp.b #$a0,d0
+	bne L2458
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2450
+L2458:
+	cmp.b #$e4,d0
+	bne L2459
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2450
+L2459:
+	cmp.b #$84,d0
+	bne L2460
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2450
+L2460:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2450:
+	move.b d4,d1
+	lsl.w #8,d1
+	move.b d5,d1
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2461
+	cmp.b #$ff,d0
+	beq.s L2461
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2462
+L2461:
+	jsr (wr16_slow).l
+L2462:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_ED_end:
+tp_op_EE:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2464
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2465
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2466
+L2465:
+	move.w d6,d2
+L2466:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2463
+L2464:
+	cmp.b #$80,d0
+	bne L2467
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2463
+L2467:
+	cmp.b #$a1,d0
+	bne L2468
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2463
+L2468:
+	cmp.b #$a4,d0
+	bne L2469
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2463
+L2469:
+	cmp.b #$81,d0
+	bne L2470
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2463
+L2470:
+	cmp.b #$a0,d0
+	bne L2471
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2463
+L2471:
+	cmp.b #$e4,d0
+	bne L2472
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2463
+L2472:
+	cmp.b #$84,d0
+	bne L2473
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2463
+L2473:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2463:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2474
+	cmp.b #$ff,d0
+	beq.s L2474
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2475
+L2474:
+	jsr (rd16_slow).l
+L2475:
+	move.w d1,4164(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_EE_end:
+tp_op_EF:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2477
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2478
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2479
+L2478:
+	move.w d6,d2
+L2479:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2476
+L2477:
+	cmp.b #$80,d0
+	bne L2480
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2476
+L2480:
+	cmp.b #$a1,d0
+	bne L2481
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2476
+L2481:
+	cmp.b #$a4,d0
+	bne L2482
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2476
+L2482:
+	cmp.b #$81,d0
+	bne L2483
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2476
+L2483:
+	cmp.b #$a0,d0
+	bne L2484
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2476
+L2484:
+	cmp.b #$e4,d0
+	bne L2485
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2476
+L2485:
+	cmp.b #$84,d0
+	bne L2486
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2476
+L2486:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2476:
+	move.w 4164(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2487
+	cmp.b #$ff,d0
+	beq.s L2487
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2488
+L2487:
+	jsr (wr16_slow).l
+L2488:
+	subq.l #3,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_EF_end:
+tp_op_F0:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2489
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2490
+L2489:
+	jsr (rd_slow).l
+L2490:
+	sub.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_F0_end:
+tp_op_F1:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2491
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2492
+L2491:
+	jsr (rd_slow).l
+L2492:
+	cmp.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_F1_end:
+tp_op_F2:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2493
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2494
+L2493:
+	jsr (rd_slow).l
+L2494:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_F2_end:
+tp_op_F3:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2495
+	cmp.b #$ff,d0
+	beq.s L2495
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2496
+L2495:
+	jsr (rd16_slow).l
+L2496:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	add.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_F3_end:
+tp_op_F4:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2497
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2498
+L2497:
+	jsr (rd_slow).l
+L2498:
+	and.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_F4_end:
+tp_op_F5:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2499
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2500
+L2499:
+	jsr (rd_slow).l
+L2500:
+	move.b d5,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_F5_end:
+tp_op_F6:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2501
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2502
+L2501:
+	jsr (rd_slow).l
+L2502:
+	move.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_F6_end:
+tp_op_F7:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.b d5,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2503
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2504
+L2503:
+	jsr (wr_slow).l
+L2504:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_F7_end:
+tp_op_F8:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2505
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2506
+L2505:
+	jsr (rd_slow).l
+L2506:
+	eor.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_F8_end:
+tp_op_F9:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2507
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2508
+L2507:
+	jsr (rd_slow).l
+L2508:
+	move.b d5,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_F9_end:
+tp_op_FA:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2509
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2510
+L2509:
+	jsr (rd_slow).l
+L2510:
+	or.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_FA_end:
+tp_op_FB:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2511
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2512
+L2511:
+	jsr (rd_slow).l
+L2512:
+	move.b d5,d0
+	add.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_FB_end:
+tp_op_FC:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2513
+	cmp.b #$ff,d0
+	beq.s L2513
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2514
+L2513:
+	jsr (rd16_slow).l
+L2514:
+	move.b d1,d5
+	move.w d1,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_FC_end:
+tp_op_FD:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.b d4,d1
+	lsl.w #8,d1
+	move.b d5,d1
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2515
+	cmp.b #$ff,d0
+	beq.s L2515
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2516
+L2515:
+	jsr (wr16_slow).l
+L2516:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_FD_end:
+tp_op_FE:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2517
+	cmp.b #$ff,d0
+	beq.s L2517
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2518
+L2517:
+	jsr (rd16_slow).l
+L2518:
+	move.w d1,4164(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_FE_end:
+tp_op_FF:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w 4164(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2519
+	cmp.b #$ff,d0
+	beq.s L2519
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2520
+L2519:
+	jsr (wr16_slow).l
+L2520:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_op_FF_end:
+tp_p10_20:
+	move.w (a4)+,d0
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_20_end:
+tp_p10_21:
+	move.w (a4)+,d0
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_21_end:
+tp_p10_22:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	bls.s L2523
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2523:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_22_end:
+tp_p10_23:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	bhi.s L2524
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2524:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_23_end:
+tp_p10_24:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	bcs.s L2525
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2525:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_24_end:
+tp_p10_25:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	bcc.s L2526
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2526:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_25_end:
+tp_p10_26:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	beq.s L2527
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2527:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_26_end:
+tp_p10_27:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	bne.s L2528
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2528:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_27_end:
+tp_p10_28:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	bvs.s L2529
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2529:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_28_end:
+tp_p10_29:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	bvc.s L2530
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2530:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_29_end:
+tp_p10_2A:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	bmi.s L2531
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2531:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_2A_end:
+tp_p10_2B:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	bpl.s L2532
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2532:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_2B_end:
+tp_p10_2C:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	blt.s L2533
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2533:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_2C_end:
+tp_p10_2D:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	bge.s L2534
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2534:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_2D_end:
+tp_p10_2E:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	ble.s L2535
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2535:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_2E_end:
+tp_p10_2F:
+	move.w (a4)+,d0
+	move.w d3,ccr
+	bgt.s L2536
+	move.l a4,d2
+	sub.l a3,d2
+	add.w d2,d0
+	and.l #$ffff,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),a3
+	lea (a3,d0.l),a4
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+L2536:
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+	jmp (tr_next).l
+tp_p10_2F_end:
+tp_p10_83:
+	move.w (a4)+,d1
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_83_end:
+tp_p10_8C:
+	move.w (a4)+,d1
+	move.w 4162(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_8C_end:
+tp_p10_8E:
+	move.w (a4)+,d1
+	move.w d1,4162(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_8E_end:
+tp_p10_93:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2537
+	cmp.b #$ff,d0
+	beq.s L2537
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2538
+L2537:
+	jsr (rd16_slow).l
+L2538:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_93_end:
+tp_p10_9C:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2539
+	cmp.b #$ff,d0
+	beq.s L2539
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2540
+L2539:
+	jsr (rd16_slow).l
+L2540:
+	move.w 4162(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_9C_end:
+tp_p10_9E:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2541
+	cmp.b #$ff,d0
+	beq.s L2541
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2542
+L2541:
+	jsr (rd16_slow).l
+L2542:
+	move.w d1,4162(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_9E_end:
+tp_p10_9F:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w 4162(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2543
+	cmp.b #$ff,d0
+	beq.s L2543
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2544
+L2543:
+	jsr (wr16_slow).l
+L2544:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_9F_end:
+tp_p10_A3:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2546
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2547
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2548
+L2547:
+	move.w d6,d2
+L2548:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2545
+L2546:
+	cmp.b #$80,d0
+	bne L2549
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2545
+L2549:
+	cmp.b #$a1,d0
+	bne L2550
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2545
+L2550:
+	cmp.b #$a4,d0
+	bne L2551
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2545
+L2551:
+	cmp.b #$81,d0
+	bne L2552
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2545
+L2552:
+	cmp.b #$a0,d0
+	bne L2553
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2545
+L2553:
+	cmp.b #$e4,d0
+	bne L2554
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2545
+L2554:
+	cmp.b #$84,d0
+	bne L2555
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2545
+L2555:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2545:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2556
+	cmp.b #$ff,d0
+	beq.s L2556
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2557
+L2556:
+	jsr (rd16_slow).l
+L2557:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_A3_end:
+tp_p10_AC:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2559
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2560
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2561
+L2560:
+	move.w d6,d2
+L2561:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2558
+L2559:
+	cmp.b #$80,d0
+	bne L2562
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2558
+L2562:
+	cmp.b #$a1,d0
+	bne L2563
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2558
+L2563:
+	cmp.b #$a4,d0
+	bne L2564
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2558
+L2564:
+	cmp.b #$81,d0
+	bne L2565
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2558
+L2565:
+	cmp.b #$a0,d0
+	bne L2566
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2558
+L2566:
+	cmp.b #$e4,d0
+	bne L2567
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2558
+L2567:
+	cmp.b #$84,d0
+	bne L2568
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2558
+L2568:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2558:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2569
+	cmp.b #$ff,d0
+	beq.s L2569
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2570
+L2569:
+	jsr (rd16_slow).l
+L2570:
+	move.w 4162(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_AC_end:
+tp_p10_AE:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2572
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2573
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2574
+L2573:
+	move.w d6,d2
+L2574:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2571
+L2572:
+	cmp.b #$80,d0
+	bne L2575
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2571
+L2575:
+	cmp.b #$a1,d0
+	bne L2576
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2571
+L2576:
+	cmp.b #$a4,d0
+	bne L2577
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2571
+L2577:
+	cmp.b #$81,d0
+	bne L2578
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2571
+L2578:
+	cmp.b #$a0,d0
+	bne L2579
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2571
+L2579:
+	cmp.b #$e4,d0
+	bne L2580
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2571
+L2580:
+	cmp.b #$84,d0
+	bne L2581
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2571
+L2581:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2571:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2582
+	cmp.b #$ff,d0
+	beq.s L2582
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2583
+L2582:
+	jsr (rd16_slow).l
+L2583:
+	move.w d1,4162(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_AE_end:
+tp_p10_AF:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2585
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2586
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2587
+L2586:
+	move.w d6,d2
+L2587:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2584
+L2585:
+	cmp.b #$80,d0
+	bne L2588
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2584
+L2588:
+	cmp.b #$a1,d0
+	bne L2589
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2584
+L2589:
+	cmp.b #$a4,d0
+	bne L2590
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2584
+L2590:
+	cmp.b #$81,d0
+	bne L2591
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2584
+L2591:
+	cmp.b #$a0,d0
+	bne L2592
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2584
+L2592:
+	cmp.b #$e4,d0
+	bne L2593
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2584
+L2593:
+	cmp.b #$84,d0
+	bne L2594
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2584
+L2594:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2584:
+	move.w 4162(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2595
+	cmp.b #$ff,d0
+	beq.s L2595
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2596
+L2595:
+	jsr (wr16_slow).l
+L2596:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_AF_end:
+tp_p10_B3:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2597
+	cmp.b #$ff,d0
+	beq.s L2597
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2598
+L2597:
+	jsr (rd16_slow).l
+L2598:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #8,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_B3_end:
+tp_p10_BC:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2599
+	cmp.b #$ff,d0
+	beq.s L2599
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2600
+L2599:
+	jsr (rd16_slow).l
+L2600:
+	move.w 4162(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #8,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_BC_end:
+tp_p10_BE:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2601
+	cmp.b #$ff,d0
+	beq.s L2601
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2602
+L2601:
+	jsr (rd16_slow).l
+L2602:
+	move.w d1,4162(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_BE_end:
+tp_p10_BF:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w 4162(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2603
+	cmp.b #$ff,d0
+	beq.s L2603
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2604
+L2603:
+	jsr (wr16_slow).l
+L2604:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_BF_end:
+tp_p10_CE:
+	move.w (a4)+,d1
+	move.w d1,4166(a5)
+	move.b #1,4198(a5)
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_CE_end:
+tp_p10_DE:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2605
+	cmp.b #$ff,d0
+	beq.s L2605
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2606
+L2605:
+	jsr (rd16_slow).l
+L2606:
+	move.w d1,4166(a5)
+	move.b #1,4198(a5)
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_DE_end:
+tp_p10_DF:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w 4166(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2607
+	cmp.b #$ff,d0
+	beq.s L2607
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2608
+L2607:
+	jsr (wr16_slow).l
+L2608:
+	subq.l #6,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_DF_end:
+tp_p10_EE:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2610
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2611
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2612
+L2611:
+	move.w d6,d2
+L2612:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2609
+L2610:
+	cmp.b #$80,d0
+	bne L2613
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2609
+L2613:
+	cmp.b #$a1,d0
+	bne L2614
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2609
+L2614:
+	cmp.b #$a4,d0
+	bne L2615
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2609
+L2615:
+	cmp.b #$81,d0
+	bne L2616
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2609
+L2616:
+	cmp.b #$a0,d0
+	bne L2617
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2609
+L2617:
+	cmp.b #$e4,d0
+	bne L2618
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2609
+L2618:
+	cmp.b #$84,d0
+	bne L2619
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2609
+L2619:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2609:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2620
+	cmp.b #$ff,d0
+	beq.s L2620
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2621
+L2620:
+	jsr (rd16_slow).l
+L2621:
+	move.w d1,4166(a5)
+	move.b #1,4198(a5)
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_EE_end:
+tp_p10_EF:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2623
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2624
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2625
+L2624:
+	move.w d6,d2
+L2625:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2622
+L2623:
+	cmp.b #$80,d0
+	bne L2626
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2622
+L2626:
+	cmp.b #$a1,d0
+	bne L2627
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2622
+L2627:
+	cmp.b #$a4,d0
+	bne L2628
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2622
+L2628:
+	cmp.b #$81,d0
+	bne L2629
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2622
+L2629:
+	cmp.b #$a0,d0
+	bne L2630
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2622
+L2630:
+	cmp.b #$e4,d0
+	bne L2631
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2622
+L2631:
+	cmp.b #$84,d0
+	bne L2632
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2622
+L2632:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2622:
+	move.w 4166(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2633
+	cmp.b #$ff,d0
+	beq.s L2633
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2634
+L2633:
+	jsr (wr16_slow).l
+L2634:
+	subq.l #4,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_EF_end:
+tp_p10_FE:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2635
+	cmp.b #$ff,d0
+	beq.s L2635
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2636
+L2635:
+	jsr (rd16_slow).l
+L2636:
+	move.w d1,4166(a5)
+	move.b #1,4198(a5)
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_FE_end:
+tp_p10_FF:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w 4166(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2637
+	cmp.b #$ff,d0
+	beq.s L2637
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L2638
+L2637:
+	jsr (wr16_slow).l
+L2638:
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p10_FF_end:
+tp_p11_83:
+	move.w (a4)+,d1
+	move.w 4164(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p11_83_end:
+tp_p11_8C:
+	move.w (a4)+,d1
+	move.w 4166(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p11_8C_end:
+tp_p11_93:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2639
+	cmp.b #$ff,d0
+	beq.s L2639
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2640
+L2639:
+	jsr (rd16_slow).l
+L2640:
+	move.w 4164(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p11_93_end:
+tp_p11_9C:
+	moveq #0,d0
+	move.w 4192(a5),d0
+	move.b (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2641
+	cmp.b #$ff,d0
+	beq.s L2641
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2642
+L2641:
+	jsr (rd16_slow).l
+L2642:
+	move.w 4166(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #7,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p11_9C_end:
+tp_p11_A3:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2644
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2645
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2646
+L2645:
+	move.w d6,d2
+L2646:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2643
+L2644:
+	cmp.b #$80,d0
+	bne L2647
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2643
+L2647:
+	cmp.b #$a1,d0
+	bne L2648
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2643
+L2648:
+	cmp.b #$a4,d0
+	bne L2649
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2643
+L2649:
+	cmp.b #$81,d0
+	bne L2650
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2643
+L2650:
+	cmp.b #$a0,d0
+	bne L2651
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2643
+L2651:
+	cmp.b #$e4,d0
+	bne L2652
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2643
+L2652:
+	cmp.b #$84,d0
+	bne L2653
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2643
+L2653:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2643:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2654
+	cmp.b #$ff,d0
+	beq.s L2654
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2655
+L2654:
+	jsr (rd16_slow).l
+L2655:
+	move.w 4164(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p11_A3_end:
+tp_p11_AC:
+	moveq #0,d0
+	move.b (a4)+,d0
+	bmi.s L2657
+	move.w d0,d2
+	and.w #$60,d2
+	beq.s L2658
+	lsr.w #4,d2
+	move.w 4160(a5,d2.w),d2
+	bra.s L2659
+L2658:
+	move.w d6,d2
+L2659:
+	lsl.b #3,d0
+	asr.b #3,d0
+	ext.w d0
+	add.w d2,d0
+	subq.l #3,d7
+	bra L2656
+L2657:
+	cmp.b #$80,d0
+	bne L2660
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	subq.l #4,d7
+	bra L2656
+L2660:
+	cmp.b #$a1,d0
+	bne L2661
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	subq.l #5,d7
+	bra L2656
+L2661:
+	cmp.b #$a4,d0
+	bne L2662
+	moveq #0,d0
+	move.w 4162(a5),d0
+	subq.l #2,d7
+	bra L2656
+L2662:
+	cmp.b #$81,d0
+	bne L2663
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	subq.l #5,d7
+	bra L2656
+L2663:
+	cmp.b #$a0,d0
+	bne L2664
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	subq.l #4,d7
+	bra L2656
+L2664:
+	cmp.b #$e4,d0
+	bne L2665
+	moveq #0,d0
+	move.w 4166(a5),d0
+	subq.l #2,d7
+	bra L2656
+L2665:
+	cmp.b #$84,d0
+	bne L2666
+	moveq #0,d0
+	move.w d6,d0
+	subq.l #2,d7
+	bra L2656
+L2666:
+	dc.w $207c
+	dc.l idxtab
+	move.l (a0,d0.w*4),a0
+	jsr (a0)
+L2656:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2667
+	cmp.b #$ff,d0
+	beq.s L2667
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2668
+L2667:
+	jsr (rd16_slow).l
+L2668:
+	move.w 4166(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #5,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p11_AC_end:
+tp_p11_B3:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2669
+	cmp.b #$ff,d0
+	beq.s L2669
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2670
+L2669:
+	jsr (rd16_slow).l
+L2670:
+	move.w 4164(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #8,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p11_B3_end:
+tp_p11_BC:
+	moveq #0,d0
+	move.w (a4)+,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2671
+	cmp.b #$ff,d0
+	beq.s L2671
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L2672
+L2671:
+	jsr (rd16_slow).l
+L2672:
+	move.w 4166(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	subq.l #8,d7
+	bgt.s *+8
+	jmp (exit_loop).l
+tp_p11_BC_end:
+
+	cnop	0,4
+	public	_m6809_tpl
+_m6809_tpl:
+	dc.l tp_op_00,tp_op_00_end,0
+	dc.l tp_op_01,tp_op_01_end,0
+	dc.l 0,0,0
+	dc.l tp_op_03,tp_op_03_end,0
+	dc.l tp_op_04,tp_op_04_end,0
+	dc.l tp_op_05,tp_op_05_end,0
+	dc.l tp_op_06,tp_op_06_end,0
+	dc.l tp_op_07,tp_op_07_end,0
+	dc.l tp_op_08,tp_op_08_end,0
+	dc.l tp_op_09,tp_op_09_end,0
+	dc.l tp_op_0A,tp_op_0A_end,0
+	dc.l 0,0,0
+	dc.l tp_op_0C,tp_op_0C_end,0
+	dc.l tp_op_0D,tp_op_0D_end,0
+	dc.l tp_op_0E,tp_op_0E_end,1
+	dc.l tp_op_0F,tp_op_0F_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_op_12,tp_op_12_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_op_16,tp_op_16_end,1
+	dc.l tp_op_17,tp_op_17_end,1
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_op_1A,tp_op_1A_end,0
+	dc.l tp_op_1B,tp_op_1B_end,0
+	dc.l tp_op_1C,tp_op_1C_end,0
+	dc.l tp_op_1D,tp_op_1D_end,0
+	dc.l tp_op_1E,tp_op_1E_end,0
+	dc.l tp_op_1F,tp_op_1F_end,0
+	dc.l tp_op_20,tp_op_20_end,1
+	dc.l tp_op_21,tp_op_21_end,0
+	dc.l tp_op_22,tp_op_22_end,1
+	dc.l tp_op_23,tp_op_23_end,1
+	dc.l tp_op_24,tp_op_24_end,1
+	dc.l tp_op_25,tp_op_25_end,1
+	dc.l tp_op_26,tp_op_26_end,1
+	dc.l tp_op_27,tp_op_27_end,1
+	dc.l tp_op_28,tp_op_28_end,1
+	dc.l tp_op_29,tp_op_29_end,1
+	dc.l tp_op_2A,tp_op_2A_end,1
+	dc.l tp_op_2B,tp_op_2B_end,1
+	dc.l tp_op_2C,tp_op_2C_end,1
+	dc.l tp_op_2D,tp_op_2D_end,1
+	dc.l tp_op_2E,tp_op_2E_end,1
+	dc.l tp_op_2F,tp_op_2F_end,1
+	dc.l tp_op_30,tp_op_30_end,0
+	dc.l tp_op_31,tp_op_31_end,0
+	dc.l tp_op_32,tp_op_32_end,0
+	dc.l tp_op_33,tp_op_33_end,0
+	dc.l tp_op_34,tp_op_34_end,0
+	dc.l tp_op_35,tp_op_35_end,1
+	dc.l tp_op_36,tp_op_36_end,0
+	dc.l tp_op_37,tp_op_37_end,1
+	dc.l 0,0,0
+	dc.l tp_op_39,tp_op_39_end,1
+	dc.l tp_op_3A,tp_op_3A_end,0
+	dc.l tp_op_3B,tp_op_3B_end,1
+	dc.l 0,0,0
+	dc.l tp_op_3D,tp_op_3D_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_op_40,tp_op_40_end,0
+	dc.l tp_op_41,tp_op_41_end,0
+	dc.l 0,0,0
+	dc.l tp_op_43,tp_op_43_end,0
+	dc.l tp_op_44,tp_op_44_end,0
+	dc.l tp_op_45,tp_op_45_end,0
+	dc.l tp_op_46,tp_op_46_end,0
+	dc.l tp_op_47,tp_op_47_end,0
+	dc.l tp_op_48,tp_op_48_end,0
+	dc.l tp_op_49,tp_op_49_end,0
+	dc.l tp_op_4A,tp_op_4A_end,0
+	dc.l 0,0,0
+	dc.l tp_op_4C,tp_op_4C_end,0
+	dc.l tp_op_4D,tp_op_4D_end,0
+	dc.l 0,0,0
+	dc.l tp_op_4F,tp_op_4F_end,0
+	dc.l tp_op_50,tp_op_50_end,0
+	dc.l tp_op_51,tp_op_51_end,0
+	dc.l 0,0,0
+	dc.l tp_op_53,tp_op_53_end,0
+	dc.l tp_op_54,tp_op_54_end,0
+	dc.l tp_op_55,tp_op_55_end,0
+	dc.l tp_op_56,tp_op_56_end,0
+	dc.l tp_op_57,tp_op_57_end,0
+	dc.l tp_op_58,tp_op_58_end,0
+	dc.l tp_op_59,tp_op_59_end,0
+	dc.l tp_op_5A,tp_op_5A_end,0
+	dc.l 0,0,0
+	dc.l tp_op_5C,tp_op_5C_end,0
+	dc.l tp_op_5D,tp_op_5D_end,0
+	dc.l 0,0,0
+	dc.l tp_op_5F,tp_op_5F_end,0
+	dc.l tp_op_60,tp_op_60_end,0
+	dc.l tp_op_61,tp_op_61_end,0
+	dc.l 0,0,0
+	dc.l tp_op_63,tp_op_63_end,0
+	dc.l tp_op_64,tp_op_64_end,0
+	dc.l tp_op_65,tp_op_65_end,0
+	dc.l tp_op_66,tp_op_66_end,0
+	dc.l tp_op_67,tp_op_67_end,0
+	dc.l tp_op_68,tp_op_68_end,0
+	dc.l tp_op_69,tp_op_69_end,0
+	dc.l tp_op_6A,tp_op_6A_end,0
+	dc.l 0,0,0
+	dc.l tp_op_6C,tp_op_6C_end,0
+	dc.l tp_op_6D,tp_op_6D_end,0
+	dc.l tp_op_6E,tp_op_6E_end,1
+	dc.l tp_op_6F,tp_op_6F_end,0
+	dc.l tp_op_70,tp_op_70_end,0
+	dc.l tp_op_71,tp_op_71_end,0
+	dc.l 0,0,0
+	dc.l tp_op_73,tp_op_73_end,0
+	dc.l tp_op_74,tp_op_74_end,0
+	dc.l tp_op_75,tp_op_75_end,0
+	dc.l tp_op_76,tp_op_76_end,0
+	dc.l tp_op_77,tp_op_77_end,0
+	dc.l tp_op_78,tp_op_78_end,0
+	dc.l tp_op_79,tp_op_79_end,0
+	dc.l tp_op_7A,tp_op_7A_end,0
+	dc.l 0,0,0
+	dc.l tp_op_7C,tp_op_7C_end,0
+	dc.l tp_op_7D,tp_op_7D_end,0
+	dc.l tp_op_7E,tp_op_7E_end,1
+	dc.l tp_op_7F,tp_op_7F_end,0
+	dc.l tp_op_80,tp_op_80_end,0
+	dc.l tp_op_81,tp_op_81_end,0
+	dc.l tp_op_82,tp_op_82_end,0
+	dc.l tp_op_83,tp_op_83_end,0
+	dc.l tp_op_84,tp_op_84_end,0
+	dc.l tp_op_85,tp_op_85_end,0
+	dc.l tp_op_86,tp_op_86_end,0
+	dc.l 0,0,0
+	dc.l tp_op_88,tp_op_88_end,0
+	dc.l tp_op_89,tp_op_89_end,0
+	dc.l tp_op_8A,tp_op_8A_end,0
+	dc.l tp_op_8B,tp_op_8B_end,0
+	dc.l tp_op_8C,tp_op_8C_end,0
+	dc.l tp_op_8D,tp_op_8D_end,1
+	dc.l tp_op_8E,tp_op_8E_end,0
+	dc.l 0,0,0
+	dc.l tp_op_90,tp_op_90_end,0
+	dc.l tp_op_91,tp_op_91_end,0
+	dc.l tp_op_92,tp_op_92_end,0
+	dc.l tp_op_93,tp_op_93_end,0
+	dc.l tp_op_94,tp_op_94_end,0
+	dc.l tp_op_95,tp_op_95_end,0
+	dc.l tp_op_96,tp_op_96_end,0
+	dc.l tp_op_97,tp_op_97_end,0
+	dc.l tp_op_98,tp_op_98_end,0
+	dc.l tp_op_99,tp_op_99_end,0
+	dc.l tp_op_9A,tp_op_9A_end,0
+	dc.l tp_op_9B,tp_op_9B_end,0
+	dc.l tp_op_9C,tp_op_9C_end,0
+	dc.l tp_op_9D,tp_op_9D_end,1
+	dc.l tp_op_9E,tp_op_9E_end,0
+	dc.l tp_op_9F,tp_op_9F_end,0
+	dc.l tp_op_A0,tp_op_A0_end,0
+	dc.l tp_op_A1,tp_op_A1_end,0
+	dc.l tp_op_A2,tp_op_A2_end,0
+	dc.l tp_op_A3,tp_op_A3_end,0
+	dc.l tp_op_A4,tp_op_A4_end,0
+	dc.l tp_op_A5,tp_op_A5_end,0
+	dc.l tp_op_A6,tp_op_A6_end,0
+	dc.l tp_op_A7,tp_op_A7_end,0
+	dc.l tp_op_A8,tp_op_A8_end,0
+	dc.l tp_op_A9,tp_op_A9_end,0
+	dc.l tp_op_AA,tp_op_AA_end,0
+	dc.l tp_op_AB,tp_op_AB_end,0
+	dc.l tp_op_AC,tp_op_AC_end,0
+	dc.l tp_op_AD,tp_op_AD_end,1
+	dc.l tp_op_AE,tp_op_AE_end,0
+	dc.l tp_op_AF,tp_op_AF_end,0
+	dc.l tp_op_B0,tp_op_B0_end,0
+	dc.l tp_op_B1,tp_op_B1_end,0
+	dc.l tp_op_B2,tp_op_B2_end,0
+	dc.l tp_op_B3,tp_op_B3_end,0
+	dc.l tp_op_B4,tp_op_B4_end,0
+	dc.l tp_op_B5,tp_op_B5_end,0
+	dc.l tp_op_B6,tp_op_B6_end,0
+	dc.l tp_op_B7,tp_op_B7_end,0
+	dc.l tp_op_B8,tp_op_B8_end,0
+	dc.l tp_op_B9,tp_op_B9_end,0
+	dc.l tp_op_BA,tp_op_BA_end,0
+	dc.l tp_op_BB,tp_op_BB_end,0
+	dc.l tp_op_BC,tp_op_BC_end,0
+	dc.l tp_op_BD,tp_op_BD_end,1
+	dc.l tp_op_BE,tp_op_BE_end,0
+	dc.l tp_op_BF,tp_op_BF_end,0
+	dc.l tp_op_C0,tp_op_C0_end,0
+	dc.l tp_op_C1,tp_op_C1_end,0
+	dc.l tp_op_C2,tp_op_C2_end,0
+	dc.l tp_op_C3,tp_op_C3_end,0
+	dc.l tp_op_C4,tp_op_C4_end,0
+	dc.l tp_op_C5,tp_op_C5_end,0
+	dc.l tp_op_C6,tp_op_C6_end,0
+	dc.l 0,0,0
+	dc.l tp_op_C8,tp_op_C8_end,0
+	dc.l tp_op_C9,tp_op_C9_end,0
+	dc.l tp_op_CA,tp_op_CA_end,0
+	dc.l tp_op_CB,tp_op_CB_end,0
+	dc.l tp_op_CC,tp_op_CC_end,0
+	dc.l 0,0,0
+	dc.l tp_op_CE,tp_op_CE_end,0
+	dc.l 0,0,0
+	dc.l tp_op_D0,tp_op_D0_end,0
+	dc.l tp_op_D1,tp_op_D1_end,0
+	dc.l tp_op_D2,tp_op_D2_end,0
+	dc.l tp_op_D3,tp_op_D3_end,0
+	dc.l tp_op_D4,tp_op_D4_end,0
+	dc.l tp_op_D5,tp_op_D5_end,0
+	dc.l tp_op_D6,tp_op_D6_end,0
+	dc.l tp_op_D7,tp_op_D7_end,0
+	dc.l tp_op_D8,tp_op_D8_end,0
+	dc.l tp_op_D9,tp_op_D9_end,0
+	dc.l tp_op_DA,tp_op_DA_end,0
+	dc.l tp_op_DB,tp_op_DB_end,0
+	dc.l tp_op_DC,tp_op_DC_end,0
+	dc.l tp_op_DD,tp_op_DD_end,0
+	dc.l tp_op_DE,tp_op_DE_end,0
+	dc.l tp_op_DF,tp_op_DF_end,0
+	dc.l tp_op_E0,tp_op_E0_end,0
+	dc.l tp_op_E1,tp_op_E1_end,0
+	dc.l tp_op_E2,tp_op_E2_end,0
+	dc.l tp_op_E3,tp_op_E3_end,0
+	dc.l tp_op_E4,tp_op_E4_end,0
+	dc.l tp_op_E5,tp_op_E5_end,0
+	dc.l tp_op_E6,tp_op_E6_end,0
+	dc.l tp_op_E7,tp_op_E7_end,0
+	dc.l tp_op_E8,tp_op_E8_end,0
+	dc.l tp_op_E9,tp_op_E9_end,0
+	dc.l tp_op_EA,tp_op_EA_end,0
+	dc.l tp_op_EB,tp_op_EB_end,0
+	dc.l tp_op_EC,tp_op_EC_end,0
+	dc.l tp_op_ED,tp_op_ED_end,0
+	dc.l tp_op_EE,tp_op_EE_end,0
+	dc.l tp_op_EF,tp_op_EF_end,0
+	dc.l tp_op_F0,tp_op_F0_end,0
+	dc.l tp_op_F1,tp_op_F1_end,0
+	dc.l tp_op_F2,tp_op_F2_end,0
+	dc.l tp_op_F3,tp_op_F3_end,0
+	dc.l tp_op_F4,tp_op_F4_end,0
+	dc.l tp_op_F5,tp_op_F5_end,0
+	dc.l tp_op_F6,tp_op_F6_end,0
+	dc.l tp_op_F7,tp_op_F7_end,0
+	dc.l tp_op_F8,tp_op_F8_end,0
+	dc.l tp_op_F9,tp_op_F9_end,0
+	dc.l tp_op_FA,tp_op_FA_end,0
+	dc.l tp_op_FB,tp_op_FB_end,0
+	dc.l tp_op_FC,tp_op_FC_end,0
+	dc.l tp_op_FD,tp_op_FD_end,0
+	dc.l tp_op_FE,tp_op_FE_end,0
+	dc.l tp_op_FF,tp_op_FF_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_20,tp_p10_20_end,1
+	dc.l tp_p10_21,tp_p10_21_end,0
+	dc.l tp_p10_22,tp_p10_22_end,1
+	dc.l tp_p10_23,tp_p10_23_end,1
+	dc.l tp_p10_24,tp_p10_24_end,1
+	dc.l tp_p10_25,tp_p10_25_end,1
+	dc.l tp_p10_26,tp_p10_26_end,1
+	dc.l tp_p10_27,tp_p10_27_end,1
+	dc.l tp_p10_28,tp_p10_28_end,1
+	dc.l tp_p10_29,tp_p10_29_end,1
+	dc.l tp_p10_2A,tp_p10_2A_end,1
+	dc.l tp_p10_2B,tp_p10_2B_end,1
+	dc.l tp_p10_2C,tp_p10_2C_end,1
+	dc.l tp_p10_2D,tp_p10_2D_end,1
+	dc.l tp_p10_2E,tp_p10_2E_end,1
+	dc.l tp_p10_2F,tp_p10_2F_end,1
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_83,tp_p10_83_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_8C,tp_p10_8C_end,0
+	dc.l 0,0,0
+	dc.l tp_p10_8E,tp_p10_8E_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_93,tp_p10_93_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_9C,tp_p10_9C_end,0
+	dc.l 0,0,0
+	dc.l tp_p10_9E,tp_p10_9E_end,0
+	dc.l tp_p10_9F,tp_p10_9F_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_A3,tp_p10_A3_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_AC,tp_p10_AC_end,0
+	dc.l 0,0,0
+	dc.l tp_p10_AE,tp_p10_AE_end,0
+	dc.l tp_p10_AF,tp_p10_AF_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_B3,tp_p10_B3_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_BC,tp_p10_BC_end,0
+	dc.l 0,0,0
+	dc.l tp_p10_BE,tp_p10_BE_end,0
+	dc.l tp_p10_BF,tp_p10_BF_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_CE,tp_p10_CE_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_DE,tp_p10_DE_end,0
+	dc.l tp_p10_DF,tp_p10_DF_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_EE,tp_p10_EE_end,0
+	dc.l tp_p10_EF,tp_p10_EF_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p10_FE,tp_p10_FE_end,0
+	dc.l tp_p10_FF,tp_p10_FF_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p11_83,tp_p11_83_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p11_8C,tp_p11_8C_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p11_93,tp_p11_93_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p11_9C,tp_p11_9C_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p11_A3,tp_p11_A3_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p11_AC,tp_p11_AC_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p11_B3,tp_p11_B3_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l tp_p11_BC,tp_p11_BC_end,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+	dc.l 0,0,0
+
+; ---- specialized templates (translation 2, m6809_tr.c), see gen_templates2
+	cnop	0,4
+tq_op_00_a:
+tq_op_00_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2673
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2674
+L2673:
+	jsr (rd_slow).l
+L2674:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2675
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2676
+L2675:
+	jsr (wr_slow).l
+L2676:
+tq_op_00_e:
+tq_op_01_a:
+tq_op_01_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2677
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2678
+L2677:
+	jsr (rd_slow).l
+L2678:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2679
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2680
+L2679:
+	jsr (wr_slow).l
+L2680:
+tq_op_01_e:
+tq_op_03_a:
+tq_op_03_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2681
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2682
+L2681:
+	jsr (rd_slow).l
+L2682:
+	not.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	or.b #1,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2683
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2684
+L2683:
+	jsr (wr_slow).l
+L2684:
+tq_op_03_e:
+tq_op_04_a:
+tq_op_04_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2685
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2686
+L2685:
+	jsr (rd_slow).l
+L2686:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2687
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2688
+L2687:
+	jsr (wr_slow).l
+L2688:
+tq_op_04_e:
+tq_op_05_a:
+tq_op_05_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2689
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2690
+L2689:
+	jsr (rd_slow).l
+L2690:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2691
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2692
+L2691:
+	jsr (wr_slow).l
+L2692:
+tq_op_05_e:
+tq_op_06_a:
+tq_op_06_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2693
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2694
+L2693:
+	jsr (rd_slow).l
+L2694:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2695
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2696
+L2695:
+	jsr (wr_slow).l
+L2696:
+tq_op_06_e:
+tq_op_07_a:
+tq_op_07_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2697
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2698
+L2697:
+	jsr (rd_slow).l
+L2698:
+	asr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2699
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2700
+L2699:
+	jsr (wr_slow).l
+L2700:
+tq_op_07_e:
+tq_op_08_a:
+tq_op_08_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2701
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2702
+L2701:
+	jsr (rd_slow).l
+L2702:
+	asl.b #1,d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2703
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2704
+L2703:
+	jsr (wr_slow).l
+L2704:
+tq_op_08_e:
+tq_op_09_a:
+tq_op_09_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2705
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2706
+L2705:
+	jsr (rd_slow).l
+L2706:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxl.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	btst #3,d2
+	beq.s L2707
+	bchg #1,d2
+L2707:
+	btst #0,d2
+	beq.s L2708
+	bchg #1,d2
+L2708:
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2709
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2710
+L2709:
+	jsr (wr_slow).l
+L2710:
+tq_op_09_e:
+tq_op_0A_a:
+tq_op_0A_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2711
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2712
+L2711:
+	jsr (rd_slow).l
+L2712:
+	subq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2713
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2714
+L2713:
+	jsr (wr_slow).l
+L2714:
+tq_op_0A_e:
+tq_op_0C_a:
+tq_op_0C_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2715
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2716
+L2715:
+	jsr (rd_slow).l
+L2716:
+	addq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2717
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2718
+L2717:
+	jsr (wr_slow).l
+L2718:
+tq_op_0C_e:
+tq_op_0D_a:
+tq_op_0D_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2719
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2720
+L2719:
+	jsr (rd_slow).l
+L2720:
+	tst.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_0D_e:
+tq_op_0F_a:
+tq_op_0F_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2721
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2722
+L2721:
+	jsr (rd_slow).l
+L2722:
+	moveq #0,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2723
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2724
+L2723:
+	jsr (wr_slow).l
+L2724:
+	and.b #$f0,d3
+	or.b #4,d3
+tq_op_0F_e:
+tq_op_12_a:
+tq_op_12_b:
+tq_op_12_e:
+tq_op_1A_a:
+H4:
+	or.b #$a5,d3
+tq_op_1A_b:
+tq_op_1A_e:
+tq_op_1B_a:
+tq_op_1B_b:
+tq_op_1B_e:
+tq_op_1D_a:
+	move.b d5,d1
+	ext.w d1
+	move.w d1,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0c,d2
+	and.b #$f3,d3
+	or.b d2,d3
+tq_op_1D_b:
+tq_op_1D_e:
+tq_op_21_a:
+H5:
+	move.b #$a5,d0
+tq_op_21_b:
+tq_op_21_e:
+tq_op_30_a:
+tq_op_30_b:
+	move.w d0,d6
+	tst.w d0
+	move.w ccr,d2
+	and.b #$04,d2
+	and.b #$fb,d3
+	or.b d2,d3
+tq_op_30_e:
+tq_op_31_a:
+tq_op_31_b:
+	move.w d0,4162(a5)
+	tst.w d0
+	move.w ccr,d2
+	and.b #$04,d2
+	and.b #$fb,d3
+	or.b d2,d3
+tq_op_31_e:
+tq_op_32_a:
+tq_op_32_b:
+	move.w d0,4166(a5)
+	move.b #1,4198(a5)
+tq_op_32_e:
+tq_op_33_a:
+tq_op_33_b:
+	move.w d0,4164(a5)
+tq_op_33_e:
+tq_op_3A_a:
+	moveq #0,d1
+	move.b d5,d1
+	add.w d1,d6
+tq_op_3A_b:
+tq_op_3A_e:
+tq_op_3D_a:
+	moveq #0,d0
+	move.b d4,d0
+	moveq #0,d1
+	move.b d5,d1
+	mulu.w d1,d0
+	move.b d0,d5
+	move.w d0,d1
+	lsr.w #8,d1
+	move.b d1,d4
+	and.b #$fa,d3
+	tst.w d0
+	bne.s L2929
+	or.b #4,d3
+L2929:
+	btst #7,d0
+	beq.s L2930
+	or.b #1,d3
+L2930:
+tq_op_3D_b:
+tq_op_3D_e:
+tq_op_40_a:
+	neg.b d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_40_b:
+tq_op_40_e:
+tq_op_41_a:
+	neg.b d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_41_b:
+tq_op_41_e:
+tq_op_43_a:
+	not.b d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	or.b #1,d3
+tq_op_43_b:
+tq_op_43_e:
+tq_op_44_a:
+	lsr.b #1,d4
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+tq_op_44_b:
+tq_op_44_e:
+tq_op_45_a:
+	lsr.b #1,d4
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+tq_op_45_b:
+tq_op_45_e:
+tq_op_46_a:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxr.b #1,d4
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+tq_op_46_b:
+tq_op_46_e:
+tq_op_47_a:
+	asr.b #1,d4
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+tq_op_47_b:
+tq_op_47_e:
+tq_op_48_a:
+	asl.b #1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_48_b:
+tq_op_48_e:
+tq_op_49_a:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxl.b #1,d4
+	move.w ccr,d2
+	and.b #$0d,d2
+	btst #3,d2
+	beq.s L2931
+	bchg #1,d2
+L2931:
+	btst #0,d2
+	beq.s L2932
+	bchg #1,d2
+L2932:
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_49_b:
+tq_op_49_e:
+tq_op_4A_a:
+	subq.b #1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_4A_b:
+tq_op_4A_e:
+tq_op_4C_a:
+	addq.b #1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_4C_b:
+tq_op_4C_e:
+tq_op_4D_a:
+	tst.b d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_4D_b:
+tq_op_4D_e:
+tq_op_4F_a:
+	clr.b d4
+	and.b #$f0,d3
+	or.b #4,d3
+tq_op_4F_b:
+tq_op_4F_e:
+tq_op_50_a:
+	neg.b d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_50_b:
+tq_op_50_e:
+tq_op_51_a:
+	neg.b d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_51_b:
+tq_op_51_e:
+tq_op_53_a:
+	not.b d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	or.b #1,d3
+tq_op_53_b:
+tq_op_53_e:
+tq_op_54_a:
+	lsr.b #1,d5
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+tq_op_54_b:
+tq_op_54_e:
+tq_op_55_a:
+	lsr.b #1,d5
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+tq_op_55_b:
+tq_op_55_e:
+tq_op_56_a:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxr.b #1,d5
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+tq_op_56_b:
+tq_op_56_e:
+tq_op_57_a:
+	asr.b #1,d5
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+tq_op_57_b:
+tq_op_57_e:
+tq_op_58_a:
+	asl.b #1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_58_b:
+tq_op_58_e:
+tq_op_59_a:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxl.b #1,d5
+	move.w ccr,d2
+	and.b #$0d,d2
+	btst #3,d2
+	beq.s L2933
+	bchg #1,d2
+L2933:
+	btst #0,d2
+	beq.s L2934
+	bchg #1,d2
+L2934:
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_59_b:
+tq_op_59_e:
+tq_op_5A_a:
+	subq.b #1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_5A_b:
+tq_op_5A_e:
+tq_op_5C_a:
+	addq.b #1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_5C_b:
+tq_op_5C_e:
+tq_op_5D_a:
+	tst.b d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_5D_b:
+tq_op_5D_e:
+tq_op_5F_a:
+	clr.b d5
+	and.b #$f0,d3
+	or.b #4,d3
+tq_op_5F_b:
+tq_op_5F_e:
+tq_op_60_a:
+tq_op_60_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2935
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2936
+L2935:
+	jsr (rd_slow).l
+L2936:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2937
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2938
+L2937:
+	jsr (wr_slow).l
+L2938:
+tq_op_60_e:
+tq_op_61_a:
+tq_op_61_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2939
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2940
+L2939:
+	jsr (rd_slow).l
+L2940:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2941
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2942
+L2941:
+	jsr (wr_slow).l
+L2942:
+tq_op_61_e:
+tq_op_63_a:
+tq_op_63_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2943
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2944
+L2943:
+	jsr (rd_slow).l
+L2944:
+	not.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	or.b #1,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2945
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2946
+L2945:
+	jsr (wr_slow).l
+L2946:
+tq_op_63_e:
+tq_op_64_a:
+tq_op_64_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2947
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2948
+L2947:
+	jsr (rd_slow).l
+L2948:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2949
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2950
+L2949:
+	jsr (wr_slow).l
+L2950:
+tq_op_64_e:
+tq_op_65_a:
+tq_op_65_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2951
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2952
+L2951:
+	jsr (rd_slow).l
+L2952:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2953
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2954
+L2953:
+	jsr (wr_slow).l
+L2954:
+tq_op_65_e:
+tq_op_66_a:
+tq_op_66_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2955
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2956
+L2955:
+	jsr (rd_slow).l
+L2956:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2957
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2958
+L2957:
+	jsr (wr_slow).l
+L2958:
+tq_op_66_e:
+tq_op_67_a:
+tq_op_67_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2959
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2960
+L2959:
+	jsr (rd_slow).l
+L2960:
+	asr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2961
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2962
+L2961:
+	jsr (wr_slow).l
+L2962:
+tq_op_67_e:
+tq_op_68_a:
+tq_op_68_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2963
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2964
+L2963:
+	jsr (rd_slow).l
+L2964:
+	asl.b #1,d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2965
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2966
+L2965:
+	jsr (wr_slow).l
+L2966:
+tq_op_68_e:
+tq_op_69_a:
+tq_op_69_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2967
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2968
+L2967:
+	jsr (rd_slow).l
+L2968:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxl.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	btst #3,d2
+	beq.s L2969
+	bchg #1,d2
+L2969:
+	btst #0,d2
+	beq.s L2970
+	bchg #1,d2
+L2970:
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2971
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2972
+L2971:
+	jsr (wr_slow).l
+L2972:
+tq_op_69_e:
+tq_op_6A_a:
+tq_op_6A_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2973
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2974
+L2973:
+	jsr (rd_slow).l
+L2974:
+	subq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2975
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2976
+L2975:
+	jsr (wr_slow).l
+L2976:
+tq_op_6A_e:
+tq_op_6C_a:
+tq_op_6C_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2977
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2978
+L2977:
+	jsr (rd_slow).l
+L2978:
+	addq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2979
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2980
+L2979:
+	jsr (wr_slow).l
+L2980:
+tq_op_6C_e:
+tq_op_6D_a:
+tq_op_6D_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2981
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2982
+L2981:
+	jsr (rd_slow).l
+L2982:
+	tst.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_6D_e:
+tq_op_6F_a:
+tq_op_6F_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2983
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2984
+L2983:
+	jsr (rd_slow).l
+L2984:
+	moveq #0,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2985
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2986
+L2985:
+	jsr (wr_slow).l
+L2986:
+	and.b #$f0,d3
+	or.b #4,d3
+tq_op_6F_e:
+tq_op_70_a:
+tq_op_70_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2987
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2988
+L2987:
+	jsr (rd_slow).l
+L2988:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2989
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2990
+L2989:
+	jsr (wr_slow).l
+L2990:
+tq_op_70_e:
+tq_op_71_a:
+tq_op_71_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2991
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2992
+L2991:
+	jsr (rd_slow).l
+L2992:
+	neg.b d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2993
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2994
+L2993:
+	jsr (wr_slow).l
+L2994:
+tq_op_71_e:
+tq_op_73_a:
+tq_op_73_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2995
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L2996
+L2995:
+	jsr (rd_slow).l
+L2996:
+	not.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	or.b #1,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L2997
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L2998
+L2997:
+	jsr (wr_slow).l
+L2998:
+tq_op_73_e:
+tq_op_74_a:
+tq_op_74_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L2999
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3000
+L2999:
+	jsr (rd_slow).l
+L3000:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3001
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3002
+L3001:
+	jsr (wr_slow).l
+L3002:
+tq_op_74_e:
+tq_op_75_a:
+tq_op_75_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3003
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3004
+L3003:
+	jsr (rd_slow).l
+L3004:
+	lsr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3005
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3006
+L3005:
+	jsr (wr_slow).l
+L3006:
+tq_op_75_e:
+tq_op_76_a:
+tq_op_76_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3007
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3008
+L3007:
+	jsr (rd_slow).l
+L3008:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3009
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3010
+L3009:
+	jsr (wr_slow).l
+L3010:
+tq_op_76_e:
+tq_op_77_a:
+tq_op_77_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3011
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3012
+L3011:
+	jsr (rd_slow).l
+L3012:
+	asr.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	and.b #$f2,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3013
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3014
+L3013:
+	jsr (wr_slow).l
+L3014:
+tq_op_77_e:
+tq_op_78_a:
+tq_op_78_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3015
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3016
+L3015:
+	jsr (rd_slow).l
+L3016:
+	asl.b #1,d1
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3017
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3018
+L3017:
+	jsr (wr_slow).l
+L3018:
+tq_op_78_e:
+tq_op_79_a:
+tq_op_79_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3019
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3020
+L3019:
+	jsr (rd_slow).l
+L3020:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	move.w d2,ccr
+	roxl.b #1,d1
+	move.w ccr,d2
+	and.b #$0d,d2
+	btst #3,d2
+	beq.s L3021
+	bchg #1,d2
+L3021:
+	btst #0,d2
+	beq.s L3022
+	bchg #1,d2
+L3022:
+	and.b #$f0,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3023
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3024
+L3023:
+	jsr (wr_slow).l
+L3024:
+tq_op_79_e:
+tq_op_7A_a:
+tq_op_7A_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3025
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3026
+L3025:
+	jsr (rd_slow).l
+L3026:
+	subq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3027
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3028
+L3027:
+	jsr (wr_slow).l
+L3028:
+tq_op_7A_e:
+tq_op_7C_a:
+tq_op_7C_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3029
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3030
+L3029:
+	jsr (rd_slow).l
+L3030:
+	addq.b #1,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3031
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3032
+L3031:
+	jsr (wr_slow).l
+L3032:
+tq_op_7C_e:
+tq_op_7D_a:
+tq_op_7D_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3033
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3034
+L3033:
+	jsr (rd_slow).l
+L3034:
+	tst.b d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_7D_e:
+tq_op_7F_a:
+tq_op_7F_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3035
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3036
+L3035:
+	jsr (rd_slow).l
+L3036:
+	moveq #0,d1
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3037
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3038
+L3037:
+	jsr (wr_slow).l
+L3038:
+	and.b #$f0,d3
+	or.b #4,d3
+tq_op_7F_e:
+tq_op_80_a:
+H8:
+	move.b #$a5,d1
+	sub.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_80_b:
+tq_op_80_e:
+tq_op_81_a:
+H9:
+	move.b #$a5,d1
+	cmp.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_81_b:
+tq_op_81_e:
+tq_op_82_a:
+H10:
+	move.b #$a5,d1
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_82_b:
+tq_op_82_e:
+tq_op_83_a:
+H11:
+	move.w #$a5a5,d1
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	sub.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+tq_op_83_b:
+tq_op_83_e:
+tq_op_84_a:
+H12:
+	move.b #$a5,d1
+	and.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_84_b:
+tq_op_84_e:
+tq_op_85_a:
+H13:
+	move.b #$a5,d1
+	move.b d4,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_85_b:
+tq_op_85_e:
+tq_op_86_a:
+H14:
+	move.b #$a5,d1
+	move.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_86_b:
+tq_op_86_e:
+tq_op_88_a:
+H15:
+	move.b #$a5,d1
+	eor.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_88_b:
+tq_op_88_e:
+tq_op_89_a:
+H16:
+	move.b #$a5,d1
+	move.b d4,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_89_b:
+tq_op_89_e:
+tq_op_8A_a:
+H17:
+	move.b #$a5,d1
+	or.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_8A_b:
+tq_op_8A_e:
+tq_op_8B_a:
+H18:
+	move.b #$a5,d1
+	move.b d4,d0
+	add.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_8B_b:
+tq_op_8B_e:
+tq_op_8C_a:
+H19:
+	move.w #$a5a5,d1
+	cmp.w d1,d6
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_8C_b:
+tq_op_8C_e:
+tq_op_8E_a:
+H21:
+	move.w #$a5a5,d1
+	move.w d1,d6
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_8E_b:
+tq_op_8E_e:
+tq_op_90_a:
+tq_op_90_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3043
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3044
+L3043:
+	jsr (rd_slow).l
+L3044:
+	sub.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_90_e:
+tq_op_91_a:
+tq_op_91_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3045
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3046
+L3045:
+	jsr (rd_slow).l
+L3046:
+	cmp.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_91_e:
+tq_op_92_a:
+tq_op_92_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3047
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3048
+L3047:
+	jsr (rd_slow).l
+L3048:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_92_e:
+tq_op_93_a:
+tq_op_93_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3049
+	cmp.b #$ff,d0
+	beq.s L3049
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3050
+L3049:
+	jsr (rd16_slow).l
+L3050:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	sub.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+tq_op_93_e:
+tq_op_94_a:
+tq_op_94_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3051
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3052
+L3051:
+	jsr (rd_slow).l
+L3052:
+	and.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_94_e:
+tq_op_95_a:
+tq_op_95_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3053
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3054
+L3053:
+	jsr (rd_slow).l
+L3054:
+	move.b d4,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_95_e:
+tq_op_96_a:
+tq_op_96_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3055
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3056
+L3055:
+	jsr (rd_slow).l
+L3056:
+	move.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_96_e:
+tq_op_97_a:
+tq_op_97_b:
+	move.b d4,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3057
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3058
+L3057:
+	jsr (wr_slow).l
+L3058:
+tq_op_97_e:
+tq_op_98_a:
+tq_op_98_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3059
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3060
+L3059:
+	jsr (rd_slow).l
+L3060:
+	eor.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_98_e:
+tq_op_99_a:
+tq_op_99_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3061
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3062
+L3061:
+	jsr (rd_slow).l
+L3062:
+	move.b d4,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_99_e:
+tq_op_9A_a:
+tq_op_9A_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3063
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3064
+L3063:
+	jsr (rd_slow).l
+L3064:
+	or.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_9A_e:
+tq_op_9B_a:
+tq_op_9B_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3065
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3066
+L3065:
+	jsr (rd_slow).l
+L3066:
+	move.b d4,d0
+	add.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_9B_e:
+tq_op_9C_a:
+tq_op_9C_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3067
+	cmp.b #$ff,d0
+	beq.s L3067
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3068
+L3067:
+	jsr (rd16_slow).l
+L3068:
+	cmp.w d1,d6
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_9C_e:
+tq_op_9E_a:
+tq_op_9E_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3073
+	cmp.b #$ff,d0
+	beq.s L3073
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3074
+L3073:
+	jsr (rd16_slow).l
+L3074:
+	move.w d1,d6
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_9E_e:
+tq_op_9F_a:
+tq_op_9F_b:
+	move.w d6,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3075
+	cmp.b #$ff,d0
+	beq.s L3075
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3076
+L3075:
+	jsr (wr16_slow).l
+L3076:
+tq_op_9F_e:
+tq_op_A0_a:
+tq_op_A0_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3077
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3078
+L3077:
+	jsr (rd_slow).l
+L3078:
+	sub.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_A0_e:
+tq_op_A1_a:
+tq_op_A1_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3079
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3080
+L3079:
+	jsr (rd_slow).l
+L3080:
+	cmp.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_A1_e:
+tq_op_A2_a:
+tq_op_A2_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3081
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3082
+L3081:
+	jsr (rd_slow).l
+L3082:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_A2_e:
+tq_op_A3_a:
+tq_op_A3_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3083
+	cmp.b #$ff,d0
+	beq.s L3083
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3084
+L3083:
+	jsr (rd16_slow).l
+L3084:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	sub.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+tq_op_A3_e:
+tq_op_A4_a:
+tq_op_A4_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3085
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3086
+L3085:
+	jsr (rd_slow).l
+L3086:
+	and.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_A4_e:
+tq_op_A5_a:
+tq_op_A5_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3087
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3088
+L3087:
+	jsr (rd_slow).l
+L3088:
+	move.b d4,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_A5_e:
+tq_op_A6_a:
+tq_op_A6_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3089
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3090
+L3089:
+	jsr (rd_slow).l
+L3090:
+	move.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_A6_e:
+tq_op_A7_a:
+tq_op_A7_b:
+	move.b d4,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3091
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3092
+L3091:
+	jsr (wr_slow).l
+L3092:
+tq_op_A7_e:
+tq_op_A8_a:
+tq_op_A8_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3093
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3094
+L3093:
+	jsr (rd_slow).l
+L3094:
+	eor.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_A8_e:
+tq_op_A9_a:
+tq_op_A9_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3095
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3096
+L3095:
+	jsr (rd_slow).l
+L3096:
+	move.b d4,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_A9_e:
+tq_op_AA_a:
+tq_op_AA_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3097
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3098
+L3097:
+	jsr (rd_slow).l
+L3098:
+	or.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_AA_e:
+tq_op_AB_a:
+tq_op_AB_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3099
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3100
+L3099:
+	jsr (rd_slow).l
+L3100:
+	move.b d4,d0
+	add.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_AB_e:
+tq_op_AC_a:
+tq_op_AC_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3101
+	cmp.b #$ff,d0
+	beq.s L3101
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3102
+L3101:
+	jsr (rd16_slow).l
+L3102:
+	cmp.w d1,d6
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_AC_e:
+tq_op_AE_a:
+tq_op_AE_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3107
+	cmp.b #$ff,d0
+	beq.s L3107
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3108
+L3107:
+	jsr (rd16_slow).l
+L3108:
+	move.w d1,d6
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_AE_e:
+tq_op_AF_a:
+tq_op_AF_b:
+	move.w d6,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3109
+	cmp.b #$ff,d0
+	beq.s L3109
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3110
+L3109:
+	jsr (wr16_slow).l
+L3110:
+tq_op_AF_e:
+tq_op_B0_a:
+tq_op_B0_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3111
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3112
+L3111:
+	jsr (rd_slow).l
+L3112:
+	sub.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_B0_e:
+tq_op_B1_a:
+tq_op_B1_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3113
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3114
+L3113:
+	jsr (rd_slow).l
+L3114:
+	cmp.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_B1_e:
+tq_op_B2_a:
+tq_op_B2_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3115
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3116
+L3115:
+	jsr (rd_slow).l
+L3116:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_B2_e:
+tq_op_B3_a:
+tq_op_B3_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3117
+	cmp.b #$ff,d0
+	beq.s L3117
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3118
+L3117:
+	jsr (rd16_slow).l
+L3118:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	sub.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+tq_op_B3_e:
+tq_op_B4_a:
+tq_op_B4_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3119
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3120
+L3119:
+	jsr (rd_slow).l
+L3120:
+	and.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_B4_e:
+tq_op_B5_a:
+tq_op_B5_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3121
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3122
+L3121:
+	jsr (rd_slow).l
+L3122:
+	move.b d4,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_B5_e:
+tq_op_B6_a:
+tq_op_B6_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3123
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3124
+L3123:
+	jsr (rd_slow).l
+L3124:
+	move.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_B6_e:
+tq_op_B7_a:
+tq_op_B7_b:
+	move.b d4,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3125
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3126
+L3125:
+	jsr (wr_slow).l
+L3126:
+tq_op_B7_e:
+tq_op_B8_a:
+tq_op_B8_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3127
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3128
+L3127:
+	jsr (rd_slow).l
+L3128:
+	eor.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_B8_e:
+tq_op_B9_a:
+tq_op_B9_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3129
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3130
+L3129:
+	jsr (rd_slow).l
+L3130:
+	move.b d4,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_B9_e:
+tq_op_BA_a:
+tq_op_BA_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3131
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3132
+L3131:
+	jsr (rd_slow).l
+L3132:
+	or.b d1,d4
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_BA_e:
+tq_op_BB_a:
+tq_op_BB_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3133
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3134
+L3133:
+	jsr (rd_slow).l
+L3134:
+	move.b d4,d0
+	add.b d1,d4
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d4,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_BB_e:
+tq_op_BC_a:
+tq_op_BC_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3135
+	cmp.b #$ff,d0
+	beq.s L3135
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3136
+L3135:
+	jsr (rd16_slow).l
+L3136:
+	cmp.w d1,d6
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_BC_e:
+tq_op_BE_a:
+tq_op_BE_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3141
+	cmp.b #$ff,d0
+	beq.s L3141
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3142
+L3141:
+	jsr (rd16_slow).l
+L3142:
+	move.w d1,d6
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_BE_e:
+tq_op_BF_a:
+tq_op_BF_b:
+	move.w d6,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3143
+	cmp.b #$ff,d0
+	beq.s L3143
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3144
+L3143:
+	jsr (wr16_slow).l
+L3144:
+tq_op_BF_e:
+tq_op_C0_a:
+H22:
+	move.b #$a5,d1
+	sub.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_C0_b:
+tq_op_C0_e:
+tq_op_C1_a:
+H23:
+	move.b #$a5,d1
+	cmp.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_C1_b:
+tq_op_C1_e:
+tq_op_C2_a:
+H24:
+	move.b #$a5,d1
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_C2_b:
+tq_op_C2_e:
+tq_op_C3_a:
+H25:
+	move.w #$a5a5,d1
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	add.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+tq_op_C3_b:
+tq_op_C3_e:
+tq_op_C4_a:
+H26:
+	move.b #$a5,d1
+	and.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_C4_b:
+tq_op_C4_e:
+tq_op_C5_a:
+H27:
+	move.b #$a5,d1
+	move.b d5,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_C5_b:
+tq_op_C5_e:
+tq_op_C6_a:
+H28:
+	move.b #$a5,d1
+	move.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_C6_b:
+tq_op_C6_e:
+tq_op_C8_a:
+H29:
+	move.b #$a5,d1
+	eor.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_C8_b:
+tq_op_C8_e:
+tq_op_C9_a:
+H30:
+	move.b #$a5,d1
+	move.b d5,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_C9_b:
+tq_op_C9_e:
+tq_op_CA_a:
+H31:
+	move.b #$a5,d1
+	or.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_CA_b:
+tq_op_CA_e:
+tq_op_CB_a:
+H32:
+	move.b #$a5,d1
+	move.b d5,d0
+	add.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_CB_b:
+tq_op_CB_e:
+tq_op_CC_a:
+H33:
+	move.w #$a5a5,d1
+	move.b d1,d5
+	move.w d1,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_CC_b:
+tq_op_CC_e:
+tq_op_CE_a:
+H34:
+	move.w #$a5a5,d1
+	move.w d1,4164(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_CE_b:
+tq_op_CE_e:
+tq_op_D0_a:
+tq_op_D0_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3145
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3146
+L3145:
+	jsr (rd_slow).l
+L3146:
+	sub.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_D0_e:
+tq_op_D1_a:
+tq_op_D1_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3147
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3148
+L3147:
+	jsr (rd_slow).l
+L3148:
+	cmp.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_D1_e:
+tq_op_D2_a:
+tq_op_D2_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3149
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3150
+L3149:
+	jsr (rd_slow).l
+L3150:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_D2_e:
+tq_op_D3_a:
+tq_op_D3_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3151
+	cmp.b #$ff,d0
+	beq.s L3151
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3152
+L3151:
+	jsr (rd16_slow).l
+L3152:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	add.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+tq_op_D3_e:
+tq_op_D4_a:
+tq_op_D4_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3153
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3154
+L3153:
+	jsr (rd_slow).l
+L3154:
+	and.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_D4_e:
+tq_op_D5_a:
+tq_op_D5_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3155
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3156
+L3155:
+	jsr (rd_slow).l
+L3156:
+	move.b d5,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_D5_e:
+tq_op_D6_a:
+tq_op_D6_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3157
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3158
+L3157:
+	jsr (rd_slow).l
+L3158:
+	move.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_D6_e:
+tq_op_D7_a:
+tq_op_D7_b:
+	move.b d5,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3159
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3160
+L3159:
+	jsr (wr_slow).l
+L3160:
+tq_op_D7_e:
+tq_op_D8_a:
+tq_op_D8_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3161
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3162
+L3161:
+	jsr (rd_slow).l
+L3162:
+	eor.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_D8_e:
+tq_op_D9_a:
+tq_op_D9_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3163
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3164
+L3163:
+	jsr (rd_slow).l
+L3164:
+	move.b d5,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_D9_e:
+tq_op_DA_a:
+tq_op_DA_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3165
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3166
+L3165:
+	jsr (rd_slow).l
+L3166:
+	or.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_DA_e:
+tq_op_DB_a:
+tq_op_DB_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3167
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3168
+L3167:
+	jsr (rd_slow).l
+L3168:
+	move.b d5,d0
+	add.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_DB_e:
+tq_op_DC_a:
+tq_op_DC_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3169
+	cmp.b #$ff,d0
+	beq.s L3169
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3170
+L3169:
+	jsr (rd16_slow).l
+L3170:
+	move.b d1,d5
+	move.w d1,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_DC_e:
+tq_op_DD_a:
+tq_op_DD_b:
+	move.b d4,d1
+	lsl.w #8,d1
+	move.b d5,d1
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3171
+	cmp.b #$ff,d0
+	beq.s L3171
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3172
+L3171:
+	jsr (wr16_slow).l
+L3172:
+tq_op_DD_e:
+tq_op_DE_a:
+tq_op_DE_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3173
+	cmp.b #$ff,d0
+	beq.s L3173
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3174
+L3173:
+	jsr (rd16_slow).l
+L3174:
+	move.w d1,4164(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_DE_e:
+tq_op_DF_a:
+tq_op_DF_b:
+	move.w 4164(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3175
+	cmp.b #$ff,d0
+	beq.s L3175
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3176
+L3175:
+	jsr (wr16_slow).l
+L3176:
+tq_op_DF_e:
+tq_op_E0_a:
+tq_op_E0_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3177
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3178
+L3177:
+	jsr (rd_slow).l
+L3178:
+	sub.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_E0_e:
+tq_op_E1_a:
+tq_op_E1_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3179
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3180
+L3179:
+	jsr (rd_slow).l
+L3180:
+	cmp.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_E1_e:
+tq_op_E2_a:
+tq_op_E2_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3181
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3182
+L3181:
+	jsr (rd_slow).l
+L3182:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_E2_e:
+tq_op_E3_a:
+tq_op_E3_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3183
+	cmp.b #$ff,d0
+	beq.s L3183
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3184
+L3183:
+	jsr (rd16_slow).l
+L3184:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	add.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+tq_op_E3_e:
+tq_op_E4_a:
+tq_op_E4_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3185
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3186
+L3185:
+	jsr (rd_slow).l
+L3186:
+	and.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_E4_e:
+tq_op_E5_a:
+tq_op_E5_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3187
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3188
+L3187:
+	jsr (rd_slow).l
+L3188:
+	move.b d5,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_E5_e:
+tq_op_E6_a:
+tq_op_E6_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3189
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3190
+L3189:
+	jsr (rd_slow).l
+L3190:
+	move.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_E6_e:
+tq_op_E7_a:
+tq_op_E7_b:
+	move.b d5,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3191
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3192
+L3191:
+	jsr (wr_slow).l
+L3192:
+tq_op_E7_e:
+tq_op_E8_a:
+tq_op_E8_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3193
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3194
+L3193:
+	jsr (rd_slow).l
+L3194:
+	eor.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_E8_e:
+tq_op_E9_a:
+tq_op_E9_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3195
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3196
+L3195:
+	jsr (rd_slow).l
+L3196:
+	move.b d5,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_E9_e:
+tq_op_EA_a:
+tq_op_EA_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3197
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3198
+L3197:
+	jsr (rd_slow).l
+L3198:
+	or.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_EA_e:
+tq_op_EB_a:
+tq_op_EB_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3199
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3200
+L3199:
+	jsr (rd_slow).l
+L3200:
+	move.b d5,d0
+	add.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_EB_e:
+tq_op_EC_a:
+tq_op_EC_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3201
+	cmp.b #$ff,d0
+	beq.s L3201
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3202
+L3201:
+	jsr (rd16_slow).l
+L3202:
+	move.b d1,d5
+	move.w d1,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_EC_e:
+tq_op_ED_a:
+tq_op_ED_b:
+	move.b d4,d1
+	lsl.w #8,d1
+	move.b d5,d1
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3203
+	cmp.b #$ff,d0
+	beq.s L3203
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3204
+L3203:
+	jsr (wr16_slow).l
+L3204:
+tq_op_ED_e:
+tq_op_EE_a:
+tq_op_EE_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3205
+	cmp.b #$ff,d0
+	beq.s L3205
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3206
+L3205:
+	jsr (rd16_slow).l
+L3206:
+	move.w d1,4164(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_EE_e:
+tq_op_EF_a:
+tq_op_EF_b:
+	move.w 4164(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3207
+	cmp.b #$ff,d0
+	beq.s L3207
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3208
+L3207:
+	jsr (wr16_slow).l
+L3208:
+tq_op_EF_e:
+tq_op_F0_a:
+tq_op_F0_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3209
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3210
+L3209:
+	jsr (rd_slow).l
+L3210:
+	sub.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_F0_e:
+tq_op_F1_a:
+tq_op_F1_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3211
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3212
+L3211:
+	jsr (rd_slow).l
+L3212:
+	cmp.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_F1_e:
+tq_op_F2_a:
+tq_op_F2_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3213
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3214
+L3213:
+	jsr (rd_slow).l
+L3214:
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	subx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_op_F2_e:
+tq_op_F3_a:
+tq_op_F3_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3215
+	cmp.b #$ff,d0
+	beq.s L3215
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3216
+L3215:
+	jsr (rd16_slow).l
+L3216:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	add.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+	move.b d0,d5
+	move.w d0,d2
+	lsr.w #8,d2
+	move.b d2,d4
+tq_op_F3_e:
+tq_op_F4_a:
+tq_op_F4_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3217
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3218
+L3217:
+	jsr (rd_slow).l
+L3218:
+	and.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_F4_e:
+tq_op_F5_a:
+tq_op_F5_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3219
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3220
+L3219:
+	jsr (rd_slow).l
+L3220:
+	move.b d5,d2
+	and.b d1,d2
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_F5_e:
+tq_op_F6_a:
+tq_op_F6_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3221
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3222
+L3221:
+	jsr (rd_slow).l
+L3222:
+	move.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_F6_e:
+tq_op_F7_a:
+tq_op_F7_b:
+	move.b d5,d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3223
+	move.l d2,a0
+	move.b d1,(a0,d0.l)
+	bra.s L3224
+L3223:
+	jsr (wr_slow).l
+L3224:
+tq_op_F7_e:
+tq_op_F8_a:
+tq_op_F8_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3225
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3226
+L3225:
+	jsr (rd_slow).l
+L3226:
+	eor.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_F8_e:
+tq_op_F9_a:
+tq_op_F9_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3227
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3228
+L3227:
+	jsr (rd_slow).l
+L3228:
+	move.b d5,d0
+	move.b d3,d2
+	and.b #1,d2
+	lsl.b #4,d2
+	or.b #4,d2
+	move.w d2,ccr
+	addx.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_F9_e:
+tq_op_FA_a:
+tq_op_FA_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3229
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3230
+L3229:
+	jsr (rd_slow).l
+L3230:
+	or.b d1,d5
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_FA_e:
+tq_op_FB_a:
+tq_op_FB_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3231
+	move.l d2,a0
+	move.b (a0,d0.l),d1
+	bra.s L3232
+L3231:
+	jsr (rd_slow).l
+L3232:
+	move.b d5,d0
+	add.b d1,d5
+	move.w ccr,d2
+	and.b #$0f,d2
+	eor.b d1,d0
+	eor.b d5,d0
+	and.b #$10,d0
+	add.b d0,d0
+	and.b #$d0,d3
+	or.b d2,d3
+	or.b d0,d3
+tq_op_FB_e:
+tq_op_FC_a:
+tq_op_FC_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3233
+	cmp.b #$ff,d0
+	beq.s L3233
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3234
+L3233:
+	jsr (rd16_slow).l
+L3234:
+	move.b d1,d5
+	move.w d1,d2
+	lsr.w #8,d2
+	move.b d2,d4
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_FC_e:
+tq_op_FD_a:
+tq_op_FD_b:
+	move.b d4,d1
+	lsl.w #8,d1
+	move.b d5,d1
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3235
+	cmp.b #$ff,d0
+	beq.s L3235
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3236
+L3235:
+	jsr (wr16_slow).l
+L3236:
+tq_op_FD_e:
+tq_op_FE_a:
+tq_op_FE_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3237
+	cmp.b #$ff,d0
+	beq.s L3237
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3238
+L3237:
+	jsr (rd16_slow).l
+L3238:
+	move.w d1,4164(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_op_FE_e:
+tq_op_FF_a:
+tq_op_FF_b:
+	move.w 4164(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3239
+	cmp.b #$ff,d0
+	beq.s L3239
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3240
+L3239:
+	jsr (wr16_slow).l
+L3240:
+tq_op_FF_e:
+tq_p10_21_a:
+H36:
+	move.w #$a5a5,d0
+tq_p10_21_b:
+tq_p10_21_e:
+tq_p10_83_a:
+H37:
+	move.w #$a5a5,d1
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p10_83_b:
+tq_p10_83_e:
+tq_p10_8C_a:
+H38:
+	move.w #$a5a5,d1
+	move.w 4162(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p10_8C_b:
+tq_p10_8C_e:
+tq_p10_8E_a:
+H39:
+	move.w #$a5a5,d1
+	move.w d1,4162(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_p10_8E_b:
+tq_p10_8E_e:
+tq_p10_93_a:
+tq_p10_93_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3257
+	cmp.b #$ff,d0
+	beq.s L3257
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3258
+L3257:
+	jsr (rd16_slow).l
+L3258:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p10_93_e:
+tq_p10_9C_a:
+tq_p10_9C_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3259
+	cmp.b #$ff,d0
+	beq.s L3259
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3260
+L3259:
+	jsr (rd16_slow).l
+L3260:
+	move.w 4162(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p10_9C_e:
+tq_p10_9E_a:
+tq_p10_9E_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3261
+	cmp.b #$ff,d0
+	beq.s L3261
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3262
+L3261:
+	jsr (rd16_slow).l
+L3262:
+	move.w d1,4162(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_p10_9E_e:
+tq_p10_9F_a:
+tq_p10_9F_b:
+	move.w 4162(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3263
+	cmp.b #$ff,d0
+	beq.s L3263
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3264
+L3263:
+	jsr (wr16_slow).l
+L3264:
+tq_p10_9F_e:
+tq_p10_A3_a:
+tq_p10_A3_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3265
+	cmp.b #$ff,d0
+	beq.s L3265
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3266
+L3265:
+	jsr (rd16_slow).l
+L3266:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p10_A3_e:
+tq_p10_AC_a:
+tq_p10_AC_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3267
+	cmp.b #$ff,d0
+	beq.s L3267
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3268
+L3267:
+	jsr (rd16_slow).l
+L3268:
+	move.w 4162(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p10_AC_e:
+tq_p10_AE_a:
+tq_p10_AE_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3269
+	cmp.b #$ff,d0
+	beq.s L3269
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3270
+L3269:
+	jsr (rd16_slow).l
+L3270:
+	move.w d1,4162(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_p10_AE_e:
+tq_p10_AF_a:
+tq_p10_AF_b:
+	move.w 4162(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3271
+	cmp.b #$ff,d0
+	beq.s L3271
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3272
+L3271:
+	jsr (wr16_slow).l
+L3272:
+tq_p10_AF_e:
+tq_p10_B3_a:
+tq_p10_B3_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3273
+	cmp.b #$ff,d0
+	beq.s L3273
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3274
+L3273:
+	jsr (rd16_slow).l
+L3274:
+	move.b d4,d0
+	lsl.w #8,d0
+	move.b d5,d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p10_B3_e:
+tq_p10_BC_a:
+tq_p10_BC_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3275
+	cmp.b #$ff,d0
+	beq.s L3275
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3276
+L3275:
+	jsr (rd16_slow).l
+L3276:
+	move.w 4162(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p10_BC_e:
+tq_p10_BE_a:
+tq_p10_BE_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3277
+	cmp.b #$ff,d0
+	beq.s L3277
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3278
+L3277:
+	jsr (rd16_slow).l
+L3278:
+	move.w d1,4162(a5)
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_p10_BE_e:
+tq_p10_BF_a:
+tq_p10_BF_b:
+	move.w 4162(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3279
+	cmp.b #$ff,d0
+	beq.s L3279
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3280
+L3279:
+	jsr (wr16_slow).l
+L3280:
+tq_p10_BF_e:
+tq_p10_CE_a:
+H40:
+	move.w #$a5a5,d1
+	move.w d1,4166(a5)
+	move.b #1,4198(a5)
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_p10_CE_b:
+tq_p10_CE_e:
+tq_p10_DE_a:
+tq_p10_DE_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3281
+	cmp.b #$ff,d0
+	beq.s L3281
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3282
+L3281:
+	jsr (rd16_slow).l
+L3282:
+	move.w d1,4166(a5)
+	move.b #1,4198(a5)
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_p10_DE_e:
+tq_p10_DF_a:
+tq_p10_DF_b:
+	move.w 4166(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3283
+	cmp.b #$ff,d0
+	beq.s L3283
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3284
+L3283:
+	jsr (wr16_slow).l
+L3284:
+tq_p10_DF_e:
+tq_p10_EE_a:
+tq_p10_EE_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3285
+	cmp.b #$ff,d0
+	beq.s L3285
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3286
+L3285:
+	jsr (rd16_slow).l
+L3286:
+	move.w d1,4166(a5)
+	move.b #1,4198(a5)
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_p10_EE_e:
+tq_p10_EF_a:
+tq_p10_EF_b:
+	move.w 4166(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3287
+	cmp.b #$ff,d0
+	beq.s L3287
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3288
+L3287:
+	jsr (wr16_slow).l
+L3288:
+tq_p10_EF_e:
+tq_p10_FE_a:
+tq_p10_FE_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3289
+	cmp.b #$ff,d0
+	beq.s L3289
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3290
+L3289:
+	jsr (rd16_slow).l
+L3290:
+	move.w d1,4166(a5)
+	move.b #1,4198(a5)
+	tst.w d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+tq_p10_FE_e:
+tq_p10_FF_a:
+tq_p10_FF_b:
+	move.w 4166(a5),d1
+	move.w ccr,d2
+	and.b #$0e,d2
+	and.b #$f1,d3
+	or.b d2,d3
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a1,d2.w*4),d2
+	beq.s L3291
+	cmp.b #$ff,d0
+	beq.s L3291
+	move.l d2,a0
+	move.w d1,(a0,d0.l)
+	bra.s L3292
+L3291:
+	jsr (wr16_slow).l
+L3292:
+tq_p10_FF_e:
+tq_p11_83_a:
+H41:
+	move.w #$a5a5,d1
+	move.w 4164(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p11_83_b:
+tq_p11_83_e:
+tq_p11_8C_a:
+H42:
+	move.w #$a5a5,d1
+	move.w 4166(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p11_8C_b:
+tq_p11_8C_e:
+tq_p11_93_a:
+tq_p11_93_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3293
+	cmp.b #$ff,d0
+	beq.s L3293
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3294
+L3293:
+	jsr (rd16_slow).l
+L3294:
+	move.w 4164(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p11_93_e:
+tq_p11_9C_a:
+tq_p11_9C_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3295
+	cmp.b #$ff,d0
+	beq.s L3295
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3296
+L3295:
+	jsr (rd16_slow).l
+L3296:
+	move.w 4166(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p11_9C_e:
+tq_p11_A3_a:
+tq_p11_A3_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3297
+	cmp.b #$ff,d0
+	beq.s L3297
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3298
+L3297:
+	jsr (rd16_slow).l
+L3298:
+	move.w 4164(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p11_A3_e:
+tq_p11_AC_a:
+tq_p11_AC_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3299
+	cmp.b #$ff,d0
+	beq.s L3299
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3300
+L3299:
+	jsr (rd16_slow).l
+L3300:
+	move.w 4166(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p11_AC_e:
+tq_p11_B3_a:
+tq_p11_B3_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3301
+	cmp.b #$ff,d0
+	beq.s L3301
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3302
+L3301:
+	jsr (rd16_slow).l
+L3302:
+	move.w 4164(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p11_B3_e:
+tq_p11_BC_a:
+tq_p11_BC_b:
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3303
+	cmp.b #$ff,d0
+	beq.s L3303
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3304
+L3303:
+	jsr (rd16_slow).l
+L3304:
+	move.w 4166(a5),d0
+	cmp.w d1,d0
+	move.w ccr,d2
+	and.b #$0f,d2
+	and.b #$f0,d3
+	or.b d2,d3
+tq_p11_BC_e:
+
+	cnop	0,4
+	public	_m6809_tq
+_m6809_tq:
+	dc.l tq_op_00_a,tq_op_00_b,tq_op_00_b,tq_op_00_e,262
+	dc.w 0,0
+	dc.l tq_op_01_a,tq_op_01_b,tq_op_01_b,tq_op_01_e,262
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_03_a,tq_op_03_b,tq_op_03_b,tq_op_03_e,262
+	dc.w 0,0
+	dc.l tq_op_04_a,tq_op_04_b,tq_op_04_b,tq_op_04_e,262
+	dc.w 0,0
+	dc.l tq_op_05_a,tq_op_05_b,tq_op_05_b,tq_op_05_e,262
+	dc.w 0,0
+	dc.l tq_op_06_a,tq_op_06_b,tq_op_06_b,tq_op_06_e,262
+	dc.w 0,0
+	dc.l tq_op_07_a,tq_op_07_b,tq_op_07_b,tq_op_07_e,262
+	dc.w 0,0
+	dc.l tq_op_08_a,tq_op_08_b,tq_op_08_b,tq_op_08_e,262
+	dc.w 0,0
+	dc.l tq_op_09_a,tq_op_09_b,tq_op_09_b,tq_op_09_e,262
+	dc.w 0,0
+	dc.l tq_op_0A_a,tq_op_0A_b,tq_op_0A_b,tq_op_0A_e,262
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_0C_a,tq_op_0C_b,tq_op_0C_b,tq_op_0C_e,262
+	dc.w 0,0
+	dc.l tq_op_0D_a,tq_op_0D_b,tq_op_0D_b,tq_op_0D_e,262
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_0F_a,tq_op_0F_b,tq_op_0F_b,tq_op_0F_e,262
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_12_a,tq_op_12_b,tq_op_12_b,tq_op_12_e,2
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_1A_a,tq_op_1A_b,tq_op_1A_b,tq_op_1A_e,4099
+	dc.w H4-tq_op_1A_a+0,0
+	dc.l tq_op_1B_a,tq_op_1B_b,tq_op_1B_b,tq_op_1B_e,2
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_1D_a,tq_op_1D_b,tq_op_1D_b,tq_op_1D_e,2
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_21_a,tq_op_21_b,tq_op_21_b,tq_op_21_e,4099
+	dc.w H5-tq_op_21_a+0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_30_a,tq_op_30_b,tq_op_30_b,tq_op_30_e,514
+	dc.w 0,0
+	dc.l tq_op_31_a,tq_op_31_b,tq_op_31_b,tq_op_31_e,514
+	dc.w 0,0
+	dc.l tq_op_32_a,tq_op_32_b,tq_op_32_b,tq_op_32_e,514
+	dc.w 0,0
+	dc.l tq_op_33_a,tq_op_33_b,tq_op_33_b,tq_op_33_e,514
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_3A_a,tq_op_3A_b,tq_op_3A_b,tq_op_3A_e,3
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_3D_a,tq_op_3D_b,tq_op_3D_b,tq_op_3D_e,11
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_40_a,tq_op_40_b,tq_op_40_b,tq_op_40_e,2
+	dc.w 0,0
+	dc.l tq_op_41_a,tq_op_41_b,tq_op_41_b,tq_op_41_e,2
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_43_a,tq_op_43_b,tq_op_43_b,tq_op_43_e,2
+	dc.w 0,0
+	dc.l tq_op_44_a,tq_op_44_b,tq_op_44_b,tq_op_44_e,2
+	dc.w 0,0
+	dc.l tq_op_45_a,tq_op_45_b,tq_op_45_b,tq_op_45_e,2
+	dc.w 0,0
+	dc.l tq_op_46_a,tq_op_46_b,tq_op_46_b,tq_op_46_e,2
+	dc.w 0,0
+	dc.l tq_op_47_a,tq_op_47_b,tq_op_47_b,tq_op_47_e,2
+	dc.w 0,0
+	dc.l tq_op_48_a,tq_op_48_b,tq_op_48_b,tq_op_48_e,2
+	dc.w 0,0
+	dc.l tq_op_49_a,tq_op_49_b,tq_op_49_b,tq_op_49_e,2
+	dc.w 0,0
+	dc.l tq_op_4A_a,tq_op_4A_b,tq_op_4A_b,tq_op_4A_e,2
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_4C_a,tq_op_4C_b,tq_op_4C_b,tq_op_4C_e,2
+	dc.w 0,0
+	dc.l tq_op_4D_a,tq_op_4D_b,tq_op_4D_b,tq_op_4D_e,2
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_4F_a,tq_op_4F_b,tq_op_4F_b,tq_op_4F_e,2
+	dc.w 0,0
+	dc.l tq_op_50_a,tq_op_50_b,tq_op_50_b,tq_op_50_e,2
+	dc.w 0,0
+	dc.l tq_op_51_a,tq_op_51_b,tq_op_51_b,tq_op_51_e,2
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_53_a,tq_op_53_b,tq_op_53_b,tq_op_53_e,2
+	dc.w 0,0
+	dc.l tq_op_54_a,tq_op_54_b,tq_op_54_b,tq_op_54_e,2
+	dc.w 0,0
+	dc.l tq_op_55_a,tq_op_55_b,tq_op_55_b,tq_op_55_e,2
+	dc.w 0,0
+	dc.l tq_op_56_a,tq_op_56_b,tq_op_56_b,tq_op_56_e,2
+	dc.w 0,0
+	dc.l tq_op_57_a,tq_op_57_b,tq_op_57_b,tq_op_57_e,2
+	dc.w 0,0
+	dc.l tq_op_58_a,tq_op_58_b,tq_op_58_b,tq_op_58_e,2
+	dc.w 0,0
+	dc.l tq_op_59_a,tq_op_59_b,tq_op_59_b,tq_op_59_e,2
+	dc.w 0,0
+	dc.l tq_op_5A_a,tq_op_5A_b,tq_op_5A_b,tq_op_5A_e,2
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_5C_a,tq_op_5C_b,tq_op_5C_b,tq_op_5C_e,2
+	dc.w 0,0
+	dc.l tq_op_5D_a,tq_op_5D_b,tq_op_5D_b,tq_op_5D_e,2
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_5F_a,tq_op_5F_b,tq_op_5F_b,tq_op_5F_e,2
+	dc.w 0,0
+	dc.l tq_op_60_a,tq_op_60_b,tq_op_60_b,tq_op_60_e,516
+	dc.w 0,0
+	dc.l tq_op_61_a,tq_op_61_b,tq_op_61_b,tq_op_61_e,516
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_63_a,tq_op_63_b,tq_op_63_b,tq_op_63_e,516
+	dc.w 0,0
+	dc.l tq_op_64_a,tq_op_64_b,tq_op_64_b,tq_op_64_e,516
+	dc.w 0,0
+	dc.l tq_op_65_a,tq_op_65_b,tq_op_65_b,tq_op_65_e,516
+	dc.w 0,0
+	dc.l tq_op_66_a,tq_op_66_b,tq_op_66_b,tq_op_66_e,516
+	dc.w 0,0
+	dc.l tq_op_67_a,tq_op_67_b,tq_op_67_b,tq_op_67_e,516
+	dc.w 0,0
+	dc.l tq_op_68_a,tq_op_68_b,tq_op_68_b,tq_op_68_e,516
+	dc.w 0,0
+	dc.l tq_op_69_a,tq_op_69_b,tq_op_69_b,tq_op_69_e,516
+	dc.w 0,0
+	dc.l tq_op_6A_a,tq_op_6A_b,tq_op_6A_b,tq_op_6A_e,516
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_6C_a,tq_op_6C_b,tq_op_6C_b,tq_op_6C_e,516
+	dc.w 0,0
+	dc.l tq_op_6D_a,tq_op_6D_b,tq_op_6D_b,tq_op_6D_e,516
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_6F_a,tq_op_6F_b,tq_op_6F_b,tq_op_6F_e,516
+	dc.w 0,0
+	dc.l tq_op_70_a,tq_op_70_b,tq_op_70_b,tq_op_70_e,775
+	dc.w 0,0
+	dc.l tq_op_71_a,tq_op_71_b,tq_op_71_b,tq_op_71_e,775
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_73_a,tq_op_73_b,tq_op_73_b,tq_op_73_e,775
+	dc.w 0,0
+	dc.l tq_op_74_a,tq_op_74_b,tq_op_74_b,tq_op_74_e,775
+	dc.w 0,0
+	dc.l tq_op_75_a,tq_op_75_b,tq_op_75_b,tq_op_75_e,775
+	dc.w 0,0
+	dc.l tq_op_76_a,tq_op_76_b,tq_op_76_b,tq_op_76_e,775
+	dc.w 0,0
+	dc.l tq_op_77_a,tq_op_77_b,tq_op_77_b,tq_op_77_e,775
+	dc.w 0,0
+	dc.l tq_op_78_a,tq_op_78_b,tq_op_78_b,tq_op_78_e,775
+	dc.w 0,0
+	dc.l tq_op_79_a,tq_op_79_b,tq_op_79_b,tq_op_79_e,775
+	dc.w 0,0
+	dc.l tq_op_7A_a,tq_op_7A_b,tq_op_7A_b,tq_op_7A_e,775
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_7C_a,tq_op_7C_b,tq_op_7C_b,tq_op_7C_e,775
+	dc.w 0,0
+	dc.l tq_op_7D_a,tq_op_7D_b,tq_op_7D_b,tq_op_7D_e,775
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_7F_a,tq_op_7F_b,tq_op_7F_b,tq_op_7F_e,775
+	dc.w 0,0
+	dc.l tq_op_80_a,tq_op_80_b,tq_op_80_b,tq_op_80_e,4098
+	dc.w H8-tq_op_80_a+0,0
+	dc.l tq_op_81_a,tq_op_81_b,tq_op_81_b,tq_op_81_e,4098
+	dc.w H9-tq_op_81_a+0,0
+	dc.l tq_op_82_a,tq_op_82_b,tq_op_82_b,tq_op_82_e,4098
+	dc.w H10-tq_op_82_a+0,0
+	dc.l tq_op_83_a,tq_op_83_b,tq_op_83_b,tq_op_83_e,4100
+	dc.w H11-tq_op_83_a+16384,0
+	dc.l tq_op_84_a,tq_op_84_b,tq_op_84_b,tq_op_84_e,4098
+	dc.w H12-tq_op_84_a+0,0
+	dc.l tq_op_85_a,tq_op_85_b,tq_op_85_b,tq_op_85_e,4098
+	dc.w H13-tq_op_85_a+0,0
+	dc.l tq_op_86_a,tq_op_86_b,tq_op_86_b,tq_op_86_e,4098
+	dc.w H14-tq_op_86_a+0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_88_a,tq_op_88_b,tq_op_88_b,tq_op_88_e,4098
+	dc.w H15-tq_op_88_a+0,0
+	dc.l tq_op_89_a,tq_op_89_b,tq_op_89_b,tq_op_89_e,4098
+	dc.w H16-tq_op_89_a+0,0
+	dc.l tq_op_8A_a,tq_op_8A_b,tq_op_8A_b,tq_op_8A_e,4098
+	dc.w H17-tq_op_8A_a+0,0
+	dc.l tq_op_8B_a,tq_op_8B_b,tq_op_8B_b,tq_op_8B_e,4098
+	dc.w H18-tq_op_8B_a+0,0
+	dc.l tq_op_8C_a,tq_op_8C_b,tq_op_8C_b,tq_op_8C_e,4100
+	dc.w H19-tq_op_8C_a+16384,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_8E_a,tq_op_8E_b,tq_op_8E_b,tq_op_8E_e,4099
+	dc.w H21-tq_op_8E_a+16384,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_90_a,tq_op_90_b,tq_op_90_b,tq_op_90_e,260
+	dc.w 0,0
+	dc.l tq_op_91_a,tq_op_91_b,tq_op_91_b,tq_op_91_e,260
+	dc.w 0,0
+	dc.l tq_op_92_a,tq_op_92_b,tq_op_92_b,tq_op_92_e,260
+	dc.w 0,0
+	dc.l tq_op_93_a,tq_op_93_b,tq_op_93_b,tq_op_93_e,262
+	dc.w 0,0
+	dc.l tq_op_94_a,tq_op_94_b,tq_op_94_b,tq_op_94_e,260
+	dc.w 0,0
+	dc.l tq_op_95_a,tq_op_95_b,tq_op_95_b,tq_op_95_e,260
+	dc.w 0,0
+	dc.l tq_op_96_a,tq_op_96_b,tq_op_96_b,tq_op_96_e,260
+	dc.w 0,0
+	dc.l tq_op_97_a,tq_op_97_b,tq_op_97_b,tq_op_97_e,260
+	dc.w 0,0
+	dc.l tq_op_98_a,tq_op_98_b,tq_op_98_b,tq_op_98_e,260
+	dc.w 0,0
+	dc.l tq_op_99_a,tq_op_99_b,tq_op_99_b,tq_op_99_e,260
+	dc.w 0,0
+	dc.l tq_op_9A_a,tq_op_9A_b,tq_op_9A_b,tq_op_9A_e,260
+	dc.w 0,0
+	dc.l tq_op_9B_a,tq_op_9B_b,tq_op_9B_b,tq_op_9B_e,260
+	dc.w 0,0
+	dc.l tq_op_9C_a,tq_op_9C_b,tq_op_9C_b,tq_op_9C_e,262
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_9E_a,tq_op_9E_b,tq_op_9E_b,tq_op_9E_e,261
+	dc.w 0,0
+	dc.l tq_op_9F_a,tq_op_9F_b,tq_op_9F_b,tq_op_9F_e,261
+	dc.w 0,0
+	dc.l tq_op_A0_a,tq_op_A0_b,tq_op_A0_b,tq_op_A0_e,514
+	dc.w 0,0
+	dc.l tq_op_A1_a,tq_op_A1_b,tq_op_A1_b,tq_op_A1_e,514
+	dc.w 0,0
+	dc.l tq_op_A2_a,tq_op_A2_b,tq_op_A2_b,tq_op_A2_e,514
+	dc.w 0,0
+	dc.l tq_op_A3_a,tq_op_A3_b,tq_op_A3_b,tq_op_A3_e,516
+	dc.w 0,0
+	dc.l tq_op_A4_a,tq_op_A4_b,tq_op_A4_b,tq_op_A4_e,514
+	dc.w 0,0
+	dc.l tq_op_A5_a,tq_op_A5_b,tq_op_A5_b,tq_op_A5_e,514
+	dc.w 0,0
+	dc.l tq_op_A6_a,tq_op_A6_b,tq_op_A6_b,tq_op_A6_e,514
+	dc.w 0,0
+	dc.l tq_op_A7_a,tq_op_A7_b,tq_op_A7_b,tq_op_A7_e,514
+	dc.w 0,0
+	dc.l tq_op_A8_a,tq_op_A8_b,tq_op_A8_b,tq_op_A8_e,514
+	dc.w 0,0
+	dc.l tq_op_A9_a,tq_op_A9_b,tq_op_A9_b,tq_op_A9_e,514
+	dc.w 0,0
+	dc.l tq_op_AA_a,tq_op_AA_b,tq_op_AA_b,tq_op_AA_e,514
+	dc.w 0,0
+	dc.l tq_op_AB_a,tq_op_AB_b,tq_op_AB_b,tq_op_AB_e,514
+	dc.w 0,0
+	dc.l tq_op_AC_a,tq_op_AC_b,tq_op_AC_b,tq_op_AC_e,516
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_AE_a,tq_op_AE_b,tq_op_AE_b,tq_op_AE_e,515
+	dc.w 0,0
+	dc.l tq_op_AF_a,tq_op_AF_b,tq_op_AF_b,tq_op_AF_e,515
+	dc.w 0,0
+	dc.l tq_op_B0_a,tq_op_B0_b,tq_op_B0_b,tq_op_B0_e,773
+	dc.w 0,0
+	dc.l tq_op_B1_a,tq_op_B1_b,tq_op_B1_b,tq_op_B1_e,773
+	dc.w 0,0
+	dc.l tq_op_B2_a,tq_op_B2_b,tq_op_B2_b,tq_op_B2_e,773
+	dc.w 0,0
+	dc.l tq_op_B3_a,tq_op_B3_b,tq_op_B3_b,tq_op_B3_e,775
+	dc.w 0,0
+	dc.l tq_op_B4_a,tq_op_B4_b,tq_op_B4_b,tq_op_B4_e,773
+	dc.w 0,0
+	dc.l tq_op_B5_a,tq_op_B5_b,tq_op_B5_b,tq_op_B5_e,773
+	dc.w 0,0
+	dc.l tq_op_B6_a,tq_op_B6_b,tq_op_B6_b,tq_op_B6_e,773
+	dc.w 0,0
+	dc.l tq_op_B7_a,tq_op_B7_b,tq_op_B7_b,tq_op_B7_e,773
+	dc.w 0,0
+	dc.l tq_op_B8_a,tq_op_B8_b,tq_op_B8_b,tq_op_B8_e,773
+	dc.w 0,0
+	dc.l tq_op_B9_a,tq_op_B9_b,tq_op_B9_b,tq_op_B9_e,773
+	dc.w 0,0
+	dc.l tq_op_BA_a,tq_op_BA_b,tq_op_BA_b,tq_op_BA_e,773
+	dc.w 0,0
+	dc.l tq_op_BB_a,tq_op_BB_b,tq_op_BB_b,tq_op_BB_e,773
+	dc.w 0,0
+	dc.l tq_op_BC_a,tq_op_BC_b,tq_op_BC_b,tq_op_BC_e,775
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_BE_a,tq_op_BE_b,tq_op_BE_b,tq_op_BE_e,774
+	dc.w 0,0
+	dc.l tq_op_BF_a,tq_op_BF_b,tq_op_BF_b,tq_op_BF_e,774
+	dc.w 0,0
+	dc.l tq_op_C0_a,tq_op_C0_b,tq_op_C0_b,tq_op_C0_e,4098
+	dc.w H22-tq_op_C0_a+0,0
+	dc.l tq_op_C1_a,tq_op_C1_b,tq_op_C1_b,tq_op_C1_e,4098
+	dc.w H23-tq_op_C1_a+0,0
+	dc.l tq_op_C2_a,tq_op_C2_b,tq_op_C2_b,tq_op_C2_e,4098
+	dc.w H24-tq_op_C2_a+0,0
+	dc.l tq_op_C3_a,tq_op_C3_b,tq_op_C3_b,tq_op_C3_e,4100
+	dc.w H25-tq_op_C3_a+16384,0
+	dc.l tq_op_C4_a,tq_op_C4_b,tq_op_C4_b,tq_op_C4_e,4098
+	dc.w H26-tq_op_C4_a+0,0
+	dc.l tq_op_C5_a,tq_op_C5_b,tq_op_C5_b,tq_op_C5_e,4098
+	dc.w H27-tq_op_C5_a+0,0
+	dc.l tq_op_C6_a,tq_op_C6_b,tq_op_C6_b,tq_op_C6_e,4098
+	dc.w H28-tq_op_C6_a+0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_C8_a,tq_op_C8_b,tq_op_C8_b,tq_op_C8_e,4098
+	dc.w H29-tq_op_C8_a+0,0
+	dc.l tq_op_C9_a,tq_op_C9_b,tq_op_C9_b,tq_op_C9_e,4098
+	dc.w H30-tq_op_C9_a+0,0
+	dc.l tq_op_CA_a,tq_op_CA_b,tq_op_CA_b,tq_op_CA_e,4098
+	dc.w H31-tq_op_CA_a+0,0
+	dc.l tq_op_CB_a,tq_op_CB_b,tq_op_CB_b,tq_op_CB_e,4098
+	dc.w H32-tq_op_CB_a+0,0
+	dc.l tq_op_CC_a,tq_op_CC_b,tq_op_CC_b,tq_op_CC_e,4099
+	dc.w H33-tq_op_CC_a+16384,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_CE_a,tq_op_CE_b,tq_op_CE_b,tq_op_CE_e,4099
+	dc.w H34-tq_op_CE_a+16384,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_op_D0_a,tq_op_D0_b,tq_op_D0_b,tq_op_D0_e,260
+	dc.w 0,0
+	dc.l tq_op_D1_a,tq_op_D1_b,tq_op_D1_b,tq_op_D1_e,260
+	dc.w 0,0
+	dc.l tq_op_D2_a,tq_op_D2_b,tq_op_D2_b,tq_op_D2_e,260
+	dc.w 0,0
+	dc.l tq_op_D3_a,tq_op_D3_b,tq_op_D3_b,tq_op_D3_e,262
+	dc.w 0,0
+	dc.l tq_op_D4_a,tq_op_D4_b,tq_op_D4_b,tq_op_D4_e,260
+	dc.w 0,0
+	dc.l tq_op_D5_a,tq_op_D5_b,tq_op_D5_b,tq_op_D5_e,260
+	dc.w 0,0
+	dc.l tq_op_D6_a,tq_op_D6_b,tq_op_D6_b,tq_op_D6_e,260
+	dc.w 0,0
+	dc.l tq_op_D7_a,tq_op_D7_b,tq_op_D7_b,tq_op_D7_e,260
+	dc.w 0,0
+	dc.l tq_op_D8_a,tq_op_D8_b,tq_op_D8_b,tq_op_D8_e,260
+	dc.w 0,0
+	dc.l tq_op_D9_a,tq_op_D9_b,tq_op_D9_b,tq_op_D9_e,260
+	dc.w 0,0
+	dc.l tq_op_DA_a,tq_op_DA_b,tq_op_DA_b,tq_op_DA_e,260
+	dc.w 0,0
+	dc.l tq_op_DB_a,tq_op_DB_b,tq_op_DB_b,tq_op_DB_e,260
+	dc.w 0,0
+	dc.l tq_op_DC_a,tq_op_DC_b,tq_op_DC_b,tq_op_DC_e,261
+	dc.w 0,0
+	dc.l tq_op_DD_a,tq_op_DD_b,tq_op_DD_b,tq_op_DD_e,261
+	dc.w 0,0
+	dc.l tq_op_DE_a,tq_op_DE_b,tq_op_DE_b,tq_op_DE_e,261
+	dc.w 0,0
+	dc.l tq_op_DF_a,tq_op_DF_b,tq_op_DF_b,tq_op_DF_e,261
+	dc.w 0,0
+	dc.l tq_op_E0_a,tq_op_E0_b,tq_op_E0_b,tq_op_E0_e,514
+	dc.w 0,0
+	dc.l tq_op_E1_a,tq_op_E1_b,tq_op_E1_b,tq_op_E1_e,514
+	dc.w 0,0
+	dc.l tq_op_E2_a,tq_op_E2_b,tq_op_E2_b,tq_op_E2_e,514
+	dc.w 0,0
+	dc.l tq_op_E3_a,tq_op_E3_b,tq_op_E3_b,tq_op_E3_e,516
+	dc.w 0,0
+	dc.l tq_op_E4_a,tq_op_E4_b,tq_op_E4_b,tq_op_E4_e,514
+	dc.w 0,0
+	dc.l tq_op_E5_a,tq_op_E5_b,tq_op_E5_b,tq_op_E5_e,514
+	dc.w 0,0
+	dc.l tq_op_E6_a,tq_op_E6_b,tq_op_E6_b,tq_op_E6_e,514
+	dc.w 0,0
+	dc.l tq_op_E7_a,tq_op_E7_b,tq_op_E7_b,tq_op_E7_e,514
+	dc.w 0,0
+	dc.l tq_op_E8_a,tq_op_E8_b,tq_op_E8_b,tq_op_E8_e,514
+	dc.w 0,0
+	dc.l tq_op_E9_a,tq_op_E9_b,tq_op_E9_b,tq_op_E9_e,514
+	dc.w 0,0
+	dc.l tq_op_EA_a,tq_op_EA_b,tq_op_EA_b,tq_op_EA_e,514
+	dc.w 0,0
+	dc.l tq_op_EB_a,tq_op_EB_b,tq_op_EB_b,tq_op_EB_e,514
+	dc.w 0,0
+	dc.l tq_op_EC_a,tq_op_EC_b,tq_op_EC_b,tq_op_EC_e,515
+	dc.w 0,0
+	dc.l tq_op_ED_a,tq_op_ED_b,tq_op_ED_b,tq_op_ED_e,515
+	dc.w 0,0
+	dc.l tq_op_EE_a,tq_op_EE_b,tq_op_EE_b,tq_op_EE_e,515
+	dc.w 0,0
+	dc.l tq_op_EF_a,tq_op_EF_b,tq_op_EF_b,tq_op_EF_e,515
+	dc.w 0,0
+	dc.l tq_op_F0_a,tq_op_F0_b,tq_op_F0_b,tq_op_F0_e,773
+	dc.w 0,0
+	dc.l tq_op_F1_a,tq_op_F1_b,tq_op_F1_b,tq_op_F1_e,773
+	dc.w 0,0
+	dc.l tq_op_F2_a,tq_op_F2_b,tq_op_F2_b,tq_op_F2_e,773
+	dc.w 0,0
+	dc.l tq_op_F3_a,tq_op_F3_b,tq_op_F3_b,tq_op_F3_e,775
+	dc.w 0,0
+	dc.l tq_op_F4_a,tq_op_F4_b,tq_op_F4_b,tq_op_F4_e,773
+	dc.w 0,0
+	dc.l tq_op_F5_a,tq_op_F5_b,tq_op_F5_b,tq_op_F5_e,773
+	dc.w 0,0
+	dc.l tq_op_F6_a,tq_op_F6_b,tq_op_F6_b,tq_op_F6_e,773
+	dc.w 0,0
+	dc.l tq_op_F7_a,tq_op_F7_b,tq_op_F7_b,tq_op_F7_e,773
+	dc.w 0,0
+	dc.l tq_op_F8_a,tq_op_F8_b,tq_op_F8_b,tq_op_F8_e,773
+	dc.w 0,0
+	dc.l tq_op_F9_a,tq_op_F9_b,tq_op_F9_b,tq_op_F9_e,773
+	dc.w 0,0
+	dc.l tq_op_FA_a,tq_op_FA_b,tq_op_FA_b,tq_op_FA_e,773
+	dc.w 0,0
+	dc.l tq_op_FB_a,tq_op_FB_b,tq_op_FB_b,tq_op_FB_e,773
+	dc.w 0,0
+	dc.l tq_op_FC_a,tq_op_FC_b,tq_op_FC_b,tq_op_FC_e,774
+	dc.w 0,0
+	dc.l tq_op_FD_a,tq_op_FD_b,tq_op_FD_b,tq_op_FD_e,774
+	dc.w 0,0
+	dc.l tq_op_FE_a,tq_op_FE_b,tq_op_FE_b,tq_op_FE_e,774
+	dc.w 0,0
+	dc.l tq_op_FF_a,tq_op_FF_b,tq_op_FF_b,tq_op_FF_e,774
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_21_a,tq_p10_21_b,tq_p10_21_b,tq_p10_21_e,4101
+	dc.w H36-tq_p10_21_a+16384,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_83_a,tq_p10_83_b,tq_p10_83_b,tq_p10_83_e,4101
+	dc.w H37-tq_p10_83_a+16384,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_8C_a,tq_p10_8C_b,tq_p10_8C_b,tq_p10_8C_e,4101
+	dc.w H38-tq_p10_8C_a+16384,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_8E_a,tq_p10_8E_b,tq_p10_8E_b,tq_p10_8E_e,4100
+	dc.w H39-tq_p10_8E_a+16384,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_93_a,tq_p10_93_b,tq_p10_93_b,tq_p10_93_e,263
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_9C_a,tq_p10_9C_b,tq_p10_9C_b,tq_p10_9C_e,263
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_9E_a,tq_p10_9E_b,tq_p10_9E_b,tq_p10_9E_e,262
+	dc.w 0,0
+	dc.l tq_p10_9F_a,tq_p10_9F_b,tq_p10_9F_b,tq_p10_9F_e,262
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_A3_a,tq_p10_A3_b,tq_p10_A3_b,tq_p10_A3_e,517
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_AC_a,tq_p10_AC_b,tq_p10_AC_b,tq_p10_AC_e,517
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_AE_a,tq_p10_AE_b,tq_p10_AE_b,tq_p10_AE_e,516
+	dc.w 0,0
+	dc.l tq_p10_AF_a,tq_p10_AF_b,tq_p10_AF_b,tq_p10_AF_e,516
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_B3_a,tq_p10_B3_b,tq_p10_B3_b,tq_p10_B3_e,776
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_BC_a,tq_p10_BC_b,tq_p10_BC_b,tq_p10_BC_e,776
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_BE_a,tq_p10_BE_b,tq_p10_BE_b,tq_p10_BE_e,775
+	dc.w 0,0
+	dc.l tq_p10_BF_a,tq_p10_BF_b,tq_p10_BF_b,tq_p10_BF_e,775
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_CE_a,tq_p10_CE_b,tq_p10_CE_b,tq_p10_CE_e,4100
+	dc.w H40-tq_p10_CE_a+16384,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_DE_a,tq_p10_DE_b,tq_p10_DE_b,tq_p10_DE_e,262
+	dc.w 0,0
+	dc.l tq_p10_DF_a,tq_p10_DF_b,tq_p10_DF_b,tq_p10_DF_e,262
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_EE_a,tq_p10_EE_b,tq_p10_EE_b,tq_p10_EE_e,516
+	dc.w 0,0
+	dc.l tq_p10_EF_a,tq_p10_EF_b,tq_p10_EF_b,tq_p10_EF_e,516
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p10_FE_a,tq_p10_FE_b,tq_p10_FE_b,tq_p10_FE_e,775
+	dc.w 0,0
+	dc.l tq_p10_FF_a,tq_p10_FF_b,tq_p10_FF_b,tq_p10_FF_e,775
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p11_83_a,tq_p11_83_b,tq_p11_83_b,tq_p11_83_e,4101
+	dc.w H41-tq_p11_83_a+16384,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p11_8C_a,tq_p11_8C_b,tq_p11_8C_b,tq_p11_8C_e,4101
+	dc.w H42-tq_p11_8C_a+16384,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p11_93_a,tq_p11_93_b,tq_p11_93_b,tq_p11_93_e,263
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p11_9C_a,tq_p11_9C_b,tq_p11_9C_b,tq_p11_9C_e,263
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p11_A3_a,tq_p11_A3_b,tq_p11_A3_b,tq_p11_A3_e,517
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p11_AC_a,tq_p11_AC_b,tq_p11_AC_b,tq_p11_AC_e,517
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p11_B3_a,tq_p11_B3_b,tq_p11_B3_b,tq_p11_B3_e,776
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l tq_p11_BC_a,tq_p11_BC_b,tq_p11_BC_b,tq_p11_BC_e,776
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+	dc.l 0,0,0,0,0
+	dc.w 0,0
+
+tqd_s:
+	moveq #0,d0
+	move.w 4192(a5),d0
+Hd:
+	move.b #$a5,d0
+tqd_e:
+tqx_s:
+	moveq #0,d0
+Hx:
+	move.w #$a5a5,d0
+tqx_e:
+tqi_00_s:
+	moveq #0,d0
+	move.w d6,d0
+tqi_00_e:
+tqi_01_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #1,d0
+tqi_01_e:
+tqi_02_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #2,d0
+tqi_02_e:
+tqi_03_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #3,d0
+tqi_03_e:
+tqi_04_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #4,d0
+tqi_04_e:
+tqi_05_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #5,d0
+tqi_05_e:
+tqi_06_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #6,d0
+tqi_06_e:
+tqi_07_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #7,d0
+tqi_07_e:
+tqi_08_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #8,d0
+tqi_08_e:
+tqi_09_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #9,d0
+tqi_09_e:
+tqi_0A_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #10,d0
+tqi_0A_e:
+tqi_0B_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #11,d0
+tqi_0B_e:
+tqi_0C_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #12,d0
+tqi_0C_e:
+tqi_0D_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #13,d0
+tqi_0D_e:
+tqi_0E_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #14,d0
+tqi_0E_e:
+tqi_0F_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #15,d0
+tqi_0F_e:
+tqi_10_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-16,d0
+tqi_10_e:
+tqi_11_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-15,d0
+tqi_11_e:
+tqi_12_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-14,d0
+tqi_12_e:
+tqi_13_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-13,d0
+tqi_13_e:
+tqi_14_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-12,d0
+tqi_14_e:
+tqi_15_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-11,d0
+tqi_15_e:
+tqi_16_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-10,d0
+tqi_16_e:
+tqi_17_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-9,d0
+tqi_17_e:
+tqi_18_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-8,d0
+tqi_18_e:
+tqi_19_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-7,d0
+tqi_19_e:
+tqi_1A_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-6,d0
+tqi_1A_e:
+tqi_1B_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-5,d0
+tqi_1B_e:
+tqi_1C_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-4,d0
+tqi_1C_e:
+tqi_1D_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-3,d0
+tqi_1D_e:
+tqi_1E_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-2,d0
+tqi_1E_e:
+tqi_1F_s:
+	moveq #0,d0
+	move.w d6,d0
+	add.w #-1,d0
+tqi_1F_e:
+tqi_20_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+tqi_20_e:
+tqi_21_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #1,d0
+tqi_21_e:
+tqi_22_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #2,d0
+tqi_22_e:
+tqi_23_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #3,d0
+tqi_23_e:
+tqi_24_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #4,d0
+tqi_24_e:
+tqi_25_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #5,d0
+tqi_25_e:
+tqi_26_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #6,d0
+tqi_26_e:
+tqi_27_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #7,d0
+tqi_27_e:
+tqi_28_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #8,d0
+tqi_28_e:
+tqi_29_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #9,d0
+tqi_29_e:
+tqi_2A_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #10,d0
+tqi_2A_e:
+tqi_2B_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #11,d0
+tqi_2B_e:
+tqi_2C_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #12,d0
+tqi_2C_e:
+tqi_2D_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #13,d0
+tqi_2D_e:
+tqi_2E_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #14,d0
+tqi_2E_e:
+tqi_2F_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #15,d0
+tqi_2F_e:
+tqi_30_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-16,d0
+tqi_30_e:
+tqi_31_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-15,d0
+tqi_31_e:
+tqi_32_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-14,d0
+tqi_32_e:
+tqi_33_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-13,d0
+tqi_33_e:
+tqi_34_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-12,d0
+tqi_34_e:
+tqi_35_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-11,d0
+tqi_35_e:
+tqi_36_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-10,d0
+tqi_36_e:
+tqi_37_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-9,d0
+tqi_37_e:
+tqi_38_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-8,d0
+tqi_38_e:
+tqi_39_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-7,d0
+tqi_39_e:
+tqi_3A_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-6,d0
+tqi_3A_e:
+tqi_3B_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-5,d0
+tqi_3B_e:
+tqi_3C_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-4,d0
+tqi_3C_e:
+tqi_3D_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-3,d0
+tqi_3D_e:
+tqi_3E_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-2,d0
+tqi_3E_e:
+tqi_3F_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w #-1,d0
+tqi_3F_e:
+tqi_40_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+tqi_40_e:
+tqi_41_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #1,d0
+tqi_41_e:
+tqi_42_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #2,d0
+tqi_42_e:
+tqi_43_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #3,d0
+tqi_43_e:
+tqi_44_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #4,d0
+tqi_44_e:
+tqi_45_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #5,d0
+tqi_45_e:
+tqi_46_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #6,d0
+tqi_46_e:
+tqi_47_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #7,d0
+tqi_47_e:
+tqi_48_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #8,d0
+tqi_48_e:
+tqi_49_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #9,d0
+tqi_49_e:
+tqi_4A_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #10,d0
+tqi_4A_e:
+tqi_4B_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #11,d0
+tqi_4B_e:
+tqi_4C_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #12,d0
+tqi_4C_e:
+tqi_4D_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #13,d0
+tqi_4D_e:
+tqi_4E_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #14,d0
+tqi_4E_e:
+tqi_4F_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #15,d0
+tqi_4F_e:
+tqi_50_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-16,d0
+tqi_50_e:
+tqi_51_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-15,d0
+tqi_51_e:
+tqi_52_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-14,d0
+tqi_52_e:
+tqi_53_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-13,d0
+tqi_53_e:
+tqi_54_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-12,d0
+tqi_54_e:
+tqi_55_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-11,d0
+tqi_55_e:
+tqi_56_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-10,d0
+tqi_56_e:
+tqi_57_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-9,d0
+tqi_57_e:
+tqi_58_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-8,d0
+tqi_58_e:
+tqi_59_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-7,d0
+tqi_59_e:
+tqi_5A_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-6,d0
+tqi_5A_e:
+tqi_5B_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-5,d0
+tqi_5B_e:
+tqi_5C_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-4,d0
+tqi_5C_e:
+tqi_5D_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-3,d0
+tqi_5D_e:
+tqi_5E_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-2,d0
+tqi_5E_e:
+tqi_5F_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w #-1,d0
+tqi_5F_e:
+tqi_60_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+tqi_60_e:
+tqi_61_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #1,d0
+tqi_61_e:
+tqi_62_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #2,d0
+tqi_62_e:
+tqi_63_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #3,d0
+tqi_63_e:
+tqi_64_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #4,d0
+tqi_64_e:
+tqi_65_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #5,d0
+tqi_65_e:
+tqi_66_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #6,d0
+tqi_66_e:
+tqi_67_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #7,d0
+tqi_67_e:
+tqi_68_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #8,d0
+tqi_68_e:
+tqi_69_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #9,d0
+tqi_69_e:
+tqi_6A_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #10,d0
+tqi_6A_e:
+tqi_6B_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #11,d0
+tqi_6B_e:
+tqi_6C_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #12,d0
+tqi_6C_e:
+tqi_6D_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #13,d0
+tqi_6D_e:
+tqi_6E_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #14,d0
+tqi_6E_e:
+tqi_6F_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #15,d0
+tqi_6F_e:
+tqi_70_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-16,d0
+tqi_70_e:
+tqi_71_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-15,d0
+tqi_71_e:
+tqi_72_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-14,d0
+tqi_72_e:
+tqi_73_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-13,d0
+tqi_73_e:
+tqi_74_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-12,d0
+tqi_74_e:
+tqi_75_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-11,d0
+tqi_75_e:
+tqi_76_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-10,d0
+tqi_76_e:
+tqi_77_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-9,d0
+tqi_77_e:
+tqi_78_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-8,d0
+tqi_78_e:
+tqi_79_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-7,d0
+tqi_79_e:
+tqi_7A_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-6,d0
+tqi_7A_e:
+tqi_7B_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-5,d0
+tqi_7B_e:
+tqi_7C_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-4,d0
+tqi_7C_e:
+tqi_7D_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-3,d0
+tqi_7D_e:
+tqi_7E_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-2,d0
+tqi_7E_e:
+tqi_7F_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w #-1,d0
+tqi_7F_e:
+tqi_80_s:
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+tqi_80_e:
+tqi_81_s:
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+tqi_81_e:
+tqi_82_s:
+	subq.w #1,d6
+	moveq #0,d0
+	move.w d6,d0
+tqi_82_e:
+tqi_83_s:
+	subq.w #2,d6
+	moveq #0,d0
+	move.w d6,d0
+tqi_83_e:
+tqi_84_s:
+	moveq #0,d0
+	move.w d6,d0
+tqi_84_e:
+tqi_85_s:
+	move.b d5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w d6,d0
+	add.w d2,d0
+tqi_85_e:
+tqi_86_s:
+	move.b d4,d2
+	ext.w d2
+	moveq #0,d0
+	move.w d6,d0
+	add.w d2,d0
+tqi_86_e:
+tqi_88_s:
+H43:
+	move.b #$a5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w d6,d0
+	add.w d2,d0
+tqi_88_e:
+tqi_89_s:
+H44:
+	move.w #$a5a5,d2
+	moveq #0,d0
+	move.w d6,d0
+	add.w d2,d0
+tqi_89_e:
+tqi_8B_s:
+	move.b d4,d2
+	lsl.w #8,d2
+	move.b d5,d2
+	moveq #0,d0
+	move.w d6,d0
+	add.w d2,d0
+tqi_8B_e:
+tqi_8F_s:
+	moveq #0,d0
+H47:
+	move.w #$a5a5,d0
+tqi_8F_e:
+tqi_90_s:
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #1,d6
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3305
+	cmp.b #$ff,d0
+	beq.s L3305
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3306
+L3305:
+	jsr (rd16_slow).l
+L3306:
+	moveq #0,d0
+	move.w d1,d0
+tqi_90_e:
+tqi_91_s:
+	moveq #0,d0
+	move.w d6,d0
+	addq.w #2,d6
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3307
+	cmp.b #$ff,d0
+	beq.s L3307
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3308
+L3307:
+	jsr (rd16_slow).l
+L3308:
+	moveq #0,d0
+	move.w d1,d0
+tqi_91_e:
+tqi_92_s:
+	subq.w #1,d6
+	moveq #0,d0
+	move.w d6,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3309
+	cmp.b #$ff,d0
+	beq.s L3309
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3310
+L3309:
+	jsr (rd16_slow).l
+L3310:
+	moveq #0,d0
+	move.w d1,d0
+tqi_92_e:
+tqi_93_s:
+	subq.w #2,d6
+	moveq #0,d0
+	move.w d6,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3311
+	cmp.b #$ff,d0
+	beq.s L3311
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3312
+L3311:
+	jsr (rd16_slow).l
+L3312:
+	moveq #0,d0
+	move.w d1,d0
+tqi_93_e:
+tqi_94_s:
+	moveq #0,d0
+	move.w d6,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3313
+	cmp.b #$ff,d0
+	beq.s L3313
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3314
+L3313:
+	jsr (rd16_slow).l
+L3314:
+	moveq #0,d0
+	move.w d1,d0
+tqi_94_e:
+tqi_95_s:
+	move.b d5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w d6,d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3315
+	cmp.b #$ff,d0
+	beq.s L3315
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3316
+L3315:
+	jsr (rd16_slow).l
+L3316:
+	moveq #0,d0
+	move.w d1,d0
+tqi_95_e:
+tqi_96_s:
+	move.b d4,d2
+	ext.w d2
+	moveq #0,d0
+	move.w d6,d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3317
+	cmp.b #$ff,d0
+	beq.s L3317
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3318
+L3317:
+	jsr (rd16_slow).l
+L3318:
+	moveq #0,d0
+	move.w d1,d0
+tqi_96_e:
+tqi_98_s:
+H48:
+	move.b #$a5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w d6,d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3321
+	cmp.b #$ff,d0
+	beq.s L3321
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3322
+L3321:
+	jsr (rd16_slow).l
+L3322:
+	moveq #0,d0
+	move.w d1,d0
+tqi_98_e:
+tqi_99_s:
+H49:
+	move.w #$a5a5,d2
+	moveq #0,d0
+	move.w d6,d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3323
+	cmp.b #$ff,d0
+	beq.s L3323
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3324
+L3323:
+	jsr (rd16_slow).l
+L3324:
+	moveq #0,d0
+	move.w d1,d0
+tqi_99_e:
+tqi_9B_s:
+	move.b d4,d2
+	lsl.w #8,d2
+	move.b d5,d2
+	moveq #0,d0
+	move.w d6,d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3327
+	cmp.b #$ff,d0
+	beq.s L3327
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3328
+L3327:
+	jsr (rd16_slow).l
+L3328:
+	moveq #0,d0
+	move.w d1,d0
+tqi_9B_e:
+tqi_9F_s:
+	moveq #0,d0
+H52:
+	move.w #$a5a5,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3335
+	cmp.b #$ff,d0
+	beq.s L3335
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3336
+L3335:
+	jsr (rd16_slow).l
+L3336:
+	moveq #0,d0
+	move.w d1,d0
+tqi_9F_e:
+tqi_A0_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+tqi_A0_e:
+tqi_A1_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+tqi_A1_e:
+tqi_A2_s:
+	subq.w #1,4162(a5)
+	moveq #0,d0
+	move.w 4162(a5),d0
+tqi_A2_e:
+tqi_A3_s:
+	subq.w #2,4162(a5)
+	moveq #0,d0
+	move.w 4162(a5),d0
+tqi_A3_e:
+tqi_A4_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+tqi_A4_e:
+tqi_A5_s:
+	move.b d5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w d2,d0
+tqi_A5_e:
+tqi_A6_s:
+	move.b d4,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w d2,d0
+tqi_A6_e:
+tqi_A8_s:
+H53:
+	move.b #$a5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w d2,d0
+tqi_A8_e:
+tqi_A9_s:
+H54:
+	move.w #$a5a5,d2
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w d2,d0
+tqi_A9_e:
+tqi_AB_s:
+	move.b d4,d2
+	lsl.w #8,d2
+	move.b d5,d2
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w d2,d0
+tqi_AB_e:
+tqi_AF_s:
+	moveq #0,d0
+H57:
+	move.w #$a5a5,d0
+tqi_AF_e:
+tqi_B0_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #1,4162(a5)
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3337
+	cmp.b #$ff,d0
+	beq.s L3337
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3338
+L3337:
+	jsr (rd16_slow).l
+L3338:
+	moveq #0,d0
+	move.w d1,d0
+tqi_B0_e:
+tqi_B1_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	addq.w #2,4162(a5)
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3339
+	cmp.b #$ff,d0
+	beq.s L3339
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3340
+L3339:
+	jsr (rd16_slow).l
+L3340:
+	moveq #0,d0
+	move.w d1,d0
+tqi_B1_e:
+tqi_B2_s:
+	subq.w #1,4162(a5)
+	moveq #0,d0
+	move.w 4162(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3341
+	cmp.b #$ff,d0
+	beq.s L3341
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3342
+L3341:
+	jsr (rd16_slow).l
+L3342:
+	moveq #0,d0
+	move.w d1,d0
+tqi_B2_e:
+tqi_B3_s:
+	subq.w #2,4162(a5)
+	moveq #0,d0
+	move.w 4162(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3343
+	cmp.b #$ff,d0
+	beq.s L3343
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3344
+L3343:
+	jsr (rd16_slow).l
+L3344:
+	moveq #0,d0
+	move.w d1,d0
+tqi_B3_e:
+tqi_B4_s:
+	moveq #0,d0
+	move.w 4162(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3345
+	cmp.b #$ff,d0
+	beq.s L3345
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3346
+L3345:
+	jsr (rd16_slow).l
+L3346:
+	moveq #0,d0
+	move.w d1,d0
+tqi_B4_e:
+tqi_B5_s:
+	move.b d5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3347
+	cmp.b #$ff,d0
+	beq.s L3347
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3348
+L3347:
+	jsr (rd16_slow).l
+L3348:
+	moveq #0,d0
+	move.w d1,d0
+tqi_B5_e:
+tqi_B6_s:
+	move.b d4,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3349
+	cmp.b #$ff,d0
+	beq.s L3349
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3350
+L3349:
+	jsr (rd16_slow).l
+L3350:
+	moveq #0,d0
+	move.w d1,d0
+tqi_B6_e:
+tqi_B8_s:
+H58:
+	move.b #$a5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3353
+	cmp.b #$ff,d0
+	beq.s L3353
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3354
+L3353:
+	jsr (rd16_slow).l
+L3354:
+	moveq #0,d0
+	move.w d1,d0
+tqi_B8_e:
+tqi_B9_s:
+H59:
+	move.w #$a5a5,d2
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3355
+	cmp.b #$ff,d0
+	beq.s L3355
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3356
+L3355:
+	jsr (rd16_slow).l
+L3356:
+	moveq #0,d0
+	move.w d1,d0
+tqi_B9_e:
+tqi_BB_s:
+	move.b d4,d2
+	lsl.w #8,d2
+	move.b d5,d2
+	moveq #0,d0
+	move.w 4162(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3359
+	cmp.b #$ff,d0
+	beq.s L3359
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3360
+L3359:
+	jsr (rd16_slow).l
+L3360:
+	moveq #0,d0
+	move.w d1,d0
+tqi_BB_e:
+tqi_BF_s:
+	moveq #0,d0
+H62:
+	move.w #$a5a5,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3367
+	cmp.b #$ff,d0
+	beq.s L3367
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3368
+L3367:
+	jsr (rd16_slow).l
+L3368:
+	moveq #0,d0
+	move.w d1,d0
+tqi_BF_e:
+tqi_C0_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	addq.w #1,4164(a5)
+tqi_C0_e:
+tqi_C1_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	addq.w #2,4164(a5)
+tqi_C1_e:
+tqi_C2_s:
+	subq.w #1,4164(a5)
+	moveq #0,d0
+	move.w 4164(a5),d0
+tqi_C2_e:
+tqi_C3_s:
+	subq.w #2,4164(a5)
+	moveq #0,d0
+	move.w 4164(a5),d0
+tqi_C3_e:
+tqi_C4_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+tqi_C4_e:
+tqi_C5_s:
+	move.b d5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w d2,d0
+tqi_C5_e:
+tqi_C6_s:
+	move.b d4,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w d2,d0
+tqi_C6_e:
+tqi_C8_s:
+H63:
+	move.b #$a5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w d2,d0
+tqi_C8_e:
+tqi_C9_s:
+H64:
+	move.w #$a5a5,d2
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w d2,d0
+tqi_C9_e:
+tqi_CB_s:
+	move.b d4,d2
+	lsl.w #8,d2
+	move.b d5,d2
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w d2,d0
+tqi_CB_e:
+tqi_CF_s:
+	moveq #0,d0
+H67:
+	move.w #$a5a5,d0
+tqi_CF_e:
+tqi_D0_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	addq.w #1,4164(a5)
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3369
+	cmp.b #$ff,d0
+	beq.s L3369
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3370
+L3369:
+	jsr (rd16_slow).l
+L3370:
+	moveq #0,d0
+	move.w d1,d0
+tqi_D0_e:
+tqi_D1_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	addq.w #2,4164(a5)
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3371
+	cmp.b #$ff,d0
+	beq.s L3371
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3372
+L3371:
+	jsr (rd16_slow).l
+L3372:
+	moveq #0,d0
+	move.w d1,d0
+tqi_D1_e:
+tqi_D2_s:
+	subq.w #1,4164(a5)
+	moveq #0,d0
+	move.w 4164(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3373
+	cmp.b #$ff,d0
+	beq.s L3373
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3374
+L3373:
+	jsr (rd16_slow).l
+L3374:
+	moveq #0,d0
+	move.w d1,d0
+tqi_D2_e:
+tqi_D3_s:
+	subq.w #2,4164(a5)
+	moveq #0,d0
+	move.w 4164(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3375
+	cmp.b #$ff,d0
+	beq.s L3375
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3376
+L3375:
+	jsr (rd16_slow).l
+L3376:
+	moveq #0,d0
+	move.w d1,d0
+tqi_D3_e:
+tqi_D4_s:
+	moveq #0,d0
+	move.w 4164(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3377
+	cmp.b #$ff,d0
+	beq.s L3377
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3378
+L3377:
+	jsr (rd16_slow).l
+L3378:
+	moveq #0,d0
+	move.w d1,d0
+tqi_D4_e:
+tqi_D5_s:
+	move.b d5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3379
+	cmp.b #$ff,d0
+	beq.s L3379
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3380
+L3379:
+	jsr (rd16_slow).l
+L3380:
+	moveq #0,d0
+	move.w d1,d0
+tqi_D5_e:
+tqi_D6_s:
+	move.b d4,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3381
+	cmp.b #$ff,d0
+	beq.s L3381
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3382
+L3381:
+	jsr (rd16_slow).l
+L3382:
+	moveq #0,d0
+	move.w d1,d0
+tqi_D6_e:
+tqi_D8_s:
+H68:
+	move.b #$a5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3385
+	cmp.b #$ff,d0
+	beq.s L3385
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3386
+L3385:
+	jsr (rd16_slow).l
+L3386:
+	moveq #0,d0
+	move.w d1,d0
+tqi_D8_e:
+tqi_D9_s:
+H69:
+	move.w #$a5a5,d2
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3387
+	cmp.b #$ff,d0
+	beq.s L3387
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3388
+L3387:
+	jsr (rd16_slow).l
+L3388:
+	moveq #0,d0
+	move.w d1,d0
+tqi_D9_e:
+tqi_DB_s:
+	move.b d4,d2
+	lsl.w #8,d2
+	move.b d5,d2
+	moveq #0,d0
+	move.w 4164(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3391
+	cmp.b #$ff,d0
+	beq.s L3391
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3392
+L3391:
+	jsr (rd16_slow).l
+L3392:
+	moveq #0,d0
+	move.w d1,d0
+tqi_DB_e:
+tqi_DF_s:
+	moveq #0,d0
+H72:
+	move.w #$a5a5,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3399
+	cmp.b #$ff,d0
+	beq.s L3399
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3400
+L3399:
+	jsr (rd16_slow).l
+L3400:
+	moveq #0,d0
+	move.w d1,d0
+tqi_DF_e:
+tqi_E0_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	addq.w #1,4166(a5)
+tqi_E0_e:
+tqi_E1_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	addq.w #2,4166(a5)
+tqi_E1_e:
+tqi_E2_s:
+	subq.w #1,4166(a5)
+	moveq #0,d0
+	move.w 4166(a5),d0
+tqi_E2_e:
+tqi_E3_s:
+	subq.w #2,4166(a5)
+	moveq #0,d0
+	move.w 4166(a5),d0
+tqi_E3_e:
+tqi_E4_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+tqi_E4_e:
+tqi_E5_s:
+	move.b d5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w d2,d0
+tqi_E5_e:
+tqi_E6_s:
+	move.b d4,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w d2,d0
+tqi_E6_e:
+tqi_E8_s:
+H73:
+	move.b #$a5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w d2,d0
+tqi_E8_e:
+tqi_E9_s:
+H74:
+	move.w #$a5a5,d2
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w d2,d0
+tqi_E9_e:
+tqi_EB_s:
+	move.b d4,d2
+	lsl.w #8,d2
+	move.b d5,d2
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w d2,d0
+tqi_EB_e:
+tqi_EF_s:
+	moveq #0,d0
+H77:
+	move.w #$a5a5,d0
+tqi_EF_e:
+tqi_F0_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	addq.w #1,4166(a5)
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3401
+	cmp.b #$ff,d0
+	beq.s L3401
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3402
+L3401:
+	jsr (rd16_slow).l
+L3402:
+	moveq #0,d0
+	move.w d1,d0
+tqi_F0_e:
+tqi_F1_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	addq.w #2,4166(a5)
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3403
+	cmp.b #$ff,d0
+	beq.s L3403
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3404
+L3403:
+	jsr (rd16_slow).l
+L3404:
+	moveq #0,d0
+	move.w d1,d0
+tqi_F1_e:
+tqi_F2_s:
+	subq.w #1,4166(a5)
+	moveq #0,d0
+	move.w 4166(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3405
+	cmp.b #$ff,d0
+	beq.s L3405
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3406
+L3405:
+	jsr (rd16_slow).l
+L3406:
+	moveq #0,d0
+	move.w d1,d0
+tqi_F2_e:
+tqi_F3_s:
+	subq.w #2,4166(a5)
+	moveq #0,d0
+	move.w 4166(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3407
+	cmp.b #$ff,d0
+	beq.s L3407
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3408
+L3407:
+	jsr (rd16_slow).l
+L3408:
+	moveq #0,d0
+	move.w d1,d0
+tqi_F3_e:
+tqi_F4_s:
+	moveq #0,d0
+	move.w 4166(a5),d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3409
+	cmp.b #$ff,d0
+	beq.s L3409
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3410
+L3409:
+	jsr (rd16_slow).l
+L3410:
+	moveq #0,d0
+	move.w d1,d0
+tqi_F4_e:
+tqi_F5_s:
+	move.b d5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3411
+	cmp.b #$ff,d0
+	beq.s L3411
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3412
+L3411:
+	jsr (rd16_slow).l
+L3412:
+	moveq #0,d0
+	move.w d1,d0
+tqi_F5_e:
+tqi_F6_s:
+	move.b d4,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3413
+	cmp.b #$ff,d0
+	beq.s L3413
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3414
+L3413:
+	jsr (rd16_slow).l
+L3414:
+	moveq #0,d0
+	move.w d1,d0
+tqi_F6_e:
+tqi_F8_s:
+H78:
+	move.b #$a5,d2
+	ext.w d2
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3417
+	cmp.b #$ff,d0
+	beq.s L3417
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3418
+L3417:
+	jsr (rd16_slow).l
+L3418:
+	moveq #0,d0
+	move.w d1,d0
+tqi_F8_e:
+tqi_F9_s:
+H79:
+	move.w #$a5a5,d2
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3419
+	cmp.b #$ff,d0
+	beq.s L3419
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3420
+L3419:
+	jsr (rd16_slow).l
+L3420:
+	moveq #0,d0
+	move.w d1,d0
+tqi_F9_e:
+tqi_FB_s:
+	move.b d4,d2
+	lsl.w #8,d2
+	move.b d5,d2
+	moveq #0,d0
+	move.w 4166(a5),d0
+	add.w d2,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3423
+	cmp.b #$ff,d0
+	beq.s L3423
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3424
+L3423:
+	jsr (rd16_slow).l
+L3424:
+	moveq #0,d0
+	move.w d1,d0
+tqi_FB_e:
+tqi_FF_s:
+	moveq #0,d0
+H82:
+	move.w #$a5a5,d0
+	move.w d0,d2
+	lsr.w #8,d2
+	move.l (a2,d2.w*4),d2
+	beq.s L3431
+	cmp.b #$ff,d0
+	beq.s L3431
+	move.l d2,a0
+	move.w (a0,d0.l),d1
+	bra.s L3432
+L3431:
+	jsr (rd16_slow).l
+L3432:
+	moveq #0,d0
+	move.w d1,d0
+tqi_FF_e:
+
+	cnop	0,4
+	public	_m6809_tqea
+_m6809_tqea:
+	dc.l tqd_s,tqd_e,4098
+	dc.w Hd-tqd_s,0
+	dc.l tqx_s,tqx_e,4099
+	dc.w Hx-tqx_s+$4000,0
+	dc.l tqi_00_s,tqi_00_e,3
+	dc.w 0,0
+	dc.l tqi_01_s,tqi_01_e,3
+	dc.w 0,0
+	dc.l tqi_02_s,tqi_02_e,3
+	dc.w 0,0
+	dc.l tqi_03_s,tqi_03_e,3
+	dc.w 0,0
+	dc.l tqi_04_s,tqi_04_e,3
+	dc.w 0,0
+	dc.l tqi_05_s,tqi_05_e,3
+	dc.w 0,0
+	dc.l tqi_06_s,tqi_06_e,3
+	dc.w 0,0
+	dc.l tqi_07_s,tqi_07_e,3
+	dc.w 0,0
+	dc.l tqi_08_s,tqi_08_e,3
+	dc.w 0,0
+	dc.l tqi_09_s,tqi_09_e,3
+	dc.w 0,0
+	dc.l tqi_0A_s,tqi_0A_e,3
+	dc.w 0,0
+	dc.l tqi_0B_s,tqi_0B_e,3
+	dc.w 0,0
+	dc.l tqi_0C_s,tqi_0C_e,3
+	dc.w 0,0
+	dc.l tqi_0D_s,tqi_0D_e,3
+	dc.w 0,0
+	dc.l tqi_0E_s,tqi_0E_e,3
+	dc.w 0,0
+	dc.l tqi_0F_s,tqi_0F_e,3
+	dc.w 0,0
+	dc.l tqi_10_s,tqi_10_e,3
+	dc.w 0,0
+	dc.l tqi_11_s,tqi_11_e,3
+	dc.w 0,0
+	dc.l tqi_12_s,tqi_12_e,3
+	dc.w 0,0
+	dc.l tqi_13_s,tqi_13_e,3
+	dc.w 0,0
+	dc.l tqi_14_s,tqi_14_e,3
+	dc.w 0,0
+	dc.l tqi_15_s,tqi_15_e,3
+	dc.w 0,0
+	dc.l tqi_16_s,tqi_16_e,3
+	dc.w 0,0
+	dc.l tqi_17_s,tqi_17_e,3
+	dc.w 0,0
+	dc.l tqi_18_s,tqi_18_e,3
+	dc.w 0,0
+	dc.l tqi_19_s,tqi_19_e,3
+	dc.w 0,0
+	dc.l tqi_1A_s,tqi_1A_e,3
+	dc.w 0,0
+	dc.l tqi_1B_s,tqi_1B_e,3
+	dc.w 0,0
+	dc.l tqi_1C_s,tqi_1C_e,3
+	dc.w 0,0
+	dc.l tqi_1D_s,tqi_1D_e,3
+	dc.w 0,0
+	dc.l tqi_1E_s,tqi_1E_e,3
+	dc.w 0,0
+	dc.l tqi_1F_s,tqi_1F_e,3
+	dc.w 0,0
+	dc.l tqi_20_s,tqi_20_e,3
+	dc.w 0,0
+	dc.l tqi_21_s,tqi_21_e,3
+	dc.w 0,0
+	dc.l tqi_22_s,tqi_22_e,3
+	dc.w 0,0
+	dc.l tqi_23_s,tqi_23_e,3
+	dc.w 0,0
+	dc.l tqi_24_s,tqi_24_e,3
+	dc.w 0,0
+	dc.l tqi_25_s,tqi_25_e,3
+	dc.w 0,0
+	dc.l tqi_26_s,tqi_26_e,3
+	dc.w 0,0
+	dc.l tqi_27_s,tqi_27_e,3
+	dc.w 0,0
+	dc.l tqi_28_s,tqi_28_e,3
+	dc.w 0,0
+	dc.l tqi_29_s,tqi_29_e,3
+	dc.w 0,0
+	dc.l tqi_2A_s,tqi_2A_e,3
+	dc.w 0,0
+	dc.l tqi_2B_s,tqi_2B_e,3
+	dc.w 0,0
+	dc.l tqi_2C_s,tqi_2C_e,3
+	dc.w 0,0
+	dc.l tqi_2D_s,tqi_2D_e,3
+	dc.w 0,0
+	dc.l tqi_2E_s,tqi_2E_e,3
+	dc.w 0,0
+	dc.l tqi_2F_s,tqi_2F_e,3
+	dc.w 0,0
+	dc.l tqi_30_s,tqi_30_e,3
+	dc.w 0,0
+	dc.l tqi_31_s,tqi_31_e,3
+	dc.w 0,0
+	dc.l tqi_32_s,tqi_32_e,3
+	dc.w 0,0
+	dc.l tqi_33_s,tqi_33_e,3
+	dc.w 0,0
+	dc.l tqi_34_s,tqi_34_e,3
+	dc.w 0,0
+	dc.l tqi_35_s,tqi_35_e,3
+	dc.w 0,0
+	dc.l tqi_36_s,tqi_36_e,3
+	dc.w 0,0
+	dc.l tqi_37_s,tqi_37_e,3
+	dc.w 0,0
+	dc.l tqi_38_s,tqi_38_e,3
+	dc.w 0,0
+	dc.l tqi_39_s,tqi_39_e,3
+	dc.w 0,0
+	dc.l tqi_3A_s,tqi_3A_e,3
+	dc.w 0,0
+	dc.l tqi_3B_s,tqi_3B_e,3
+	dc.w 0,0
+	dc.l tqi_3C_s,tqi_3C_e,3
+	dc.w 0,0
+	dc.l tqi_3D_s,tqi_3D_e,3
+	dc.w 0,0
+	dc.l tqi_3E_s,tqi_3E_e,3
+	dc.w 0,0
+	dc.l tqi_3F_s,tqi_3F_e,3
+	dc.w 0,0
+	dc.l tqi_40_s,tqi_40_e,3
+	dc.w 0,0
+	dc.l tqi_41_s,tqi_41_e,3
+	dc.w 0,0
+	dc.l tqi_42_s,tqi_42_e,3
+	dc.w 0,0
+	dc.l tqi_43_s,tqi_43_e,3
+	dc.w 0,0
+	dc.l tqi_44_s,tqi_44_e,3
+	dc.w 0,0
+	dc.l tqi_45_s,tqi_45_e,3
+	dc.w 0,0
+	dc.l tqi_46_s,tqi_46_e,3
+	dc.w 0,0
+	dc.l tqi_47_s,tqi_47_e,3
+	dc.w 0,0
+	dc.l tqi_48_s,tqi_48_e,3
+	dc.w 0,0
+	dc.l tqi_49_s,tqi_49_e,3
+	dc.w 0,0
+	dc.l tqi_4A_s,tqi_4A_e,3
+	dc.w 0,0
+	dc.l tqi_4B_s,tqi_4B_e,3
+	dc.w 0,0
+	dc.l tqi_4C_s,tqi_4C_e,3
+	dc.w 0,0
+	dc.l tqi_4D_s,tqi_4D_e,3
+	dc.w 0,0
+	dc.l tqi_4E_s,tqi_4E_e,3
+	dc.w 0,0
+	dc.l tqi_4F_s,tqi_4F_e,3
+	dc.w 0,0
+	dc.l tqi_50_s,tqi_50_e,3
+	dc.w 0,0
+	dc.l tqi_51_s,tqi_51_e,3
+	dc.w 0,0
+	dc.l tqi_52_s,tqi_52_e,3
+	dc.w 0,0
+	dc.l tqi_53_s,tqi_53_e,3
+	dc.w 0,0
+	dc.l tqi_54_s,tqi_54_e,3
+	dc.w 0,0
+	dc.l tqi_55_s,tqi_55_e,3
+	dc.w 0,0
+	dc.l tqi_56_s,tqi_56_e,3
+	dc.w 0,0
+	dc.l tqi_57_s,tqi_57_e,3
+	dc.w 0,0
+	dc.l tqi_58_s,tqi_58_e,3
+	dc.w 0,0
+	dc.l tqi_59_s,tqi_59_e,3
+	dc.w 0,0
+	dc.l tqi_5A_s,tqi_5A_e,3
+	dc.w 0,0
+	dc.l tqi_5B_s,tqi_5B_e,3
+	dc.w 0,0
+	dc.l tqi_5C_s,tqi_5C_e,3
+	dc.w 0,0
+	dc.l tqi_5D_s,tqi_5D_e,3
+	dc.w 0,0
+	dc.l tqi_5E_s,tqi_5E_e,3
+	dc.w 0,0
+	dc.l tqi_5F_s,tqi_5F_e,3
+	dc.w 0,0
+	dc.l tqi_60_s,tqi_60_e,3
+	dc.w 0,0
+	dc.l tqi_61_s,tqi_61_e,3
+	dc.w 0,0
+	dc.l tqi_62_s,tqi_62_e,3
+	dc.w 0,0
+	dc.l tqi_63_s,tqi_63_e,3
+	dc.w 0,0
+	dc.l tqi_64_s,tqi_64_e,3
+	dc.w 0,0
+	dc.l tqi_65_s,tqi_65_e,3
+	dc.w 0,0
+	dc.l tqi_66_s,tqi_66_e,3
+	dc.w 0,0
+	dc.l tqi_67_s,tqi_67_e,3
+	dc.w 0,0
+	dc.l tqi_68_s,tqi_68_e,3
+	dc.w 0,0
+	dc.l tqi_69_s,tqi_69_e,3
+	dc.w 0,0
+	dc.l tqi_6A_s,tqi_6A_e,3
+	dc.w 0,0
+	dc.l tqi_6B_s,tqi_6B_e,3
+	dc.w 0,0
+	dc.l tqi_6C_s,tqi_6C_e,3
+	dc.w 0,0
+	dc.l tqi_6D_s,tqi_6D_e,3
+	dc.w 0,0
+	dc.l tqi_6E_s,tqi_6E_e,3
+	dc.w 0,0
+	dc.l tqi_6F_s,tqi_6F_e,3
+	dc.w 0,0
+	dc.l tqi_70_s,tqi_70_e,3
+	dc.w 0,0
+	dc.l tqi_71_s,tqi_71_e,3
+	dc.w 0,0
+	dc.l tqi_72_s,tqi_72_e,3
+	dc.w 0,0
+	dc.l tqi_73_s,tqi_73_e,3
+	dc.w 0,0
+	dc.l tqi_74_s,tqi_74_e,3
+	dc.w 0,0
+	dc.l tqi_75_s,tqi_75_e,3
+	dc.w 0,0
+	dc.l tqi_76_s,tqi_76_e,3
+	dc.w 0,0
+	dc.l tqi_77_s,tqi_77_e,3
+	dc.w 0,0
+	dc.l tqi_78_s,tqi_78_e,3
+	dc.w 0,0
+	dc.l tqi_79_s,tqi_79_e,3
+	dc.w 0,0
+	dc.l tqi_7A_s,tqi_7A_e,3
+	dc.w 0,0
+	dc.l tqi_7B_s,tqi_7B_e,3
+	dc.w 0,0
+	dc.l tqi_7C_s,tqi_7C_e,3
+	dc.w 0,0
+	dc.l tqi_7D_s,tqi_7D_e,3
+	dc.w 0,0
+	dc.l tqi_7E_s,tqi_7E_e,3
+	dc.w 0,0
+	dc.l tqi_7F_s,tqi_7F_e,3
+	dc.w 0,0
+	dc.l tqi_80_s,tqi_80_e,4
+	dc.w 0,0
+	dc.l tqi_81_s,tqi_81_e,5
+	dc.w 0,0
+	dc.l tqi_82_s,tqi_82_e,4
+	dc.w 0,0
+	dc.l tqi_83_s,tqi_83_e,5
+	dc.w 0,0
+	dc.l tqi_84_s,tqi_84_e,2
+	dc.w 0,0
+	dc.l tqi_85_s,tqi_85_e,3
+	dc.w 0,0
+	dc.l tqi_86_s,tqi_86_e,3
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_88_s,tqi_88_e,4099
+	dc.w H43-tqi_88_s+0,0
+	dc.l tqi_89_s,tqi_89_e,4102
+	dc.w H44-tqi_89_s+16384,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_8B_s,tqi_8B_e,6
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_8F_s,tqi_8F_e,4100
+	dc.w H47-tqi_8F_s+16384,0
+	dc.l tqi_90_s,tqi_90_e,7
+	dc.w 0,0
+	dc.l tqi_91_s,tqi_91_e,8
+	dc.w 0,0
+	dc.l tqi_92_s,tqi_92_e,7
+	dc.w 0,0
+	dc.l tqi_93_s,tqi_93_e,8
+	dc.w 0,0
+	dc.l tqi_94_s,tqi_94_e,5
+	dc.w 0,0
+	dc.l tqi_95_s,tqi_95_e,6
+	dc.w 0,0
+	dc.l tqi_96_s,tqi_96_e,6
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_98_s,tqi_98_e,4102
+	dc.w H48-tqi_98_s+0,0
+	dc.l tqi_99_s,tqi_99_e,4105
+	dc.w H49-tqi_99_s+16384,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_9B_s,tqi_9B_e,9
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_9F_s,tqi_9F_e,4103
+	dc.w H52-tqi_9F_s+16384,0
+	dc.l tqi_A0_s,tqi_A0_e,4
+	dc.w 0,0
+	dc.l tqi_A1_s,tqi_A1_e,5
+	dc.w 0,0
+	dc.l tqi_A2_s,tqi_A2_e,4
+	dc.w 0,0
+	dc.l tqi_A3_s,tqi_A3_e,5
+	dc.w 0,0
+	dc.l tqi_A4_s,tqi_A4_e,2
+	dc.w 0,0
+	dc.l tqi_A5_s,tqi_A5_e,3
+	dc.w 0,0
+	dc.l tqi_A6_s,tqi_A6_e,3
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_A8_s,tqi_A8_e,4099
+	dc.w H53-tqi_A8_s+0,0
+	dc.l tqi_A9_s,tqi_A9_e,4102
+	dc.w H54-tqi_A9_s+16384,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_AB_s,tqi_AB_e,6
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_AF_s,tqi_AF_e,4100
+	dc.w H57-tqi_AF_s+16384,0
+	dc.l tqi_B0_s,tqi_B0_e,7
+	dc.w 0,0
+	dc.l tqi_B1_s,tqi_B1_e,8
+	dc.w 0,0
+	dc.l tqi_B2_s,tqi_B2_e,7
+	dc.w 0,0
+	dc.l tqi_B3_s,tqi_B3_e,8
+	dc.w 0,0
+	dc.l tqi_B4_s,tqi_B4_e,5
+	dc.w 0,0
+	dc.l tqi_B5_s,tqi_B5_e,6
+	dc.w 0,0
+	dc.l tqi_B6_s,tqi_B6_e,6
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_B8_s,tqi_B8_e,4102
+	dc.w H58-tqi_B8_s+0,0
+	dc.l tqi_B9_s,tqi_B9_e,4105
+	dc.w H59-tqi_B9_s+16384,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_BB_s,tqi_BB_e,9
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_BF_s,tqi_BF_e,4103
+	dc.w H62-tqi_BF_s+16384,0
+	dc.l tqi_C0_s,tqi_C0_e,4
+	dc.w 0,0
+	dc.l tqi_C1_s,tqi_C1_e,5
+	dc.w 0,0
+	dc.l tqi_C2_s,tqi_C2_e,4
+	dc.w 0,0
+	dc.l tqi_C3_s,tqi_C3_e,5
+	dc.w 0,0
+	dc.l tqi_C4_s,tqi_C4_e,2
+	dc.w 0,0
+	dc.l tqi_C5_s,tqi_C5_e,3
+	dc.w 0,0
+	dc.l tqi_C6_s,tqi_C6_e,3
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_C8_s,tqi_C8_e,4099
+	dc.w H63-tqi_C8_s+0,0
+	dc.l tqi_C9_s,tqi_C9_e,4102
+	dc.w H64-tqi_C9_s+16384,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_CB_s,tqi_CB_e,6
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_CF_s,tqi_CF_e,4100
+	dc.w H67-tqi_CF_s+16384,0
+	dc.l tqi_D0_s,tqi_D0_e,7
+	dc.w 0,0
+	dc.l tqi_D1_s,tqi_D1_e,8
+	dc.w 0,0
+	dc.l tqi_D2_s,tqi_D2_e,7
+	dc.w 0,0
+	dc.l tqi_D3_s,tqi_D3_e,8
+	dc.w 0,0
+	dc.l tqi_D4_s,tqi_D4_e,5
+	dc.w 0,0
+	dc.l tqi_D5_s,tqi_D5_e,6
+	dc.w 0,0
+	dc.l tqi_D6_s,tqi_D6_e,6
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_D8_s,tqi_D8_e,4102
+	dc.w H68-tqi_D8_s+0,0
+	dc.l tqi_D9_s,tqi_D9_e,4105
+	dc.w H69-tqi_D9_s+16384,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_DB_s,tqi_DB_e,9
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_DF_s,tqi_DF_e,4103
+	dc.w H72-tqi_DF_s+16384,0
+	dc.l tqi_E0_s,tqi_E0_e,4
+	dc.w 0,0
+	dc.l tqi_E1_s,tqi_E1_e,5
+	dc.w 0,0
+	dc.l tqi_E2_s,tqi_E2_e,4
+	dc.w 0,0
+	dc.l tqi_E3_s,tqi_E3_e,5
+	dc.w 0,0
+	dc.l tqi_E4_s,tqi_E4_e,2
+	dc.w 0,0
+	dc.l tqi_E5_s,tqi_E5_e,3
+	dc.w 0,0
+	dc.l tqi_E6_s,tqi_E6_e,3
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_E8_s,tqi_E8_e,4099
+	dc.w H73-tqi_E8_s+0,0
+	dc.l tqi_E9_s,tqi_E9_e,4102
+	dc.w H74-tqi_E9_s+16384,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_EB_s,tqi_EB_e,6
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_EF_s,tqi_EF_e,4100
+	dc.w H77-tqi_EF_s+16384,0
+	dc.l tqi_F0_s,tqi_F0_e,7
+	dc.w 0,0
+	dc.l tqi_F1_s,tqi_F1_e,8
+	dc.w 0,0
+	dc.l tqi_F2_s,tqi_F2_e,7
+	dc.w 0,0
+	dc.l tqi_F3_s,tqi_F3_e,8
+	dc.w 0,0
+	dc.l tqi_F4_s,tqi_F4_e,5
+	dc.w 0,0
+	dc.l tqi_F5_s,tqi_F5_e,6
+	dc.w 0,0
+	dc.l tqi_F6_s,tqi_F6_e,6
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_F8_s,tqi_F8_e,4102
+	dc.w H78-tqi_F8_s+0,0
+	dc.l tqi_F9_s,tqi_F9_e,4105
+	dc.w H79-tqi_F9_s+16384,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_FB_s,tqi_FB_e,9
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l 0,0,0
+	dc.w 0,0
+	dc.l tqi_FF_s,tqi_FF_e,4103
+	dc.w H82-tqi_FF_s+16384,0

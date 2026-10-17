@@ -5,7 +5,7 @@
 #define XAIN_H
 
 /* the version of the port (Amiga $VER, PC window, start screen with START=EASY) */
-#define XAIN_VERSION "0.9.5"
+#define XAIN_VERSION "0.9.6"
 
 #include <stdint.h>
 #include "m6809.h"
@@ -152,6 +152,16 @@ int xain_patch_texts(Xain *x);
 /* 1 while a planet is played on foot (button 2 jumps), 0 on the planet map, in the flying
    stages (button 2: the extra weapon) and outside a game; for a joystick with one button */
 int xain_on_foot(const Xain *x);
+/* translated 68k code for the main CPU (m6809_tr.c; assembler core only): the sprite list routine
+   DCEC-DE88 for now (prototype). 1 = done */
+int xain_translate(Xain *x);
+/* up as the jump button on foot (keyboard, CONTROL=JOY1): the game takes the jump direction
+   only in the frame of button 2 and the next one (sub 8355), and up usually comes a few frames
+   before left/right (keys, a stick pushed to a diagonal), so the jump went straight up. Button
+   2 waits up to UP_JUMP_WAIT frames for a side direction (at once when one is held). up = up
+   held and xain_on_foot(); *wait: the caller's counter, 0 at the start. Returns p1 */
+#define UP_JUMP_WAIT 3
+uint8_t xain_up_jump(uint8_t *wait, uint8_t p1, int up);
 /* diagnostics: the machine state (CPUs, MCU, RAM, registers, YM timers, slice memo) in a portable
    big endian format, between frames; buf NULL = only the size. Load after xain_init + ROMs
    (and xain_patch_texts if it was used); 1 = ok */

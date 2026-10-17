@@ -14,6 +14,17 @@ off (RAM: is lost) and send them with the release number. The authors
 load this state and see exactly what happened on the Amiga.
 
 
+RELEASE 0.9.6  (15.10.2026)
+---------------------------
+
+Fixes:
+- Jumping sideways with up (keyboard, and the joystick with CONTROL=JOY1):
+  the game takes the jump direction only at take-off, so left/right
+  pressed a moment after up gave a straight jump. The jump now waits up
+  to 3 frames (about 1/20 s) for a side direction. The direction cannot
+  be changed in the air - as on the arcade.
+
+
 RELEASE 0.9.5  (12.10.2026)
 ---------------------------
 

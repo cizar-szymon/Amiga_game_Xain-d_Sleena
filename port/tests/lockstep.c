@@ -187,9 +187,12 @@ static int32_t run_asm(M6809 *c, int32_t cycles)
     return n;
 }
 
+static int no_inputs;             /* STATE=: from a machine state, no inputs */
+
 static void inputs(Xain *m, long f)
 {
     m->in_p1 = m->in_p2 = 0;
+    if (no_inputs) return;
     if (f >= 1201 && f < 1207) m->in_p2 = IN_P2_COIN1;
     if (f >= 1301 && f < 1307) m->in_p1 = IN_P1_START1;
     if (f >= 1701 && f < 1707) m->in_p1 = IN_BUTTON1;
@@ -225,7 +228,21 @@ int main(int argc, char **argv)
 {
     const char *src[3];
     char path[512];
-    long frames = argc > 2 ? atol(argv[2]) : 2000, f;
+    long frames, f;
+    int tr = 0, i, n;
+    unsigned tr_to = 0xde89;
+    const char *state_path = 0;
+    /* keywords anywhere: TR (the asm machine with translated code), TRTO=hex (translate DCEC up
+       to there only), STATE=file (both machines start from a machine state, no inputs) */
+    for (i = n = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "TR")) tr = 1;
+        else if (!strncmp(argv[i], "TRTO=", 5)) tr_to = (unsigned)strtoul(argv[i] + 5, 0, 16);
+        else if (!strncmp(argv[i], "STATE=", 6)) state_path = argv[i] + 6;
+        else argv[n++] = argv[i];
+    }
+    argc = n;
+    setvbuf(stdout, NULL, _IONBF, 0);             /* each line on disk at once (if the machine hangs) */
+    frames = argc > 2 ? atol(argv[2]) : 2000;
     long from = argc > 3 ? atol(argv[3]) : -1;
     int step = argc > 4;
     if (argc < 2) {
@@ -247,6 +264,26 @@ int main(int argc, char **argv)
 again:
     ma.cpu_run = run_c;
     mb.cpu_run = run_asm;
+    if (state_path) {
+        static uint8_t sbuf[0x40000];
+        FILE *fp = fopen(state_path, "rb");
+        long len = fp ? (long)fread(sbuf, 1, sizeof sbuf, fp) : 0;
+        if (fp) fclose(fp);
+        if (!xain_load_state(&ma, sbuf, (uint32_t)len) || !xain_load_state(&mb, sbuf, (uint32_t)len)) {
+            printf("%s: not a machine state\n", state_path);
+            return 20;
+        }
+        no_inputs = 1;
+    }
+    if (tr && !(mb.main.trmap || m6809_tr_build(&mb.main, 0xdcec, (uint16_t)tr_to))) {
+        printf("translation not possible\n");
+        return 20;
+    }
+    if (tr) printf("translated: %lu instructions, %lu without template, %lu bytes\n", (unsigned long)m6809_tr_count,
+                   (unsigned long)m6809_tr_missing, (unsigned long)m6809_tr_bytes);
+    if (tr) printf("  specialized %lu, branches %lu, templates %lu, C core steps %lu\n",
+                   (unsigned long)m6809_tr_kinds[0], (unsigned long)m6809_tr_kinds[1],
+                   (unsigned long)m6809_tr_kinds[2], (unsigned long)m6809_tr_kinds[3]);
     xain_set_sound(&ma, 0);
     xain_set_sound(&mb, 0);
     for (f = 0; f < frames; f++) {
@@ -291,7 +328,7 @@ again:
             printf("frame %ld: DIFFERENT\n", f);
             return 10;
         }
-        if (f % 100 == 0)
+        if (f % 100 == 0 || no_inputs)
             printf("frame %ld ok (main skipped %lu / %lu cycles)\n", f, (unsigned long)mb.main.idle_skipped,
                    (unsigned long)mb.main.total);
     }

@@ -7,6 +7,17 @@ is as on the arcade). When reporting a bug, give the release number - it
 tells whether the bug has already been fixed in a newer one.
 
 
+RELEASE 0.9.6  (15.10.2026)
+---------------------------
+
+Fixes:
+- Jumping sideways with up (keyboard):
+  the game takes the jump direction only at take-off, so left/right
+  pressed a moment after up gave a straight jump. The jump now waits up
+  to 3 frames (about 1/20 s) for a side direction. The direction cannot
+  be changed in the air - as on the arcade.
+
+
 RELEASE 0.9.5  (12.10.2026)
 ---------------------------
 
