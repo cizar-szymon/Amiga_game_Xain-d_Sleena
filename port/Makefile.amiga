@@ -21,7 +21,7 @@ CFLAGS   := +aos68k_win -c99 -cpu=68060 -O3 -speed \
 CORE     := src/m6809.c src/m6809_spr.c src/m6809_68k.s src/m6805.c src/mcu68705.c src/ym2203.c src/ym2203_68k.s src/xain.c src/video.c src/video_68k.s src/romload.c src/sndplay.c
 HEADERS  := $(wildcard src/*.h)
 
-all: $(OUT)/XainSleena $(OUT)/XainTest $(OUT)/Lockstep $(OUT)/YmBench $(OUT)/CpuTest6809 $(OUT)/RenderBench $(OUT)/CpuBench $(OUT)/SliceCost
+all: $(OUT)/XainSleena $(OUT)/XainTest $(OUT)/Lockstep $(OUT)/YmBench $(OUT)/CpuTest6809 $(OUT)/RenderBench $(OUT)/CpuBench $(OUT)/SliceCost $(OUT)/WBStart
 
 $(OUT)/XainSleena: $(CORE) src/main_amiga.c src/amiga_68k.s $(HEADERS) amiga/XainSleena.info
 	mkdir -p $(OUT)
@@ -45,6 +45,11 @@ $(OUT)/LockstepT: $(CORE) src/m6809_68k_trace.s tests/lockstep.c $(HEADERS)
 
 src/m6809_68k_trace.s: ../tools/gen_6809_68k.py
 	python ../tools/gen_6809_68k.py --trace
+
+# starts a program as from its icon (the check after every build: AmiAgent has no Workbench start)
+$(OUT)/WBStart: tests/wbstart.c
+	mkdir -p $(OUT)
+	vc $(CFLAGS) tests/wbstart.c -o $@ -lamiga
 
 # the fast renderer alone (time per frame, checksum)
 $(OUT)/RenderBench: $(CORE) tests/renderbench.c $(HEADERS)

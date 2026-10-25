@@ -40,4 +40,7 @@ $(OUT)/ymbench.exe: src/ym2203.c tests/ymbench.c src/ym2203.h | $(OUT)
 $(OUT)/renderbench.exe: $(CORE) tests/renderbench.c $(HEADERS) | $(OUT)
 	$(CC) $(CFLAGS) $(CORE) tests/renderbench.c -o $@
 
+$(OUT)/scrolllog.exe: $(CORE) tests/scrolllog.c $(HEADERS) | $(OUT)
+	$(CC) $(CFLAGS) $(CORE) tests/scrolllog.c -o $@
+
 .PHONY: all

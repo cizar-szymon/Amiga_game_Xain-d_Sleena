@@ -14,6 +14,47 @@ with the release number. The authors replay the last seconds of play
 and see exactly what happened on the Amiga.
 
 
+RELEASE 0.9.17  (25.10.2026)
+----------------------------
+
+Changes (from your F10 dumps of places where the character stuttered):
+- On foot the foreground (ground, rocks) moves otherwise than the sky:
+  its blocks are now copied by the card's blitter instead of drawn.
+- The renderer draws a layer for 8 lines at once (one call instead of
+  eight), faster finding of what has to be drawn.
+- On those dumps (A1200 060/100 MHz, SCALE=1): drawing a picture on foot
+  8.5-12.7 -> 6.6-11.6 ms, flying 8.4 -> 7.4 ms; late frames (left out
+  pictures) about 20-46% -> 8-39%.
+
+
+RELEASE 0.9.16  (24.10.2026)
+----------------------------
+
+Additions:
+- Tool Type FPS: the number of pictures drawn in the last second in the
+  bottom right corner of the picture (full speed of the arcade: 57). Works
+  on the full screen too (on a 16 bit screen, as by default).
+
+
+RELEASE 0.9.15  (24.10.2026)
+----------------------------
+
+Changes:
+- Scrolling is done by the graphics card's blitter: the picture stays in
+  the card's memory and is moved there, the CPU draws only the new edge,
+  the sprites, the texts and changed tiles (blocks of 8x8 instead of
+  whole bands).
+- The bottom background is kept as a ready picture of the whole 512x512
+  map - copied when drawing, not composed from the tiles.
+- A colour change recalculates only the changed colours.
+- On your F10 replays (A1200 060/100 MHz, full screen): flying stages
+  SCALE=1 16 -> 9 ms per picture, 27 -> 44-45 pictures per second;
+  jungle 14-18 -> 7-8.5 ms, 24-29 -> 46-51 pictures/s; SCALE=2: flying
+  21 -> 13 ms (21 -> 31-32 pictures/s), jungle 17-25 -> 9-12 ms.
+- At the start of a stage (first picture) once about 40 ms to build the
+  map picture.
+
+
 RELEASE 0.9.14  (17.10.2026)
 ----------------------------
 

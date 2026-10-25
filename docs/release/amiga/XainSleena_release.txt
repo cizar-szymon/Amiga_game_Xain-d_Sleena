@@ -15,6 +15,46 @@ z numerem wydania. Autorzy odtwarzaja ostatnie sekundy gry i widza
 dokladnie to, co bylo na Amidze.
 
 
+RELEASE 0.9.17  (25.10.2026)
+----------------------------
+
+Zmiany (na podstawie Twoich zrzutow F10 z miejsc, gdzie postac szarpala):
+- Na piechote pierwszy plan (ziemia, skaly) przesuwa sie inaczej niz
+  niebo: jego bloki kopiuje teraz blitter karty zamiast je rysowac.
+- Renderer rysuje warstwe od razu dla 8 linii (jedno wywolanie zamiast
+  osmiu), szybsze ustalanie, co trzeba narysowac.
+- Na tych zrzutach (A1200 060/100 MHz, SCALE=1): rysowanie obrazu
+  na piechote 8,5-12,7 -> 6,6-11,6 ms, w lotach 8,4 -> 7,4 ms; spoznionych
+  klatek (pominietych obrazow) ok. 20-46% -> 8-39%.
+
+
+RELEASE 0.9.16  (24.10.2026)
+----------------------------
+
+Dodatki:
+- Tool Type FPS: w prawym dolnym rogu obrazu liczba obrazow narysowanych
+  w ostatniej sekundzie (pelne tempo automatu: 57). Dziala tez na pelnym
+  ekranie (na ekranie 16-bitowym, jak domyslnie).
+
+
+RELEASE 0.9.15  (24.10.2026)
+----------------------------
+
+Zmiany:
+- Przewijanie robi blitter karty graficznej: obraz zostaje w pamieci
+  karty i jest przesuwany, a procesor rysuje tylko nowy brzeg, sprite'y,
+  napisy i zmienione kafelki (bloki 8x8 zamiast calych pasow).
+- Dolne tlo trzymane jako gotowy obraz calej mapy 512x512 - przy
+  rysowaniu kopiowane, nie skladane z kafelkow.
+- Przy zmianie kolorow przeliczane tylko zmienione kolory.
+- Na Twoich powtorkach z F10 (A1200 060/100 MHz, pelny ekran):
+  loty SCALE=1 16 -> 9 ms na obraz, 27 -> 44-45 obrazow na sekunde;
+  dzungla 14-18 -> 7-8,5 ms, 24-29 -> 46-51 obrazow/s; SCALE=2: loty
+  21 -> 13 ms (21 -> 31-32 obrazow/s), dzungla 17-25 -> 9-12 ms.
+- Na poczatku etapu (pierwszy obraz) jednorazowo ok. 40 ms na zbudowanie
+  obrazu mapy.
+
+
 RELEASE 0.9.14  (17.10.2026)
 ----------------------------
 

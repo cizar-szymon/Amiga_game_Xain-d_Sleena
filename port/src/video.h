@@ -22,6 +22,13 @@ typedef struct Video {
     uint8_t *bg2_rowtype;       /* 2048 x 16 */
     uint8_t *obj_rowtype;       /* 2048 x 16 */
     uint8_t char_empty[1024];   /* 1 = no visible pixel in the character */
+    uint8_t tile_empty[2][2048];/* 1 = no visible pixel in the tile: [0] BG2 (gfx3), [1] BG1 (gfx2) */
+    /* the bottom background drawn whole into a 512x512 picture of palette indices (as the
+       tile RAM shows it: cache_ram), kept up to date tile by tile (video_render_begin); its lines
+       are then copied instead of drawn from the tiles. [0] = BG2 (RAM 3000), [1] = BG1 (2800) */
+    uint16_t *bgcache[2];
+    uint8_t cache_ram[2][0x800];
+    uint8_t cache_ok[2];
 } Video;
 
 int video_init(Video *v, const Xain *x);
@@ -37,8 +44,12 @@ void video_render_frame(Video *v, const Xain *x);
    pixels per line); used by the Amiga front end to render in bands of 8 lines */
 void video_render_begin(Video *v, const Xain *x);
 void video_render_lines(Video *v, const Xain *x, int y0, int lines, uint16_t *dst);
+/* the same for pixels x0..x1-1 (multiples of 8) of those lines; dst is still the start of line
+   y0, the other pixels are left as they are */
+void video_render_span(Video *v, const Xain *x, int y0, int lines, int x0, int x1, uint16_t *dst);
 /* Amiga: 1 = background and text lines in 68k assembler (default), 0 = C */
 extern int video_asm;
-extern int video_skip;            /* time measurements: bit 0 text, 1 BG1, 2 BG2, 3 sprites left out */
+extern int video_skip;
+extern int video_cache;           /* 1 = the bottom background from bgcache (default), 0 = from the tiles */            /* time measurements: bit 0 text, 1 BG1, 2 BG2, 3 sprites left out */
 
 #endif

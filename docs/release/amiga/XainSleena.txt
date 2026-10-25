@@ -79,6 +79,9 @@ i uruchom gre od nowa.
   SCREEN=FULL          gra na wlasnym ekranie (tak jest w ikonie)
   SCREEN=WINDOW        gra w okienku na Workbenchu
   SCALE=1 / SCALE=2    wielkosc obrazu (1 = najszybciej)
+  FPS                  w prawym dolnym rogu liczba obrazow narysowanych
+                       w ostatniej sekundzie (automat: 57; ekran
+                       16-bitowy)
   LIVES=3|4|6|INF      liczba zyc (INF = nieskonczone)
   DIFFICULTY=NORMAL    jak automat (tak jest w ikonie)
   DIFFICULTY=EASY      na piechote trafienia zabieraja o polowe mniej

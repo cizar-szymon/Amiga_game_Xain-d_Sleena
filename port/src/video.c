@@ -94,12 +94,22 @@ int video_init(Video *v, const Xain *x)
             for (r = 0; r < 8; r++)
                 if (v->chars_rowtype[c * 8 + r]) v->char_empty[c] = 0;
         }
+        for (c = 0; c < 2048; c++) {
+            v->tile_empty[0][c] = v->tile_empty[1][c] = 1;
+            for (r = 0; r < 16; r++) {
+                if (v->bg2_rowtype[c * 16 + r]) v->tile_empty[0][c] = 0;
+                if (v->bg1_rowtype[c * 16 + r]) v->tile_empty[1][c] = 0;
+            }
+        }
     }
     return 1;
 }
 
 void video_free(Video *v)
 {
+    free(v->bgcache[0]);
+    free(v->bgcache[1]);
+    v->bgcache[0] = v->bgcache[1] = 0;
     free(v->chars);
     free(v->bg1);
     free(v->bg2);
@@ -245,7 +255,8 @@ typedef struct SprEntry {
     uint8_t flipx;
 } SprEntry;
 
-static void fast_bg(const Video *v, const Xain *x, int which, int y, uint16_t *line, int opaque)
+/* the fast layers draw pixels x0..x1-1 of the line (0..SCREEN_W for the whole line) */
+static void fast_bg(const Video *v, const Xain *x, int which, int y, uint16_t *line, int opaque, int x0, int x1)
 {
     const uint8_t *ram = which == 0 ? x->bgram0 : x->bgram1;
     const uint8_t *gfx = which == 0 ? v->bg2 : v->bg1;
@@ -255,14 +266,14 @@ static void fast_bg(const Video *v, const Xain *x, int which, int y, uint16_t *l
     int sy = x->scrolly[which][0] | (x->scrolly[which][1] << 8);
     int ty = (y + sy) & 511, row = ty >> 4, fy = ty & 15;
     int rowpart = ((row & 0x0f) << 4) + ((row & 0x10) << 5);
-    int px = 0, tx = sx;
-    while (px < SCREEN_W) {
+    int px = x0, tx = (sx + x0) & 511;
+    while (px < x1) {
         int col = tx >> 4, fx0 = tx & 15, n = 16 - fx0, i;
         int idx = (col & 0x0f) + ((col & 0x10) << 4) + rowpart;
         int attr = ram[idx | 0x400];
         int code = ram[idx] | ((attr & 7) << 8);
         int kind = rt[code * 16 + fy];
-        if (n > SCREEN_W - px) n = SCREEN_W - px;
+        if (n > x1 - px) n = x1 - px;
         if (kind != 0 || opaque) {
             const uint8_t *src = gfx + (code * 16 + fy) * 16;
             uint16_t cb = (uint16_t)(base + ((attr & 0x70) >> 4) * 16);
@@ -286,11 +297,12 @@ static void fast_bg(const Video *v, const Xain *x, int which, int y, uint16_t *l
     }
 }
 
-static void fast_txt(const Video *v, const Xain *x, int y, uint16_t *line, int opaque)
+/* x0, x1: multiples of 8 */
+static void fast_txt(const Video *v, const Xain *x, int y, uint16_t *line, int opaque, int x0, int x1)
 {
     int row = (y >> 3) & 31, fy = y & 7, col, i;
     const uint8_t *ram = x->charram + row * 32;
-    for (col = 0; col < 32; col++) {
+    for (col = x0 >> 3; col < x1 >> 3; col++) {
         int attr = ram[col | 0x400];
         int code = ram[col] | ((attr & 3) << 8);
         int kind = v->chars_rowtype[code * 8 + fy];
@@ -306,8 +318,8 @@ static void fast_txt(const Video *v, const Xain *x, int y, uint16_t *line, int o
     }
 }
 
-/* the sprites of line y: list[0..n-1] (indices into spr, RAM order) */
-static void fast_sprites(const SprEntry *spr, const uint8_t *list, int n, int y, uint16_t *line)
+/* the sprites of line y: list[0..n-1] (indices into spr, RAM order), pixels lx0..lx1-1 */
+static void fast_sprites(const SprEntry *spr, const uint8_t *list, int n, int y, uint16_t *line, int lx0, int lx1)
 {
     int k, i;
     for (k = 0; k < n; k++) {
@@ -317,8 +329,10 @@ static void fast_sprites(const SprEntry *spr, const uint8_t *list, int n, int y,
         if (!e->rt[r])
             continue;                                   /* no visible pixel in this row */
         s = e->gfx + r * 16;
-        x0 = e->sx < 0 ? -e->sx : 0;
-        x1 = e->sx + 16 > SCREEN_W ? SCREEN_W - e->sx : 16;
+        x0 = e->sx < lx0 ? lx0 - e->sx : 0;
+        x1 = e->sx + 16 > lx1 ? lx1 - e->sx : 16;
+        if (x0 >= x1)
+            continue;
         if (e->rt[r] & 1) {                             /* no pen 0 (1, 3: one pen): all pixels */
             uint16_t *d = line + e->sx, cb = e->cbase;
             if (e->flipx)
@@ -347,20 +361,40 @@ typedef struct VTile {
     uint32_t pad;
 } VTile;
 
-void video_bg_line_68k(uint16_t *line, const VTile *t, uint32_t fx0, uint32_t fy, uint32_t opaque);
-void video_txt_line_68k(uint16_t *line, const VTile *t, uint32_t n, uint32_t fy, uint32_t opaque);
+/* lines: that many consecutive lines (dst + 512 bytes each, fy + 1 each), one tile row / text row */
+void video_bg_lines_68k(uint16_t *line, const VTile *t, uint32_t fx0, uint32_t fy, uint32_t opaque,
+                        uint32_t first, uint32_t whole, uint32_t last, uint32_t lines);
+void video_txt_lines_68k(uint16_t *line, const VTile *t, uint32_t n, uint32_t fy, uint32_t opaque, uint32_t lines);
 int video_asm = 1;
 
-static VTile bg_tiles[2][17], txt_cells[32];
-static int bg_row[2], txt_row, txt_n;
+/* two tile rows per background (a band of 8 lines can reach two; the Amiga draws a band in
+   several spans), slot = row & 1 */
+static VTile bg_tiles[2][2][17], txt_cells[32];
+static int bg_row[2][2], txt_row, txt_n;
 
-static void line_bg(const Video *v, const Xain *x, int which, int y, uint16_t *line, int opaque)
+/* lines y0..y0+lines-1, pixels x0..x1-1 of a background into dst (the first of the lines): one
+   call of the assembler per tile row */
+static void lines_bg(const Video *v, const Xain *x, int which, int y0, int lines, uint16_t *dst, int opaque, int x0, int x1)
 {
-    if (video_asm) {
-        int sx = (x->scrollx[which][0] | (x->scrollx[which][1] << 8)) & 511;
-        int sy = x->scrolly[which][0] | (x->scrolly[which][1] << 8);
-        int ty = (y + sy) & 511, row = ty >> 4;
-        if (row != bg_row[which]) {
+    const int sx = (x->scrollx[which][0] | (x->scrollx[which][1] << 8)) & 511;
+    const int sy = x->scrolly[which][0] | (x->scrolly[which][1] << 8);
+    /* the list starts with the tile at screen x 0; pixels x0..x1-1: the rest of the first tile,
+       whole tiles, the start of the last one */
+    const int off = (sx & 15) + x0, fo = off & 15, n = x1 - x0;
+    const int first = fo ? (16 - fo < n ? 16 - fo : n) : 0;
+    int y = y0;
+    if (!video_asm) {
+        for (; y < y0 + lines; y++)
+            fast_bg(v, x, which, y, dst + (y - y0) * SCREEN_W, opaque, x0, x1);
+        return;
+    }
+    while (y < y0 + lines) {
+        const int ty = (y + sy) & 511, row = ty >> 4;
+        int nl = 16 - (ty & 15);
+        VTile *tl = bg_tiles[which][row & 1];
+        if (nl > y0 + lines - y)
+            nl = y0 + lines - y;
+        if (row != bg_row[which][row & 1]) {
             const uint8_t *ram = which == 0 ? x->bgram0 : x->bgram1;
             const uint8_t *gfx = which == 0 ? v->bg2 : v->bg1;
             const uint8_t *rt = which == 0 ? v->bg2_rowtype : v->bg1_rowtype;
@@ -370,24 +404,35 @@ static void line_bg(const Video *v, const Xain *x, int which, int y, uint16_t *l
                 int idx = (col & 0x0f) + ((col & 0x10) << 4) + rowpart;
                 int attr = ram[idx | 0x400];
                 int code = ram[idx] | ((attr & 7) << 8);
-                VTile *t = &bg_tiles[which][k];
+                VTile *t = &tl[k];
                 t->pens = gfx + code * 256;
                 t->rt = rt + code * 16;
                 t->cb = (uint16_t)(base + (attr & 0x70));
                 t->flip = (uint16_t)(attr & 0x80);
             }
-            bg_row[which] = row;
+            bg_row[which][row & 1] = row;
         }
-        video_bg_line_68k(line, bg_tiles[which], (uint32_t)(sx & 15), (uint32_t)(ty & 15), (uint32_t)opaque);
-        return;
+        video_bg_lines_68k(dst + (y - y0) * SCREEN_W + x0, &tl[off >> 4], (uint32_t)fo, (uint32_t)(ty & 15),
+                           (uint32_t)opaque, (uint32_t)first, (uint32_t)((n - first) >> 4),
+                           (uint32_t)((n - first) & 15), (uint32_t)nl);
+        y += nl;
     }
-    fast_bg(v, x, which, y, line, opaque);
 }
 
-static void line_txt(const Video *v, const Xain *x, int y, uint16_t *line, int opaque)
+/* the same for the text (x0, x1 multiples of 8): one call per text row */
+static void lines_txt(const Video *v, const Xain *x, int y0, int lines, uint16_t *dst, int opaque, int x0, int x1)
 {
-    if (video_asm) {
-        int row = (y >> 3) & 31;
+    int y = y0;
+    if (!video_asm) {
+        for (; y < y0 + lines; y++)
+            fast_txt(v, x, y, dst + (y - y0) * SCREEN_W, opaque, x0, x1);
+        return;
+    }
+    while (y < y0 + lines) {
+        const int row = (y >> 3) & 31;
+        int nl = 8 - (y & 7), i0 = 0, i1;
+        if (nl > y0 + lines - y)
+            nl = y0 + lines - y;
         if (row != txt_row) {
             const uint8_t *ram = x->charram + row * 32;
             int col;
@@ -406,19 +451,101 @@ static void line_txt(const Video *v, const Xain *x, int y, uint16_t *line, int o
             }
             txt_row = row;
         }
-        video_txt_line_68k(line, txt_cells, (uint32_t)txt_n, (uint32_t)(y & 7), (uint32_t)opaque);
-        return;
+        /* the cells are in x order: those from x0 to x1 */
+        while (i0 < txt_n && txt_cells[i0].flip < x0 * 2)
+            i0++;
+        for (i1 = i0; i1 < txt_n && txt_cells[i1].flip < x1 * 2; i1++) ;
+        if (i1 > i0)
+            video_txt_lines_68k(dst + (y - y0) * SCREEN_W, &txt_cells[i0], (uint32_t)(i1 - i0), (uint32_t)(y & 7),
+                                (uint32_t)opaque, (uint32_t)nl);
+        y += nl;
     }
-    fast_txt(v, x, y, line, opaque);
 }
 #else
 int video_asm = 0;
-#define line_bg fast_bg
-#define line_txt fast_txt
+
+static void lines_bg(const Video *v, const Xain *x, int which, int y0, int lines, uint16_t *dst, int opaque, int x0, int x1)
+{
+    int y;
+    for (y = y0; y < y0 + lines; y++)
+        fast_bg(v, x, which, y, dst + (y - y0) * SCREEN_W, opaque, x0, x1);
+}
+
+static void lines_txt(const Video *v, const Xain *x, int y0, int lines, uint16_t *dst, int opaque, int x0, int x1)
+{
+    int y;
+    for (y = y0; y < y0 + lines; y++)
+        fast_txt(v, x, y, dst + (y - y0) * SCREEN_W, opaque, x0, x1);
+}
 #endif
 
 /* time measurements: layers left out (bit 0 text, 1 BG1, 2 BG2, 3 sprites) */
 int video_skip;
+int video_cache = 1;
+
+/* ---- the bottom background as a 512x512 picture (bgcache) ---- */
+
+/* tile idx (back_scan order) of background which into the cache */
+static void cache_tile(Video *v, const Xain *x, int which, int idx)
+{
+    const uint8_t *ram = which == 0 ? x->bgram0 : x->bgram1;
+    const uint8_t *gfx = which == 0 ? v->bg2 : v->bg1;
+    const int col = (idx & 15) | ((idx >> 4) & 16), row = ((idx >> 4) & 15) | ((idx >> 5) & 16);
+    const int attr = ram[idx | 0x400], code = ram[idx] | ((attr & 7) << 8);
+    const uint16_t cb = (uint16_t)((which == 0 ? 384 : 256) + (attr & 0x70));
+    const uint8_t *src = gfx + code * 256;
+    uint16_t *dst = v->bgcache[which] + row * 16 * 512 + col * 16;
+    int fy, fx;
+    for (fy = 0; fy < 16; fy++, src += 16, dst += 512)
+        if (attr & 0x80)
+            for (fx = 0; fx < 16; fx++) dst[fx] = (uint16_t)(cb | src[15 - fx]);
+        else
+            for (fx = 0; fx < 16; fx++) dst[fx] = (uint16_t)(cb | src[fx]);
+}
+
+/* the cache of background which made equal to its tile RAM: everything the first time, then
+   the tiles whose code or attribute changed */
+static void cache_update(Video *v, const Xain *x, int which)
+{
+    const uint8_t *ram = which == 0 ? x->bgram0 : x->bgram1;
+    uint8_t *old = v->cache_ram[which];
+    int i;
+    if (!v->bgcache[which]) {
+        v->bgcache[which] = malloc(512 * 512 * sizeof(uint16_t));
+        if (!v->bgcache[which]) {
+            video_cache = 0;
+            return;
+        }
+    }
+    if (!v->cache_ok[which]) {
+        for (i = 0; i < 0x400; i++)
+            cache_tile(v, x, which, i);
+        memcpy(old, ram, 0x800);
+        v->cache_ok[which] = 1;
+        return;
+    }
+    if (!memcmp(old, ram, 0x800))
+        return;
+    for (i = 0; i < 0x400; i++)
+        if (old[i] != ram[i] || old[i | 0x400] != ram[i | 0x400])
+            cache_tile(v, x, which, i);
+    memcpy(old, ram, 0x800);
+}
+
+/* pixels x0..x1-1 of line y of background which from the cache (opaque) */
+static void cache_line(const Video *v, const Xain *x, int which, int y, uint16_t *line, int x0, int x1)
+{
+    const int sx = (x->scrollx[which][0] | (x->scrollx[which][1] << 8)) & 511;
+    const int sy = x->scrolly[which][0] | (x->scrolly[which][1] << 8);
+    const uint16_t *src = v->bgcache[which] + ((y + sy) & 511) * 512;
+    const int tx = (sx + x0) & 511, n = x1 - x0;
+    if (tx + n <= 512)
+        memcpy(line + x0, src + tx, (size_t)n * 2);
+    else {
+        memcpy(line + x0, src + tx, (size_t)(512 - tx) * 2);
+        memcpy(line + x0 + 512 - tx, src, (size_t)(n - 512 + tx) * 2);
+    }
+}
 
 /* the sprite lists of the picture being rendered (video_render_begin) */
 static SprEntry spr[192];
@@ -429,10 +556,16 @@ void video_render_begin(Video *v, const Xain *x)
     int n = 0, offs, y, i;
 
 #ifdef __VBCC__
-    bg_row[0] = bg_row[1] = txt_row = -1;              /* the tile lists are built again */
+    bg_row[0][0] = bg_row[0][1] = bg_row[1][0] = bg_row[1][1] = txt_row = -1;   /* the tile lists are built again */
 #endif
     /* the sprites that reach the visible lines, in RAM order (the top half of a double
        height sprite before its bottom half, as in MAME) */
+    /* the bottom background: its cache up to date */
+    if (video_cache) {
+        const uint8_t *o = order[x->pri & 7];
+        if (o[0] == L_BG2 || o[0] == L_BG1)
+            cache_update(v, x, o[0] == L_BG2 ? 0 : 1);
+    }
     for (offs = 0; offs < 0x180; offs += 4) {
         int attr = x->spriteram[offs + 1];
         int code = x->spriteram[offs + 2] | ((attr & 7) << 8);
@@ -467,24 +600,80 @@ void video_render_begin(Video *v, const Xain *x)
     }
 }
 
-void video_render_lines(Video *v, const Xain *x, int y0, int lines, uint16_t *dst)
+/* 1 when background which has no visible pixel in lines y0..y0+lines-1, pixels x0..x1-1 (all its
+   tiles there empty) */
+static int span_empty_bg(const Video *v, const Xain *x, int which, int y0, int lines, int x0, int x1)
 {
-    const uint8_t *o = order[x->pri & 7];
-    int y, i;
-    for (y = y0; y < y0 + lines; y++) {
-        uint16_t *line = dst + (y - y0) * SCREEN_W;
-        for (i = 0; i < 4; i++) {
-            if (video_skip & (1 << o[i])) continue;
-            switch (o[i]) {
-            case L_TXT: line_txt(v, x, y, line, i == 0); break;
-            case L_BG1: line_bg(v, x, 1, y, line, i == 0); break;
-            case L_BG2: line_bg(v, x, 0, y, line, i == 0); break;
-            default:
-                fast_sprites(spr, list[y - XAIN_FIRST_LINE], count[y - XAIN_FIRST_LINE], y, line);
-                break;
-            }
+    const uint8_t *ram = which == 0 ? x->bgram0 : x->bgram1;
+    const int sx = (x->scrollx[which][0] | (x->scrollx[which][1] << 8)) & 511;
+    const int sy = x->scrolly[which][0] | (x->scrolly[which][1] << 8);
+    const int r0 = ((y0 + sy) & 511) >> 4, nr = ((((y0 + sy) & 15) + lines - 1) >> 4) + 1;
+    const int c0 = ((sx + x0) & 511) >> 4, nc = ((((sx + x0) & 15) + x1 - x0 - 1) >> 4) + 1;
+    int r, c;
+    for (r = 0; r < nr; r++) {
+        const int row = (r0 + r) & 31, rowpart = ((row & 0x0f) << 4) + ((row & 0x10) << 5);
+        for (c = 0; c < nc; c++) {
+            const int col = (c0 + c) & 31, idx = (col & 0x0f) + ((col & 0x10) << 4) + rowpart;
+            if (!v->tile_empty[which][ram[idx] | ((ram[idx | 0x400] & 7) << 8)])
+                return 0;
         }
     }
+    return 1;
+}
+
+/* the same for the text (x0, x1 multiples of 8) */
+static int span_empty_txt(const Video *v, const Xain *x, int y0, int lines, int x0, int x1)
+{
+    int y, col;
+    for (y = y0 & ~7; y < y0 + lines; y += 8) {
+        const uint8_t *ram = x->charram + ((y >> 3) & 31) * 32;
+        for (col = x0 >> 3; col < x1 >> 3; col++)
+            if (!v->char_empty[ram[col] | ((ram[col | 0x400] & 3) << 8)])
+                return 0;
+    }
+    return 1;
+}
+
+void video_render_span(Video *v, const Xain *x, int y0, int lines, int x0, int x1, uint16_t *dst)
+{
+    const uint8_t *o = order[x->pri & 7];
+    /* the bottom background from its cache (video_render_begin made it up to date) */
+    const int cached = video_cache && (o[0] == L_BG2 ? v->cache_ok[0] : o[0] == L_BG1 ? v->cache_ok[1] : 0);
+    int y, i, skip = video_skip;
+    /* the upper layers with nothing to draw in this span are left out for all its lines */
+    for (i = 1; i < 4; i++)
+        if ((o[i] == L_TXT && span_empty_txt(v, x, y0, lines, x0, x1)) ||
+            (o[i] == L_BG1 && span_empty_bg(v, x, 1, y0, lines, x0, x1)) ||
+            (o[i] == L_BG2 && span_empty_bg(v, x, 0, y0, lines, x0, x1)))
+            skip |= 1 << o[i];
+    /* layer by layer over all the lines (each layer covers the ones below pixel by pixel, so the
+       order of the lines does not matter): one assembler call per layer and tile row */
+    for (i = 0; i < 4; i++) {
+        if (skip & (1 << o[i])) continue;
+        switch (o[i]) {
+        case L_TXT: lines_txt(v, x, y0, lines, dst, i == 0, x0, x1); break;
+        case L_BG1:
+        case L_BG2: {
+            const int which = o[i] == L_BG2 ? 0 : 1;
+            if (i == 0 && cached)
+                for (y = y0; y < y0 + lines; y++)
+                    cache_line(v, x, which, y, dst + (y - y0) * SCREEN_W, x0, x1);
+            else
+                lines_bg(v, x, which, y0, lines, dst, i == 0, x0, x1);
+            break;
+        }
+        default:
+            for (y = y0; y < y0 + lines; y++)
+                fast_sprites(spr, list[y - XAIN_FIRST_LINE], count[y - XAIN_FIRST_LINE], y, dst + (y - y0) * SCREEN_W,
+                             x0, x1);
+            break;
+        }
+    }
+}
+
+void video_render_lines(Video *v, const Xain *x, int y0, int lines, uint16_t *dst)
+{
+    video_render_span(v, x, y0, lines, 0, SCREEN_W, dst);
 }
 
 void video_render_frame(Video *v, const Xain *x)

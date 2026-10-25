@@ -68,7 +68,16 @@ LAGLOG        (diagnostics) per 10 s of play: late frames, emulation and
               RAM:XainSleena-lagN.bin. Report RAM:XainSleena-lag.txt at exit.
 INCR=OFF      (measurements) every band drawn always (no incremental drawing).
 VSKIP=n       (measurements) leave out layers: 1 text, 2 BG1, 4 BG2, 8 sprites.
-RCHECK        (tests) every band also drawn by the C renderer and compared.
+RCHECK        (tests) every band and block also drawn by the C renderer
+              (from the tiles, without the map picture) and compared.
+SHIFT=OFF     (measurements) no 8x8 blocks and no moving of the picture by
+              the card's blitter (0.9.15): everything in bands as in 0.9.14.
+BGCACHE=OFF   (measurements) the bottom background drawn from the tiles,
+              without the 512x512 map picture in memory.
+SPANGAP=n     (measurements) blocks of a band with gaps of up to n blocks
+              drawn as one span (default 3).
+SHIFTPROF     (measurements, with REPLAY) the times of the stages of block
+              drawing to stdout.
 REPLAY=file   (tests) an F10 replay (RAM:XainSleena-dumpN.bin): state and
               recorded inputs, then quit (VERIFY and band counts to stdout).
 VERIFY=n      (tests) VERIFY every n-th drawn picture (VERIFY = every 30th).

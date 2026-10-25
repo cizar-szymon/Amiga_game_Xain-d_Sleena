@@ -724,6 +724,103 @@ gry pokazują kolorowe pasy – błąd zrzutu (czyta ekran podczas blokad i zapi
   skróty, przy zmianie palety `update_colours`) – dalsze zyski będą małe; największą pozycją pozostaje
   emulacja (ok. 9 ms).
 
+**Obraz w VRAM przesuwany blitterem karty, bloki 8×8, obraz mapy (0.9.15, 24.10.2026).** Na podstawie
+nowych wniosków w `PORTING_PLAN.md` (AmiXcom: obraz zostaje na karcie, przewija go blitter karty).
+
+*Pomiar przed zmianą* – `port/tests/scrolllog.c` (`build/port/scrolllog.exe ROM REPLAY [CSV]`,
+podsumowanie `tools/scrolllog_summary.py`), powtórki F10 użytkownika, stan na koniec klatki:
+- dolna warstwa zawsze `BG2` (tryby 0/4/6); przewija się tylko w co 2.–3. klatce (dżungla 338 z 911,
+  lot 298 z 928), krok kilka pikseli; **gdy `BG2` się przesuwa, `BG1` przesuwa się o tyle samo**
+  (w lotach `BG1` jest pusta i przesuwa się niezależnie);
+- tekst to głównie nieprzezroczysta czarna ramka ekranu i panel (160–197 bloków) – przy przewijaniu stoi;
+- warstwy nad dolną (tekst, `BG1`, sprite'y) pokrywają 250–590 z 960 bloków – osobna „płyta” samego
+  `BG2` w VRAM (pierwotny krok 2 planu) wymagałaby składania tych bloków w każdej klatce;
+- **cały poprzedni obraz przesunięty o krok tła różni się od nowego tylko w ok. 185 blokach**
+  (bez przesunięcia 614–816) – wybrano przesuwanie całego obrazu, nie płyty.
+
+*Rozwiązanie* (`main_amiga.c`: `render_present_shift`, `video.c`: `video_render_span`, bufor tła):
+- Dwie bitmapy na karcie (`vbm`, `vbm2`). Gdy dolna warstwa przesunęła się od ostatniego obrazu
+  (krok ≤ 64 px): `BltBitMap` `vbm` → `vbm2` z przesunięciem (obszar R bez nieruchomej ramki tekstu –
+  nieprzezroczyste, niezmienione znaki, gdy tekst jest na wierzchu; ramka kopiowana bez przesunięcia),
+  CPU składa tylko bloki: brzeg, sprite'y teraz i przesunięte stare, niepuste znaki tekstu teraz
+  i przesunięte stare, zmienione kafelki, kafelki ze zmienioną grupą kolorów (16 wpisów palety),
+  niepuste kafelki drugiej warstwy tła, gdy przesuwa się inaczej. Potem `vbm2` staje się `vbm`.
+- Bez przesunięcia te same bloki (bez brzegu; tekst: zmienione znaki, po zmianie palety tekstu
+  wszystkie) zapisywane wprost do `vbm`. Pasy (stara droga) tylko przy pełnym odświeżeniu, zmianie
+  trybu priorytetu, tekście na dole (tryby 2, 3) i kroku > 64 px.
+- `video_render_span`: renderer dla zakresu kolumn (asm tła: pierwszy fragment / całe kafle /
+  ostatni fragment); warstwy górne pomijane dla całego odcinka, gdy ich kafle/znaki są tam puste;
+  odcinki z przerwą do 3 bloków rysowane razem (`SPANGAP`), przeliczane i wysyłane tylko bloki zmian.
+- Dolne tło jako obraz całej mapy 512×512 indeksów palety (`bgcache`, 512 KB), uaktualniany kafelek po
+  kafelku (porównanie z kopią RAM kafelków) – linia tła to kopia; pierwszy obraz buduje cały (ok. 40 ms).
+- `update_colours` przelicza tylko zmienione wpisy palety.
+- `VERIFY` porównuje teraz okno z rendererem wzorcowym (`video_render_line`, jak MAME), a `RCHECK`
+  – z rendererem C z kafelków (bez bufora mapy).
+
+*Sprawdzenie:* PC `XAIN_CHECK` (5000 klatek gry, rysowanie całością i losowymi odcinkami) i `scrolllog`
+(6 powtórek, odcinki + bufor mapy wobec `video_render_line`): 0 różnic. A1200 `VERIFY=1` (każdy obraz)
++ `RCHECK` na powtórkach `dump1/2/3/5`, `SCALE=1` i `2`, pełny ekran i okno: 0 złych bloków.
+
+*Pomiary* (A1200 060/100 MHz, pełny ekran, `REPLAY` + `LAGLOG`; 0.9.14 = `XainSleenaB` użytkownika):
+
+| Powtórka | 0.9.14 rysowanie | 0.9.15 rysowanie | obrazy/s |
+|---|---|---|---|
+| lot `dump5`, `SCALE=1` | 16,0–16,1 ms | 8,8–9,0 ms | 27 → 44–45 |
+| lot `dump6`, `SCALE=1` | 16,8 ms | 9,5 ms | 27 → 42 |
+| dżungla `dump2`, `SCALE=1` | 14,1 / 17,8 ms | 7,1 / 8,5 ms | 24–29 → 46–51 |
+| `dump1`, `SCALE=1` | 12,4–12,8 ms | 8,3–8,7 ms | 38–39 → 54–56 |
+| `dump3`, `SCALE=1` | 11,0–11,3 ms | 6,6–7,9 ms | 34–38 → 42–49 |
+| lot `dump5`, `SCALE=2` | 20,9–21,2 ms | 12,8–13,1 ms | 21 → 31–32 |
+| dżungla `dump2`, `SCALE=2` | 17,3 / 24,6 ms | 9,1 / 12,0 ms | 18–24 → 32–43 |
+
+Kolejne kroki i próby (lot `dump5`, `SHIFTPROF`, µs na obraz rysowany blokami):
+
+| Wersja | rysowanie+przeliczenie | razem rysowanie (`LAGLOG`) |
+|---|---|---|
+| tylko przesuwanie (bez bloków w obrazach bez przesunięcia) | – | 14,9 ms (obrazy bez przesunięcia rysowały prawie wszystkie pasy: nieaktualny `shown`) |
+| + bloki także bez przesunięcia | 9 174 | 12,5 ms |
+| + 2 wiersze kafelków w liście asm, łączenie odcinków (`SPANGAP` 0/3/6/32) | 8 300–9 100 | bez zmian – **nie pomogło** |
+| + bufor mapy dla dolnego tła | 7 900 | – |
+| + przeliczanie tylko bloków zmian (nie całych odcinków) | 7 250 (`SPANGAP=32`) | – |
+| + pomijanie pustych warstw górnych w odcinku | 6 460 | 8,8–9,4 ms |
+
+Zostało (lot, na obraz): ustalenie bloków ok. 1,1 ms, rysowanie+przeliczenie 6,5 ms (narzut wywołań na
+linię i warstwę, sprite'y), zapis do VRAM 1,3 ms, blity 0,6 ms, paleta (przed `update_colours` tylko
+zmian) 0,5 ms; emulacja ok. 9 ms. Możliwe dalej: rysowanie odcinka wszystkich 8 linii jednym
+wywołaniem asm na warstwę, ustalanie bloków w asm, 64-bitowe rozkazy w binarce – niesprawdzone
+(brak `m68k-amigaos-objdump`; vbcc z `-cpu=68060`).
+
+**Szarpanie postaci na piechotę (0.9.16 FPS, 0.9.17, 25.10.2026).** Zgłoszenie: licznik `FPS` (nowa
+opcja 0.9.16, liczba obrazów z ostatnich 57 klatek w prawym dolnym rogu) pokazuje 40–50, a ruch postaci
+miejscami skacze – każda spóźniona klatka to pominięty obraz. Zrzuty F10 użytkownika
+(`build/lag/stutter/dump1-6`, na Amidze `Work:XainSleena/s1-6.bin`), `SHIFTPROF=SRC` (nowe: bloki
+według przyczyny): na piechotę `BG2` (niebo, planeta) stoi, a `BG1` (ziemia, skały) przesuwa się z
+postacią – „druga warstwa” dawała 135–191 bloków na obraz, sprite'y 70–100.
+- Bloki `BG1` w całości nieprzezroczyste teraz i w miejscu, skąd przychodzą (przesunięte o krok `BG1`),
+  bez starego sprite'a/tekstu/licznika i zmiany koloru nad źródłem – kopiowane blitterem ze starego
+  obrazu (prostokąty z wierszy bloków o tej samej masce); bez przesunięcia dolnej warstwy wtedy też
+  dwie bitmapy (pełny blit + kopie). 57–117 bloków na obraz kopiuje karta.
+- Renderer: warstwa rysowana od razu dla wszystkich linii odcinka (`video_bg_lines_68k`,
+  `video_txt_lines_68k`: jedno wywołanie na wiersz kafli zamiast na linię).
+- Ustalanie bloków maskami bitowymi (`layer_scan`: jedno przejście po 17 kaflach na wiersz bloków –
+  widoczne / pełne / grupa koloru; `mask_moved_and`; brzeg maskami; `same_mem` zamiast `memcmp` vbcc,
+  które porównuje bajtami): 2,1 → 1,3 ms.
+- Próba bez zysku: bloki tylko do przekolorowania (nowa paleta, te same piksele) przeliczane z `shown`
+  bez rysowania – w tych scenach prawie ich nie ma (zostawione, nie szkodzi).
+- Sprawdzenie: PC `XAIN_CHECK` + `scrolllog` 0 różnic; A1200 `VERIFY=1 RCHECK FPS` na s1/s4/s5/dump5/dump2:
+  0 złych bloków (`VERIFY` porównuje z `video_render_line`, pomija 2 bloki licznika).
+
+| Zrzut (`SCALE=1`, `LAGLOG`) | 0.9.16 rysowanie / spóźnione | 0.9.17 rysowanie / spóźnione |
+|---|---|---|
+| s1 (piechota) | 9,6 ms / 25% | 7,4 ms / 12% |
+| s4 (piechota, przewijanie) | 10,5 / 11,5 ms, 26 / 41% | 9,4 / 8,9 ms, 20 / 25% |
+| s5 (piechota, dużo sprite'ów na końcu) | 8,0 / 13,5 ms, 21 / 48% | 6,6 / 11,6 ms, 14 / 39% |
+| lot `dump5` | 8,8 ms / 22% | 7,4 ms / 9% |
+
+Zostało: emulacja 8,5–10 ms (największa pozycja), sprite'y (w s5 ok. 114 bloków ze sprite'ami na
+klatkę), rysowanie bloku nadal ok. 2× droższe niż w całym obrazie. Pełna płynność wymaga emulacja +
+rysowanie < 17,4 ms także w najcięższych chwilach.
+
 **Skok górą po zniszczeniu bazy (0.9.12).** Zrzut F10 użytkownika (0.9.11): odliczanie `COUNT DOWN`
 po zniszczeniu bazy (trzeba wskoczyć do statku), joystick w górę nie skakał, Spacja tak. W zrzucie
 `$52 = 03`, `xain_on_foot()` wymagało `$52 & 0F = 2`. Kod: główny CPU zapisuje `$52` = 0 (start

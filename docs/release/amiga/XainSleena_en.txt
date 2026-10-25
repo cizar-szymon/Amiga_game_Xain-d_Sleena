@@ -79,6 +79,9 @@ Save and start the game again.
   SCREEN=FULL          own screen (as in the icon)
   SCREEN=WINDOW        a window on the Workbench
   SCALE=1 / SCALE=2    picture size (1 = fastest)
+  FPS                  in the bottom right corner the number of pictures
+                       drawn in the last second (the arcade: 57; 16 bit
+                       screen)
   LIVES=3|4|6|INF      number of lives (INF = infinite)
   DIFFICULTY=NORMAL    as the arcade (as in the icon)
   DIFFICULTY=EASY      on foot, hits take half as much from the

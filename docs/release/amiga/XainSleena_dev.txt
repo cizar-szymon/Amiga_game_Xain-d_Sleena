@@ -64,7 +64,15 @@ LAGLOG        (diagnostyka) co 10 s gry: spoznione klatki, czasy emulacji i
               Raport RAM:XainSleena-lag.txt po wyjsciu z gry.
 INCR=OFF      (pomiary) kazdy pas rysowany zawsze (bez rysowania przyrostowego).
 VSKIP=n       (pomiary) pomin warstwy: 1 tekst, 2 BG1, 4 BG2, 8 sprite'y.
-RCHECK        (testy) kazdy pas narysowany tez rendererem w C i porownany.
+RCHECK        (testy) kazdy pas i blok narysowany tez rendererem w C
+              (z kafelkow, bez obrazu mapy) i porownany.
+SHIFT=OFF     (pomiary) bez blokow 8x8 i przesuwania obrazu blitterem karty
+              (0.9.15): wszystko pasami jak w 0.9.14.
+BGCACHE=OFF   (pomiary) dolne tlo rysowane z kafelkow, bez obrazu mapy
+              512x512 w pamieci.
+SPANGAP=n     (pomiary) bloki w pasie z przerwa do n blokow rysowane jednym
+              odcinkiem (domyslnie 3).
+SHIFTPROF     (pomiary, z REPLAY) czasy etapow rysowania blokami na stdout.
 REPLAY=plik   (testy) powtorka z F10 (RAM:XainSleena-dumpN.bin): stan i nagrane
               wejscia, potem koniec (VERIFY i liczby pasow na stdout, LAGLOG).
 VERIFY=n      (testy) VERIFY co n-ty rysowany obraz (VERIFY = co 30.).

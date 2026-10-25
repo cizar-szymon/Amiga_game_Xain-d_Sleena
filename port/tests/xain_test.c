@@ -315,6 +315,30 @@ int main(int argc, char **argv)
                        k / SCREEN_W, ref[k], video.fb[k]);
             }
             if (f == frames - 1) printf("check-render: %ld of %ld frames differ\n", bad, frames);
+            {
+                /* the same in bands of 8 lines, each in spans of 1..8 blocks (video_render_span) */
+                static long bad_span;
+                static uint32_t seed = 1;
+                int by, x0, k;
+                memset(video.fb, 0xff, sizeof ref);
+                video_render_begin(&video, &machine);
+                for (by = 0; by < SCREEN_H / 8; by++)
+                    for (x0 = 0; x0 < SCREEN_W;) {
+                        int x1;
+                        seed = seed * 1103515245u + 12345u;
+                        x1 = x0 + 8 * (int)(1 + (seed >> 16) % 8);
+                        if (x1 > SCREEN_W) x1 = SCREEN_W;
+                        video_render_span(&video, &machine, XAIN_FIRST_LINE + by * 8, 8, x0, x1,
+                                          video.fb + by * 8 * SCREEN_W);
+                        x0 = x1;
+                    }
+                if (memcmp(ref, video.fb, sizeof ref) && bad_span++ < 10) {
+                    for (k = 0; k < SCREEN_W * SCREEN_H && ref[k] == video.fb[k]; k++) ;
+                    printf("check-span: frame %ld differs at x %d y %d (%03x, span %03x)\n", f, k % SCREEN_W,
+                           k / SCREEN_W, ref[k], video.fb[k]);
+                }
+                if (f == frames - 1) printf("check-span: %ld of %ld frames differ\n", bad_span, frames);
+            }
         } else if (!machine.render_line && !no_render) {
             video_render_frame(&video, &machine);
         }

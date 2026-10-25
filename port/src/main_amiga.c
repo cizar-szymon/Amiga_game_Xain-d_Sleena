@@ -77,7 +77,7 @@
 #include "romload.h"
 #include "sndplay.h"
 
-const char version[] = "$VER: XainSleena " XAIN_VERSION " (17.10.2026) arcade emulation";
+const char version[] = "$VER: XainSleena " XAIN_VERSION " (25.10.2026) arcade emulation";
 
 struct IntuitionBase *IntuitionBase;
 struct GfxBase *GfxBase;
@@ -116,6 +116,12 @@ static uint64_t next_frame;
 static UBYTE keys[128];
 
 static int stats, paused, sound = 1;
+/* FPS (0.9.16): the pictures drawn in the last second (57 frames of the game) in the bottom right
+   corner of the picture, white on black, in blocks (30, 29) and (31, 29); painted in the screen
+   format just before the blocks go to the board (16 bit screens with BLIT: the bands and blocks) */
+#define FPS_BX 30
+#define FPS_BY 29
+static int show_fps, fps_value = -1, fps_frames, fps_drawn;
 static int cpu_c;                     /* CPU=C: 6809 core in C instead of assembler */
 static int fmdiv = 2;                 /* FMDIV=1: FM output at every sample (exact, slower) */
 static int emusound;                  /* EMUSOUND: the sound CPU and YM2203 emulated, not samples */
@@ -450,7 +456,7 @@ enum { VID_WCP, VID_BLIT, VID_WPA };
 static const char *const video_names[] = { "WCP", "BLIT", "WPA" };
 static int video_mode = VID_WCP;
 static int video_request = -1;
-static struct BitMap *vbm;
+static struct BitMap *vbm, *vbm2;      /* vbm2: SHIFT, the other picture (vbm is the shown one) */
 static UBYTE *wfb;                    /* WPA frame */
 static UBYTE *sfb_mem, *sfb;          /* BLIT: one row of blocks in the screen format, 16 byte aligned */
 static ULONG sfb_bpr;
@@ -498,7 +504,26 @@ static ULONG pixel_value(ULONG fmt, ULONG r, ULONG g, ULONG b, int pen)
 /* the game palette changed: new pixel values (RTG) or pens (8 bit), everything redrawn */
 static void update_colours(void)
 {
+    static UBYTE col_prev[0x400];                       /* the palette the tables were made from */
+    static int col_ok;
     int i;
+    if (video_mode != VID_WCP) {
+        /* true colour: only the entries written with a new value (in flying stages the palette
+           changes in almost every frame, a few entries at a time) */
+        for (i = 0; i < 512; i++)
+            if (!col_ok || machine.palette[i] != col_prev[i] || machine.palette_ext[i] != col_prev[0x200 + i]) {
+                xain_palette_rgb(&machine, i, video.rgb[i]);
+                native[i] = pixel_value(scr_fmt, video.rgb[i][0], video.rgb[i][1], video.rgb[i][2], 0);
+                native2[i] = (native[i] & 0xffff) * 0x00010001UL;
+                native16[i] = (UWORD)native[i];
+            }
+        memcpy(col_prev, machine.palette, 0x200);
+        memcpy(col_prev + 0x200, machine.palette_ext, 0x200);
+        col_ok = 1;
+        machine.palette_dirty = 0;
+        force_full = 1;
+        return;
+    }
     video_update_palette(&video, &machine);
     if (video_mode == VID_WCP) {
         struct ColorMap *cm = win->WScreen->ViewPort.ColorMap;
@@ -556,6 +581,15 @@ static void open_rtg(void)
         }
         if (!vbm)
             mode = VID_WPA;
+        else {
+            /* SHIFT: the second picture on the board, the blitter moves vbm into it */
+            vbm2 = AllocBitMap((ULONG)(RENDER_W * scale), (ULONG)(RENDER_H * scale),
+                               GetBitMapAttr(sbm, BMA_DEPTH), BMF_MINPLANES | BMF_DISPLAYABLE, sbm);
+            if (vbm2 && (!p96GetBitMapAttr(vbm2, P96BMA_ISP96) || p96GetBitMapAttr(vbm2, P96BMA_RGBFORMAT) != fmt)) {
+                FreeBitMap(vbm2);
+                vbm2 = NULL;
+            }
+        }
     }
     if (mode == VID_WPA) {
         wfb_bpr = (ULONG)(RENDER_W * scale * vbpp);
@@ -575,6 +609,10 @@ static void close_rtg(void)
         WaitBlit();
         FreeBitMap(vbm);
         vbm = NULL;
+    }
+    if (vbm2) {
+        FreeBitMap(vbm2);
+        vbm2 = NULL;
     }
     if (wfb)
         FreeVec(wfb);
@@ -767,7 +805,8 @@ static ULONG prof_blocks;
 static uint64_t stat_stage[7], stage_t0;
 
 /* VERIFY (testing): every 30th drawn frame read the window back from the board and compare
-   every block with what it should show; the result goes to the title */
+   every block with what it should show (the picture rendered again by the C renderer, not
+   shown[], which SHIFT does not move); the result goes to the title */
 static int verify, verify_every = 30;   /* VERIFY[=n]: every n-th drawn picture */
 static ULONG verify_bad, verify_checks, verify_frames;
 static int verify_bx = -1, verify_by;
@@ -775,6 +814,7 @@ static int verify_bx = -1, verify_by;
 static void verify_window(void)
 {
     static UBYTE *buf;
+    static uint16_t ref[RENDER_W * RENDER_H];
     const int w = RENDER_W * scale, h = RENDER_H * scale;
     struct RenderInfo ri;
     int bx, by;
@@ -783,6 +823,15 @@ static void verify_window(void)
         buf = AllocVec((ULONG)(w * h * vbpp), MEMF_ANY);
     if (!buf || !rtg_ok)
         return;
+    {
+        /* the reference renderer (pixel by pixel, as MAME) into ref */
+        uint16_t *fb = video.fb;
+        int y;
+        video.fb = ref;
+        for (y = XAIN_FIRST_LINE; y < XAIN_FIRST_LINE + RENDER_H; y++)
+            video_render_line(&video, &machine, y);
+        video.fb = fb;
+    }
     WaitBlit();
     ri.Memory = buf;
     ri.BytesPerRow = (WORD)(w * vbpp);
@@ -796,7 +845,7 @@ static void verify_window(void)
             for (y = by * 8; y < by * 8 + 8 && !bad; y++)
                 for (x = bx * 8; x < bx * 8 + 8; x++) {
                     const UBYTE *row = buf + (ULONG)(y * scale) * ri.BytesPerRow;
-                    ULONG want = native[shown[y * RENDER_W + x]], got;
+                    ULONG want = native[ref[y * RENDER_W + x]], got;
                     if (vbpp == 2) {
                         got = ((const UWORD *)row)[x * scale];
                         want &= 0xFFFF;
@@ -809,7 +858,7 @@ static void verify_window(void)
                         break;
                     }
                 }
-            if (bad) {
+            if (bad && !(show_fps && by == FPS_BY && bx >= FPS_BX)) {   /* not the FPS counter */
                 verify_bad++;
                 verify_bx = bx;
                 verify_by = by;
@@ -960,9 +1009,680 @@ static ULONG text_bands(void)
     return m;
 }
 
+/* SHIFT (0.9.15): when both backgrounds moved by the same step since the last drawn picture,
+   the card's blitter moves the picture on the board (vbm into vbm2, which then becomes vbm) and
+   the CPU composes only the blocks the move cannot give: the new edge, the sprites (now and
+   where they were), the text cells over the backgrounds (now and where they were) and changed
+   tiles. The frame of opaque text cells that did not change (the black screen edge, the panel)
+   is copied without the move. A new palette for the backgrounds (256-511), another priority mode
+   or a step of more than 64 pixels: the bands. ScrollLog (port/tests/scrolllog.c, the F10
+   replays): about 185 of 960 blocks in such pictures instead of all. SHIFT=OFF: never. */
+static int shift_off;
+static int span_gap = 3;                                /* SPANGAP=n */
+static uint16_t nband[RENDER_W * 8];                    /* a band in the screen format */
+static UBYTE pal_prev[0x400];                           /* the palette of the last drawn picture */
+static ULONG stale[RENDER_BH];                          /* blocks where shown[] is not the window */
+static UBYTE hash_bad[RENDER_BH];                       /* bands whose block_hash is not the window */
+static WORD spr_prev[192][2];                           /* the sprites of the last drawn picture */
+static int spr_prev_n;
+static UBYTE char_opaque[1024];                         /* 1: all 64 pixels of the character pen != 0 */
+static ULONG shift_pictures, shift_blocks, still_pictures, still_blocks;
+/* SHIFTPROF (tests): the time of the stages of the blocks (palette, which blocks, blits, render +
+   convert, write, window), summed with E clock reads at the stage ends (a read costs ca. 14 us) */
+static int shiftprof;
+static uint64_t sp_acc[7], sp_last;
+static ULONG sp_src[7];
+static uint64_t sp_w[8], sp_wlast;                       /* SHIFTPROF: the stages of finding the blocks */
+#define WP(k) do { if (shiftprof == 1) { uint64_t t_ = eclock_now(); sp_w[k] += t_ - sp_wlast; sp_wlast = t_; } } while (0)                                  /* blocks added by: edge, sprites, text, tiles, colours, other layer */
+
+/* SHIFTPROF: the blocks of d (+ rc) not yet counted go to source k */
+static void sp_count(int k, const ULONG *d, const ULONG *rc, ULONG *seen)
+{
+    int by, bx;
+    if (shiftprof != 2)
+        return;
+    for (by = 0; by < RENDER_BH; by++) {
+        ULONG nw = (d[by] | rc[by]) & ~seen[by];
+        for (bx = 0; bx < RENDER_BW; bx++)
+            sp_src[k] += (nw >> bx) & 1;
+        seen[by] |= nw;
+    }
+}
+#define SP(k) do { if (shiftprof) { uint64_t t_ = eclock_now(); sp_acc[k] += t_ - sp_last; sp_last = t_; } } while (0)
+static ULONG shift_no[5];                               /* not moved: off/first/pri, still, steps, area, lock */
+
+/* the blocks covered by pixels x..x+w-1, y..y+h-1 of the picture (clipped) */
+static void mark_rect(ULONG *m, int x, int y, int w, int h)
+{
+    int bx0, bx1, by;
+    ULONG bits;
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > RENDER_W) w = RENDER_W - x;
+    if (y + h > RENDER_H) h = RENDER_H - y;
+    if (w <= 0 || h <= 0)
+        return;
+    bx0 = x >> 3;
+    bx1 = (x + w - 1) >> 3;
+    bits = (bx1 == 31 ? 0xFFFFFFFFUL : (1UL << (bx1 + 1)) - 1) & ~((1UL << bx0) - 1);
+    for (by = y >> 3; by <= (y + h - 1) >> 3; by++)
+        m[by] |= bits;
+}
+
+/* the visible sprite tiles (16x16) as video_render_begin finds them: top left in picture pixels */
+static int sprite_rects(WORD (*r)[2])
+{
+    int offs, t, n = 0;
+    for (offs = 0; offs < 0x180; offs += 4) {
+        int attr = machine.spriteram[offs + 1];
+        int sx = 238 - machine.spriteram[offs + 3];
+        int sy = 240 - machine.spriteram[offs];
+        if (sx <= -7) sx += 256;
+        if (sy <= -7) sy += 256;
+        if (sx >= SCREEN_W || sx <= -16)
+            continue;
+        for (t = (attr & 0x80) ? 0 : 1; t < 2; t++) {
+            int ty = t == 0 ? sy - 16 : sy;
+            if (ty + 16 <= XAIN_FIRST_LINE || ty >= XAIN_FIRST_LINE + SCREEN_H)
+                continue;
+            r[n][0] = (WORD)sx;
+            r[n][1] = (WORD)(ty - XAIN_FIRST_LINE);
+            n++;
+        }
+    }
+    return n;
+}
+
+/* the step of a scroll register pair since the last drawn picture (-256..255) */
+static int scroll_step(const UBYTE *now, const UBYTE *old)
+{
+    int d = ((now[0] | now[1] << 8) - (old[0] | old[1] << 8)) & 511;
+    return d >= 256 ? d - 512 : d;
+}
+
+static int same_mem(const void *a, const void *b, ULONG n);
+
+/* the blocks of the changed tiles of a background (tile RAM: code 000-3FF, attribute 400-7FF) */
+static void bg_changed(ULONG *m, const UBYTE *now, const UBYTE *old, const UBYTE *scx, const UBYTE *scy)
+{
+    const int sx = scx[0] | scx[1] << 8, sy = scy[0] | scy[1] << 8;
+    int i;
+    if (same_mem(now, old, 0x800))
+        return;
+    for (i = 0; i < 0x800; i++)
+        if (now[i] != old[i]) {
+            int idx = i & 0x3ff;
+            int col = (idx & 15) | ((idx >> 4) & 16), row = ((idx >> 4) & 15) | ((idx >> 5) & 16);
+            int x = (col * 16 - sx) & 511, y = (row * 16 - sy) & 511;
+            if (x >= 496) x -= 512;
+            if (y >= 496) y -= 512;
+            mark_rect(m, x, y - XAIN_FIRST_LINE, 16, 16);
+        }
+}
+
+/* the text cell of block (bx, by): 1 when it has a visible pixel; *opaque: all pixels */
+static int text_cell(const UBYTE *ram, int bx, int by, int *opaque)
+{
+    int idx = (by + XAIN_FIRST_LINE / 8) * 32 + bx;
+    int attr = ram[idx | 0x400], code = ram[idx] | ((attr & 3) << 8);
+    *opaque = char_opaque[code];
+    return !video.char_empty[code];
+}
+
+/* the text cells per block row as bit masks (bit bx): with a visible pixel (txt_ne), all pixels
+   (txt_op), and txt_prev_ne of the last drawn picture; a row is looked at again only when its
+   cells changed (chg: the changed cells). txt_masks_ok = 0: the masks are not of prev_txt. */
+static ULONG txt_ne[RENDER_BH], txt_op[RENDER_BH], txt_prev_ne[RENDER_BH];
+static int txt_masks_ok;
+
+static void text_row(const UBYTE *ram, int by, ULONG *ne, ULONG *op)
+{
+    int bx, o;
+    *ne = *op = 0;
+    for (bx = 0; bx < RENDER_BW; bx++)
+        if (text_cell(ram, bx, by, &o)) {
+            *ne |= 1UL << bx;
+            if (o) *op |= 1UL << bx;
+        }
+}
+
+static void text_masks(ULONG *chg)
+{
+    int by, bx;
+    for (by = 0; by < RENDER_BH; by++) {
+        const int base = (by + XAIN_FIRST_LINE / 8) * 32;
+        if (!txt_masks_ok)
+            text_row(prev_txt, by, &txt_ne[by], &txt_op[by]);
+        txt_prev_ne[by] = txt_ne[by];
+        chg[by] = 0;
+        if (!same_mem(machine.charram + base, prev_txt + base, 32) ||
+            !same_mem(machine.charram + base + 0x400, prev_txt + base + 0x400, 32)) {
+            for (bx = 0; bx < RENDER_BW; bx++)
+                if (machine.charram[base + bx] != prev_txt[base + bx] ||
+                    machine.charram[base + bx + 0x400] != prev_txt[base + bx + 0x400])
+                    chg[by] |= 1UL << bx;
+            text_row(machine.charram, by, &txt_ne[by], &txt_op[by]);
+        }
+    }
+    txt_masks_ok = 1;
+}
+
+/* a block mask moved by k blocks toward bit 0 (k < 0: toward bit 31) */
+static ULONG mask_shift(ULONG m, int k)
+{
+    return k >= 32 || k <= -32 ? 0 : k >= 0 ? m >> k : m << -k;
+}
+
+/* the blocks covered by the cells of src (one bit per 8x8 block) after the picture moved by
+   dx, dy: the new block (bx, by) shows old pixels from bx * 8 + dx, by * 8 + dy on */
+static void mark_moved(ULONG *d, const ULONG *src, int dx, int dy)
+{
+    const int qx = dx >= 0 ? dx / 8 : -((-dx + 7) / 8), rx = dx - 8 * qx;
+    const int qy = dy >= 0 ? dy / 8 : -((-dy + 7) / 8), ry = dy - 8 * qy;
+    int by, k;
+    for (by = 0; by < RENDER_BH; by++)
+        for (k = 0; k <= (ry ? 1 : 0); k++) {
+            const int sy = by + qy + k;
+            if (sy >= 0 && sy < RENDER_BH && src[sy])
+                d[by] |= mask_shift(src[sy], qx) | (rx ? mask_shift(src[sy], qx + 1) : 0);
+        }
+}
+
+/* the counter into nband (band FPS_BY in the screen format) */
+static void fps_paint(void)
+{
+    static const UBYTE digit[10][7] = {   /* 5 x 7, bit 4 = left */
+        { 0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E }, { 0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E },
+        { 0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F }, { 0x1F, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0E },
+        { 0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02 }, { 0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E },
+        { 0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E }, { 0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08 },
+        { 0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E }, { 0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C }
+    };
+    const UWORD white = (UWORD)pixel_value(scr_fmt, 255, 255, 255, 0), black = (UWORD)pixel_value(scr_fmt, 0, 0, 0, 0);
+    UWORD *p = &nband[FPS_BX * 8];
+    int x, y, k, v = fps_value > 99 ? 99 : fps_value;
+    for (y = 0; y < 8; y++)
+        for (x = 0; x < 16; x++)
+            p[y * RENDER_W + x] = black;
+    if (v < 0)
+        return;                                         /* the first second: no number yet */
+    for (k = 0; k < 2; k++) {
+        const int dg = k == 0 ? v / 10 : v % 10, x0 = 2 + k * 7;
+        if (k == 0 && dg == 0)
+            continue;
+        for (y = 0; y < 7; y++)
+            for (x = 0; x < 5; x++)
+                if (digit[dg][y] & (0x10 >> x))
+                    p[y * RENDER_W + x0 + x] = white;
+    }
+}
+
+/* the blocks whose whole 8x8 source after the move by dx, dy was in src (AND of the old blocks
+   they come from; outside the picture: not) */
+static void mask_moved_and(ULONG *dst, const ULONG *src, int dx, int dy)
+{
+    const int qx = dx >= 0 ? dx / 8 : -((-dx + 7) / 8), rx = dx - 8 * qx;
+    const int qy = dy >= 0 ? dy / 8 : -((-dy + 7) / 8), ry = dy - 8 * qy;
+    int by, k;
+    for (by = 0; by < RENDER_BH; by++) {
+        ULONG acc = 0xFFFFFFFFUL;
+        for (k = 0; k <= (ry ? 1 : 0); k++) {
+            const int sy = by + qy + k;
+            const ULONG row = sy >= 0 && sy < RENDER_BH ? src[sy] : 0;
+            acc &= mask_shift(row, qx) & (rx ? mask_shift(row, qx + 1) : 0xFFFFFFFFUL);
+        }
+        dst[by] = acc;
+    }
+}
+
+/* 1 when n bytes (a multiple of 4) at a and b are the same (long words; memcmp of vbcc goes byte
+   by byte) */
+static int same_mem(const void *a, const void *b, ULONG n)
+{
+    const ULONG *p = a, *q = b;
+    for (n >>= 2; n; n--)
+        if (*p++ != *q++)
+            return 0;
+    return 1;
+}
+
+/* one pass over the visible tiles of a background, per block row: ne = the blocks with a visible
+   pixel of it, op = the blocks all of whose pixels are of it, gc |= the blocks with a tile in a
+   colour group of groups (group = gbase + attribute bits 4-6); any of them may be NULL.
+   nerows / oprows: per tile the rows with a visible pixel / without pen 0 (bit r = row r) */
+static void layer_scan(const UBYTE *ram, const UBYTE *scx, const UBYTE *scy, const UWORD *nerows, const UWORD *oprows,
+                       int gbase, ULONG groups, ULONG *ne, ULONG *op, ULONG *gc)
+{
+    const int sx = (scx[0] | scx[1] << 8) & 511, sy = (scy[0] | scy[1] << 8) & 511, fx = sx & 15;
+    int by, k, r;
+    for (by = 0; by < RENDER_BH; by++) {
+        const int ty = (by * 8 + XAIN_FIRST_LINE + sy) & 511, fy = ty & 15;
+        const int n0 = 16 - fy < 8 ? 16 - fy : 8;
+        ULONG mne = 0, mnot = 0, mgc = 0;
+        for (r = 0; r < (n0 < 8 ? 2 : 1); r++) {
+            const int row = ((ty >> 4) + r) & 31, rowpart = ((row & 0x0f) << 4) + ((row & 0x10) << 5);
+            const UWORD bits = (UWORD)(r == 0 ? ((1 << n0) - 1) << fy : (1 << (8 - n0)) - 1);
+            for (k = 0; k < 17; k++) {
+                const int col = ((sx >> 4) + k) & 31, idx = (col & 0x0f) + ((col & 0x10) << 4) + rowpart;
+                const int attr = ram[idx | 0x400], code = ram[idx] | ((attr & 7) << 8);
+                const int x = k * 16 - fx, b0 = x < 0 ? 0 : x >> 3, b1 = (x + 15) >> 3 > 31 ? 31 : (x + 15) >> 3;
+                ULONG bm;
+                if (b0 > 31)
+                    continue;
+                bm = (b1 == 31 ? 0xFFFFFFFFUL : (1UL << (b1 + 1)) - 1) & ~((1UL << b0) - 1);
+                if (ne && (nerows[code] & bits))
+                    mne |= bm;
+                if (op && (oprows[code] & bits) != bits)
+                    mnot |= bm;
+                if (gc && ((groups >> (gbase + ((attr & 0x70) >> 4))) & 1))
+                    mgc |= bm;
+            }
+        }
+        if (ne) ne[by] = mne;
+        if (op) op[by] = ~mnot;
+        if (gc) gc[by] |= mgc;
+    }
+}
+
+/* writes the runs of blocks m of band by from nband into the picture at ri */
+static void write_runs(const struct RenderInfo *ri, int by, ULONG m)
+{
+    const ULONG bpr = (UWORD)ri->BytesPerRow, bw = (ULONG)(8 * scale * 2);
+    int bx = 0;
+    while (bx < RENDER_BW) {
+        int r0;
+        UBYTE *dst;
+        if (!(m & (1UL << bx))) {
+            bx++;
+            continue;
+        }
+        r0 = bx;
+        while (bx < RENDER_BW && (m & (1UL << bx)))
+            bx++;
+        dst = (UBYTE *)ri->Memory + (ULONG)(by * 8 * scale) * bpr + (ULONG)r0 * bw;
+        if (scale == 2)
+            double_rows_68k(&nband[r0 * 8], dst, bpr, (ULONG)(bx - r0) * 8);
+        else
+            copy_rows((const UBYTE *)&nband[r0 * 8], dst, (ULONG)(bx - r0) * 16, 8, RENDER_W * 2, bpr, 0);
+    }
+}
+
+/* the picture moved by the blitter; 0 = not possible here (the caller uses the bands) */
+static int render_present_shift(void)
+{
+    /* per tile of [0] BG2 (gfx3), [1] BG1 (gfx2): bit r = row r with a visible pixel / without pen 0 */
+    static UWORD ne_rows[2][2048], opq_rows[2][2048];
+    ULONG cov[RENDER_BH], m1[RENDER_BH], ne_now[RENDER_BH], op_now[RENDER_BH], ne_old[RENDER_BH], op_old[RENDER_BH];
+    ULONG m1any = 0;
+    int odx = 0, ody = 0, two;
+    ULONG seen[RENDER_BH], d[RENDER_BH], rc[RENDER_BH], keep[RENDER_BH], tchg[RENDER_BH], rows = 0, cols = 0, n = 0, groups;
+    int dx, dy, b, other, still, fps_out = 0, bx, by, i, top, txtpal, rx0, rx1, ry0, ry1, vx0, vx1, vy0, vy1, s = scale;
+    struct BitMap *tb;
+    struct RenderInfo ri;
+    SP(0);
+    LONG lock;
+    if (shiftprof == 1)
+        sp_wlast = eclock_now();
+    static int opaque_ready;
+
+    /* the bottom layer moves the picture: BG2 (scroll [0]) in modes 0, 4, 6, BG1 ([1]) in 1, 5, 7;
+       text at the bottom (2, 3): the bands */
+    b = (machine.pri & 7) == 1 || (machine.pri & 7) == 5 || (machine.pri & 7) == 7;
+    if (shift_off || !vbm2 || !prev_valid || machine.pri != prev_pri || (machine.pri & 7) == 2 || (machine.pri & 7) == 3)
+        return shift_no[0]++, 0;
+    dx = scroll_step(machine.scrollx[b], prev_scroll + 2 * b);
+    dy = scroll_step(machine.scrolly[b], prev_scroll + 4 + 2 * b);
+    still = !dx && !dy;                                   /* not moved: the blocks in place */
+    if (dx > 64 || dx < -64 || dy > 64 || dy < -64)
+        return shift_no[2]++, 0;
+    other = dx != scroll_step(machine.scrollx[1 - b], prev_scroll + 2 * (1 - b)) ||
+            dy != scroll_step(machine.scrolly[1 - b], prev_scroll + 4 + 2 * (1 - b));
+    /* a new palette: the changed colour groups of 16; text (0-7) and sprites (8-15) are composed
+       anyway, the backgrounds (BG1 16-23, BG2 24-31) where their tiles use such a group */
+    groups = 0;
+    if (!same_mem(machine.palette, pal_prev, 0x200) || !same_mem(machine.palette_ext, pal_prev + 0x200, 0x200))
+        for (i = 0; i < 512; i++)
+            if (machine.palette[i] != pal_prev[i] || machine.palette_ext[i] != pal_prev[0x200 + i])
+                groups |= 1UL << (i >> 4);
+    txtpal = (groups & 0xFF) != 0;
+    if (!opaque_ready) {
+        int c, r;
+        for (c = 0; c < 1024; c++) {
+            char_opaque[c] = 1;
+            for (r = 0; r < 8; r++)
+                if (!(video.chars_rowtype[c * 8 + r] & 1)) char_opaque[c] = 0;   /* types 1, 3 */
+        }
+        for (c = 0; c < 2048; c++) {
+            ne_rows[0][c] = ne_rows[1][c] = opq_rows[0][c] = opq_rows[1][c] = 0;
+            for (r = 0; r < 16; r++) {
+                if (video.bg2_rowtype[c * 16 + r]) ne_rows[0][c] |= (UWORD)(1 << r);
+                if (video.bg1_rowtype[c * 16 + r]) ne_rows[1][c] |= (UWORD)(1 << r);
+                if (video.bg2_rowtype[c * 16 + r] & 1) opq_rows[0][c] |= (UWORD)(1 << r);
+                if (video.bg1_rowtype[c * 16 + r] & 1) opq_rows[1][c] |= (UWORD)(1 << r);
+            }
+        }
+        opaque_ready = 1;
+    }
+    /* the frame that stays: opaque text cells, unchanged, over everything (modes 0, 1, 6, 7) */
+    top = (machine.pri & 7) <= 1 || (machine.pri & 7) >= 6;
+    WP(0);
+    text_masks(tchg);
+    for (by = 0; by < RENDER_BH; by++) {
+        keep[by] = top && !txtpal && !still ? txt_op[by] & ~tchg[by] : 0;
+        if (keep[by] != 0xFFFFFFFFUL) {
+            rows |= 1UL << by;
+            cols |= ~keep[by];
+        }
+    }
+    if (!rows)
+        return shift_no[3]++, 0;
+    /* R: the rectangle of the other blocks, moved; V: the part of it the move can fill */
+    for (ry0 = 0; !(rows & (1UL << ry0)); ry0++) ;
+    for (ry1 = RENDER_BH; !(rows & (1UL << (ry1 - 1))); ry1--) ;
+    for (rx0 = 0; !(cols & (1UL << rx0)); rx0++) ;
+    for (rx1 = RENDER_BW; !(cols & (1UL << (rx1 - 1))); rx1--) ;
+    rx0 *= 8; rx1 *= 8; ry0 *= 8; ry1 *= 8;
+    vx0 = dx < 0 ? rx0 - dx : rx0;
+    vx1 = dx > 0 ? rx1 - dx : rx1;
+    vy0 = dy < 0 ? ry0 - dy : ry0;
+    vy1 = dy > 0 ? ry1 - dy : ry1;
+    if (vx0 >= vx1 || vy0 >= vy1)
+        return shift_no[3]++, 0;
+    /* the blocks to compose (d) and, without a move, the ones only to colour again from shown[] (rc:
+       a new palette, the same pixels - converted and written, not drawn) */
+    memset(d, 0, sizeof d);
+    memset(rc, 0, sizeof rc);
+    memset(seen, 0, sizeof seen);
+    {
+        /* the edge: the blocks of R not wholly in V */
+        ULONG rmr = 0, edge = 0;
+        for (bx = rx0 >> 3; bx < rx1 >> 3; bx++) {
+            rmr |= 1UL << bx;
+            if (bx * 8 < vx0 || bx * 8 + 8 > vx1)
+                edge |= 1UL << bx;
+        }
+        for (by = ry0 >> 3; by < ry1 >> 3; by++)
+            d[by] |= by * 8 < vy0 || by * 8 + 8 > vy1 ? rmr : edge;
+    }
+    WP(1);
+    sp_count(0, d, rc, seen);
+    {
+        static WORD now[192][2];
+        int k = sprite_rects(now);
+        for (i = 0; i < k; i++)
+            mark_rect(d, now[i][0], now[i][1], 16, 16);
+        for (i = 0; i < spr_prev_n; i++)                    /* where they were, moved */
+            mark_rect(d, spr_prev[i][0] - dx, spr_prev[i][1] - dy, 16, 16);
+    }
+    if (show_fps) {                                         /* the counter: always, and where it was */
+        d[FPS_BY] |= 3UL << FPS_BX;
+        mark_rect(d, FPS_BX * 8 - dx, FPS_BY * 8 - dy, 16, 8);
+    }
+    WP(2);
+    sp_count(1, d, rc, seen);
+    if (still)                                              /* the text: changed cells; all after a new text palette */
+        for (by = 0; by < RENDER_BH; by++) {
+            d[by] |= tchg[by];
+            if (txtpal) rc[by] |= txt_ne[by];
+        }
+    else {                                                  /* the cells with pixels now, and moved */
+        for (by = 0; by < RENDER_BH; by++)
+            d[by] |= txt_ne[by];
+        mark_moved(d, txt_prev_ne, dx, dy);
+    }
+    WP(3);
+    sp_count(2, d, rc, seen);
+    bg_changed(d, machine.bgram0, prev_bg0, machine.scrollx[0], machine.scrolly[0]);
+    bg_changed(d, machine.bgram1, prev_bg1, machine.scrollx[1], machine.scrolly[1]);
+    sp_count(3, d, rc, seen);
+    /* the backgrounds: blocks of tiles in a changed colour group (rc); of the other one, when it
+       moved otherwise, the blocks with its pixels now and moved from before (cov) and those all of
+       its pixels (op_now, op_old) */
+    {
+        const int o = 1 - b;
+        const ULONG gb = b == 0 ? 0xFF000000UL : 0x00FF0000UL, go = o == 0 ? 0xFF000000UL : 0x00FF0000UL;
+        if (groups & gb)
+            layer_scan(b ? machine.bgram1 : machine.bgram0, machine.scrollx[b], machine.scrolly[b], ne_rows[b],
+                       opq_rows[b], b ? 16 : 24, groups, NULL, NULL, rc);
+        if (other || (groups & go))
+            layer_scan(o ? machine.bgram1 : machine.bgram0, machine.scrollx[o], machine.scrolly[o], ne_rows[o],
+                       opq_rows[o], o ? 16 : 24, groups, other ? ne_now : NULL, other ? op_now : NULL,
+                       groups & go ? rc : NULL);
+    }
+    WP(4);
+    sp_count(4, d, rc, seen);
+    memset(cov, 0, sizeof cov);
+    memset(m1, 0, sizeof m1);
+    if (other) {                                            /* the upper background moved otherwise */
+        const int o = 1 - b;
+        const UBYTE *old = o ? prev_bg1 : prev_bg0;
+        layer_scan(old, prev_scroll + 2 * o, prev_scroll + 4 + 2 * o, ne_rows[o], opq_rows[o], 0, 0, ne_old, op_old,
+                   NULL);
+        for (by = 0; by < RENDER_BH; by++)
+            cov[by] = ne_now[by];
+        mark_moved(cov, ne_old, dx, dy);
+        /* its blocks with all pixels of this layer, now and where they come from in the last picture
+           (moved by its own step), are copied from there by the blitter instead of drawn (the
+           ground on foot moves, the sky below it not) - unless an old sprite, text cell or the
+           counter was over the source, or their colours changed */
+        odx = scroll_step(machine.scrollx[o], prev_scroll + 2 * o);
+        ody = scroll_step(machine.scrolly[o], prev_scroll + 4 + 2 * o);
+        if (odx >= -64 && odx <= 64 && ody >= -64 && ody <= 64) {
+            ULONG contam[RENDER_BH];
+            memset(contam, 0, sizeof contam);
+            for (i = 0; i < spr_prev_n; i++)
+                mark_rect(contam, spr_prev[i][0] - odx, spr_prev[i][1] - ody, 16, 16);
+            mark_moved(contam, txt_prev_ne, odx, ody);
+            if (show_fps)
+                mark_rect(contam, FPS_BX * 8 - odx, FPS_BY * 8 - ody, 16, 8);
+            mask_moved_and(m1, op_old, odx, ody);
+            for (by = 0; by < RENDER_BH; by++)
+                m1[by] &= cov[by] & op_now[by] & ~contam[by] & ~rc[by];
+        }
+        for (by = 0; by < RENDER_BH; by++)
+            d[by] |= cov[by] & ~m1[by];
+    }
+    WP(5);
+    sp_count(5, d, rc, seen);
+    {
+        const ULONG rm = (rx1 == RENDER_W ? 0xFFFFFFFFUL : (1UL << (rx1 >> 3)) - 1) & ~((1UL << (rx0 >> 3)) - 1);
+        for (by = 0; by < RENDER_BH; by++) {
+            /* moved, or shown[] not the window there: drawn; else only coloured again */
+            if (!still)
+                d[by] |= rc[by];
+            else
+                d[by] |= rc[by] & stale[by];
+            rc[by] = still ? rc[by] & ~d[by] : 0;
+            d[by] = by >= ry0 >> 3 && by < ry1 >> 3 ? d[by] & rm : 0;
+            m1[by] = by >= ry0 >> 3 && by < ry1 >> 3 ? m1[by] & rm & ~d[by] : 0;
+            m1any |= m1[by];
+            if (shiftprof)
+                for (bx = 0; bx < RENDER_BW; bx++)
+                    sp_src[6] += (m1[by] >> bx) & 1;
+        }
+        /* the counter always (in the frame that stays it is copied unmoved, then drawn again) */
+        fps_out = show_fps && (FPS_BY < ry0 >> 3 || FPS_BY >= ry1 >> 3 || !(rm & (1UL << FPS_BX)) ||
+                               !(rm & (1UL << (FPS_BX + 1))));
+        if (show_fps)
+            d[FPS_BY] |= 3UL << FPS_BX;
+        /* the move on the board: V from vbm moved, the frame outside R as it is */
+        WP(6);
+        SP(1);
+        two = !still || m1any;                              /* into vbm2: moved, or copied blocks */
+        tb = two ? vbm2 : vbm;
+        if (still && two)
+            BltBitMap(vbm, 0, 0, vbm2, 0, 0, (WORD)(RENDER_W * s), (WORD)(RENDER_H * s), 0xC0, 0xFF, NULL);
+        if (!still) {
+        BltBitMap(vbm, (WORD)((vx0 + dx) * s), (WORD)((vy0 + dy) * s), vbm2, (WORD)(vx0 * s), (WORD)(vy0 * s),
+                  (WORD)((vx1 - vx0) * s), (WORD)((vy1 - vy0) * s), 0xC0, 0xFF, NULL);
+        if (ry0 > 0)
+            BltBitMap(vbm, 0, 0, vbm2, 0, 0, (WORD)(RENDER_W * s), (WORD)(ry0 * s), 0xC0, 0xFF, NULL);
+        if (ry1 < RENDER_H)
+            BltBitMap(vbm, 0, (WORD)(ry1 * s), vbm2, 0, (WORD)(ry1 * s), (WORD)(RENDER_W * s),
+                      (WORD)((RENDER_H - ry1) * s), 0xC0, 0xFF, NULL);
+        if (rx0 > 0)
+            BltBitMap(vbm, 0, (WORD)(ry0 * s), vbm2, 0, (WORD)(ry0 * s), (WORD)(rx0 * s), (WORD)((ry1 - ry0) * s),
+                      0xC0, 0xFF, NULL);
+        if (rx1 < RENDER_W)
+            BltBitMap(vbm, (WORD)(rx1 * s), (WORD)(ry0 * s), vbm2, (WORD)(rx1 * s), (WORD)(ry0 * s),
+                      (WORD)((RENDER_W - rx1) * s), (WORD)((ry1 - ry0) * s), 0xC0, 0xFF, NULL);
+        }
+        if (m1any) {
+            /* the blocks of the other layer from the last picture, by its step: rectangles of
+               rows with the same blocks */
+            by = 0;
+            while (by < RENDER_BH) {
+                const ULONG mk = m1[by];
+                int y0 = by;
+                if (!mk) {
+                    by++;
+                    continue;
+                }
+                while (by < RENDER_BH && m1[by] == mk)
+                    by++;
+                bx = 0;
+                while (bx < RENDER_BW) {
+                    int r0;
+                    if (!(mk & (1UL << bx))) {
+                        bx++;
+                        continue;
+                    }
+                    r0 = bx;
+                    while (bx < RENDER_BW && (mk & (1UL << bx)))
+                        bx++;
+                    BltBitMap(vbm, (WORD)((r0 * 8 + odx) * s), (WORD)((y0 * 8 + ody) * s), vbm2, (WORD)(r0 * 8 * s),
+                              (WORD)(y0 * 8 * s), (WORD)((bx - r0) * 8 * s), (WORD)((by - y0) * 8 * s), 0xC0, 0xFF, NULL);
+                }
+            }
+        }
+        if (two)
+            WaitBlit();
+        SP(2);
+        /* the composed blocks on top */
+        video_render_begin(&video, &machine);
+        lock = p96LockBitMap(tb, (UBYTE *)&ri, sizeof ri);
+        if (!ri.Memory) {
+            p96UnlockBitMap(tb, lock);
+            return shift_no[4]++, 0;                        /* vbm is still the picture */
+        }
+        for (by = 0; by < RENDER_BH; by++) {
+            uint16_t *band_px = &shown[by * 8 * RENDER_W];
+            ULONG m = d[by], w = m | rc[by], up = m, down = m, rm2;
+            /* rendered: the runs with gaps of up to span_gap blocks between them filled (a span
+               costs about as much as a few blocks: 8 lines x 4 layers of calls); only the blocks
+               of m are converted and written */
+            for (i = 1; i <= span_gap; i++) {
+                up |= m << i;
+                down |= m >> i;
+            }
+            rm2 = m | (up & down);
+            bx = 0;
+            while (bx < RENDER_BW) {
+                int r0;
+                if (!(rm2 & (1UL << bx))) {
+                    bx++;
+                    continue;
+                }
+                r0 = bx;
+                while (bx < RENDER_BW && (rm2 & (1UL << bx)))
+                    bx++;
+                video_render_span(&video, &machine, XAIN_FIRST_LINE + by * 8, 8, r0 * 8, bx * 8, band_px);
+                if (rcheck) {
+                    static uint16_t ref[RENDER_W * 8];
+                    int y, x;
+                    const int c = video_cache;
+                    video_asm = 0;
+                    video_cache = 0;                        /* the C renderer from the tiles */
+                    video_render_span(&video, &machine, XAIN_FIRST_LINE + by * 8, 8, r0 * 8, bx * 8, ref);
+                    video_asm = 1;
+                    video_cache = c;
+                    rcheck_bands++;
+                    for (y = 0; y < 8; y++)
+                        for (x = r0 * 8; x < bx * 8; x++)
+                            if (ref[y * RENDER_W + x] != band_px[y * RENDER_W + x]) {
+                                rcheck_bad++;
+                                y = 8;
+                                break;
+                            }
+                }
+            }
+            bx = 0;
+            while (bx < RENDER_BW) {                        /* converted: the runs of m and rc */
+                int r0;
+                if (!(w & (1UL << bx))) {
+                    bx++;
+                    continue;
+                }
+                r0 = bx;
+                while (bx < RENDER_BW && (w & (1UL << bx)))
+                    bx++;
+                convert_fast_68k(band_px + r0 * 8, (UBYTE *)&nband[r0 * 8], RENDER_W * 2, (ULONG)(bx - r0) * 8,
+                                 native16, 1);
+                n += (ULONG)(bx - r0);
+            }
+            if (w) SP(3);
+            if (show_fps && by == FPS_BY)
+                fps_paint();
+            if (w && bands_skip != 1)
+                write_runs(&ri, by, w);
+            if (w) SP(4);
+            if (still) {                                    /* the block hashes are not of these */
+                stale[by] = (stale[by] & ~rm2) | (m1[by] & ~rm2);
+                if (w || m1[by]) hash_bad[by] = 1;
+            } else if (by >= ry0 >> 3 && by < ry1 >> 3) {  /* moved: shown[] and the hashes are not */
+                stale[by] = (stale[by] | rm) & ~rm2;
+                hash_bad[by] = 1;
+            }
+        }
+        p96UnlockBitMap(tb, lock);
+    }
+    SP(5);
+    if (still) {
+        /* the window: the rectangle of the written blocks */
+        int y0 = -1, y1 = 0, x0 = RENDER_BW, x1 = -1;
+        ULONG all = 0;
+        for (by = 0; by < RENDER_BH; by++)
+            if (d[by] | rc[by] | m1[by]) {
+                if (y0 < 0) y0 = by;
+                y1 = by;
+                all |= d[by] | rc[by] | m1[by];
+            }
+        if (y0 >= 0 && bands_skip != 1) {
+            for (x0 = 0; !(all & (1UL << x0)); x0++) ;
+            for (x1 = RENDER_BW - 1; !(all & (1UL << x1)); x1--) ;
+            BltBitMapRastPort(tb, (WORD)(x0 * 8 * s), (WORD)(y0 * 8 * s), win->RPort, (WORD)(ox + x0 * 8 * s),
+                              (WORD)(oy + y0 * 8 * s), (WORD)((x1 + 1 - x0) * 8 * s), (WORD)((y1 + 1 - y0) * 8 * s), 0xC0);
+        }
+        if (two) {
+            struct BitMap *t = vbm;
+            vbm = vbm2;
+            vbm2 = t;
+        }
+        SP(6);
+        still_pictures++;
+        still_blocks += n;
+        prof_blocks += n;
+        return 1;
+    }
+    BltBitMapRastPort(vbm2, (WORD)(rx0 * s), (WORD)(ry0 * s), win->RPort, (WORD)(ox + rx0 * s), (WORD)(oy + ry0 * s),
+                      (WORD)((rx1 - rx0) * s), (WORD)((ry1 - ry0) * s), 0xC0);
+    if (fps_out)
+        BltBitMapRastPort(vbm2, (WORD)(FPS_BX * 8 * s), (WORD)(FPS_BY * 8 * s), win->RPort, (WORD)(ox + FPS_BX * 8 * s),
+                          (WORD)(oy + FPS_BY * 8 * s), (WORD)(16 * s), (WORD)(8 * s), 0xC0);
+    {
+        struct BitMap *t = vbm;
+        vbm = vbm2;
+        vbm2 = t;
+    }
+    SP(6);
+    shift_pictures++;
+    shift_blocks += n;
+    prof_blocks += n;
+    return 1;
+}
+
 static void render_present_bands(void)
 {
-    static uint16_t nband[RENDER_W * 8];                /* the band in the screen format */
     const ULONG bw = (ULONG)(8 * scale * 2);
     ULONG dirty, spr;
     int by, x0 = RENDER_BW, x1 = -1, y0 = RENDER_BH, y1 = -1, full, pal;
@@ -970,16 +1690,26 @@ static void render_present_bands(void)
        only the blocks whose colours changed are sent (not everything as in present()) */
     full = force_full || redraw || (++bands_count & 255) == 0;
     pal = machine.palette_dirty;
+    if (shiftprof)
+        sp_last = eclock_now();
     if (pal)
         update_colours();
     force_full = 0;
     spr = sprite_bands();
+    if (!full && !incr_off && render_present_shift())
+        goto done;
     if (full || incr_off || !prev_valid || machine.pri != prev_pri ||
         memcmp(&machine.scrollx[0][0], prev_scroll, 4) || memcmp(&machine.scrolly[0][0], prev_scroll + 4, 4))
         dirty = (1UL << RENDER_BH) - 1;
     else
         dirty = spr | prev_spr_bands | bg_bands(machine.bgram0, prev_bg0, machine.scrolly[0]) |
                 bg_bands(machine.bgram1, prev_bg1, machine.scrolly[1]) | text_bands();
+    if (pal)                                              /* SHIFT left blocks of shown[] behind */
+        for (by = 0; by < RENDER_BH; by++)
+            if (stale[by]) dirty |= 1UL << by;
+    if (show_fps)
+        dirty |= 1UL << FPS_BY;
+    txt_masks_ok = 0;
     video_render_begin(&video, &machine);
     for (by = 0; by < RENDER_BH; by++) {
         uint16_t *band_px = &shown[by * 8 * RENDER_W];  /* the picture of indices, kept */
@@ -993,9 +1723,12 @@ static void render_present_bands(void)
                 /* RCHECK (tests): the band again with the C renderer, compared pixel by pixel */
                 static uint16_t ref[RENDER_W * 8];
                 int k;
+                const int c = video_cache;
                 video_asm = 0;
+                video_cache = 0;
                 video_render_lines(&video, &machine, XAIN_FIRST_LINE + by * 8, 8, ref);
                 video_asm = 1;
+                video_cache = c;
                 rcheck_bands++;
                 for (k = 0; k < RENDER_W * 8; k++)
                     if (ref[k] != band_px[k]) {
@@ -1004,12 +1737,16 @@ static void render_present_bands(void)
                     }
             }
             bands_rendered++;
+            stale[by] = 0;
         } else if (!pal) {
             continue;                                     /* nothing can have changed */
         }
         convert_fast_68k(band_px, (UBYTE *)nband, RENDER_W * 2, RENDER_W, native16, 1);
+        if (show_fps && by == FPS_BY)
+            fps_paint();
         bands_converted++;
-        n = band_diff(nband, by, d, full);
+        n = band_diff(nband, by, d, full || hash_bad[by]);
+        hash_bad[by] = 0;
         if (!n || bands_skip == 1)
             continue;
         prof_blocks += (ULONG)n;
@@ -1044,15 +1781,6 @@ static void render_present_bands(void)
         }
         p96UnlockBitMap(vbm, lock);
     }
-    /* what the next picture is compared with */
-    memcpy(prev_bg0, machine.bgram0, 0x800);
-    memcpy(prev_bg1, machine.bgram1, 0x800);
-    memcpy(prev_txt, machine.charram, 0x800);
-    memcpy(prev_scroll, &machine.scrollx[0][0], 4);
-    memcpy(prev_scroll + 4, &machine.scrolly[0][0], 4);
-    prev_pri = machine.pri;
-    prev_spr_bands = spr;
-    prev_valid = 1;
     if ((bands_count & 31) == 0) {                      /* vbm holds the whole picture */
         x0 = y0 = 0;
         x1 = RENDER_BW - 1;
@@ -1062,6 +1790,19 @@ static void render_present_bands(void)
         BltBitMapRastPort(vbm, (WORD)(x0 * 8 * scale), (WORD)(y0 * 8 * scale), win->RPort,
                           (WORD)(ox + x0 * 8 * scale), (WORD)(oy + y0 * 8 * scale),
                           (WORD)((x1 + 1 - x0) * 8 * scale), (WORD)((y1 + 1 - y0) * 8 * scale), 0xC0);
+done:
+    /* what the next picture is compared with */
+    memcpy(prev_bg0, machine.bgram0, 0x800);
+    memcpy(prev_bg1, machine.bgram1, 0x800);
+    memcpy(prev_txt, machine.charram, 0x800);
+    memcpy(prev_scroll, &machine.scrollx[0][0], 4);
+    memcpy(prev_scroll + 4, &machine.scrolly[0][0], 4);
+    memcpy(pal_prev, machine.palette, 0x200);
+    memcpy(pal_prev + 0x200, machine.palette_ext, 0x200);
+    spr_prev_n = sprite_rects(spr_prev);
+    prev_pri = machine.pri;
+    prev_spr_bands = spr;
+    prev_valid = 1;
     if (verify && ++verify_frames % (ULONG)verify_every == 0)
         verify_window();
 }
@@ -2065,6 +2806,8 @@ static void parse_option(const char *opt)
         sound = 0;
     else if (same_text(opt, "STATS"))
         stats = 1;
+    else if (same_text(opt, "FPS"))
+        show_fps = 1;
     else if (same_text(opt, "STATS=FULL"))
         stats = 2;
     else if (same_text(opt, "SOUND=AHI"))
@@ -2156,6 +2899,16 @@ static void parse_option(const char *opt)
         rcheck = 1;
     else if (same_text(opt, "INCR=OFF"))
         incr_off = 1;
+    else if (same_text(opt, "SHIFT=OFF"))
+        shift_off = 1;
+    else if (same_text(opt, "BGCACHE=OFF"))
+        video_cache = 0;
+    else if (same_text(opt, "SHIFTPROF"))
+        shiftprof = 1;
+    else if (same_text(opt, "SHIFTPROF=SRC"))
+        shiftprof = 2;
+    else if (same_text(name, "SPANGAP") && val)
+        span_gap = atoi(val);
     else if (same_text(opt, "BANDS=OFF"))
         use_bands = 0;
     else if (same_text(opt, "BENCHM16"))
@@ -2499,6 +3252,36 @@ int main(int argc, char **argv)
                        stat_drawn ? bands_converted * 10 / stat_drawn / 10 : 0,
                        stat_drawn ? bands_converted * 10 / stat_drawn % 10 : 0,
                        stat_drawn ? prof_blocks / stat_drawn : 0);
+                printf("REPLAY end: SHIFT %lu pictures moved by the blitter (%lu blocks composed per picture), "
+                       "%lu in place (%lu blocks); bands: %lu off/first/pri, %lu steps, %lu area, %lu lock\n",
+                       shift_pictures, shift_pictures ? shift_blocks / shift_pictures : 0, still_pictures,
+                       still_pictures ? still_blocks / still_pictures : 0, shift_no[0], shift_no[2], shift_no[3],
+                       shift_no[4]);
+                if (shiftprof && shift_pictures + still_pictures) {
+                    static const char *const nm[7] = { "palette", "which blocks", "blits", "render+convert",
+                                                       "write", "unlock", "window" };
+                    int k;
+                    printf("SHIFTPROF us per block picture:");
+                    for (k = 0; k < 7; k++)
+                        printf(" %s %lu", nm[k], (ULONG)(sp_acc[k] * 1000000 / eclock_freq /
+                                                         (shift_pictures + still_pictures)));
+                    printf("\n");
+                    if (shiftprof == 1) {
+                        static const char *const wn[7] = { "palette+tables", "text masks+frame+edge", "sprites",
+                                                           "text", "tiles+colours", "other layer", "masks" };
+                        printf("SHIFTPROF finding the blocks, us:");
+                        for (k = 0; k < 7; k++)
+                            printf(" %s %lu", wn[k], (ULONG)(sp_w[k] * 1000000 / eclock_freq /
+                                                             (shift_pictures + still_pictures)));
+                        printf("\n");
+                    }
+                    printf("SHIFTPROF blocks per block picture (before the frame mask): edge %lu sprites %lu text %lu "
+                           "tiles %lu colours %lu other layer %lu (copied by the blitter %lu)\n",
+                           sp_src[0] / (shift_pictures + still_pictures), sp_src[1] / (shift_pictures + still_pictures),
+                           sp_src[2] / (shift_pictures + still_pictures), sp_src[3] / (shift_pictures + still_pictures),
+                           sp_src[4] / (shift_pictures + still_pictures), sp_src[5] / (shift_pictures + still_pictures),
+                           sp_src[6] / (shift_pictures + still_pictures));
+                }
                 exit(0);
             }
             machine.in_p1 = replay_in[replay_pos * 2];      /* the recorded inputs (assist included) */
@@ -2579,6 +3362,12 @@ int main(int argc, char **argv)
                       draw, lpal, late, prof_blocks - lblocks);
         }
         diag_frames++;
+        if (show_fps && !paused && ++fps_frames >= 57) {   /* FPS: the pictures of the last second */
+            fps_value = fps_drawn + (draw ? 1 : 0);
+            fps_frames = fps_drawn = 0;
+        } else if (show_fps && !paused && draw) {
+            fps_drawn++;
+        }
         handle_messages();
         late = !pace();
         if (stats)
