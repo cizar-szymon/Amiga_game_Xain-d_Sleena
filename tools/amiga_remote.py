@@ -7,17 +7,17 @@ and the command line (--host, --port, --password). The config file has lines
 "host = 192.168.1.50", "port = 6800", "password = ...".
 
   python tools/amiga_remote.py ping
-  python tools/amiga_remote.py put build/amiga/XainSleena Work:XainSleena/XainSleena
+  python tools/amiga_remote.py put build/amiga/XainSleena Work:Games/XainSleena/XainSleena
   python tools/amiga_remote.py get S:User-Startup user-startup.txt
-  python tools/amiga_remote.py run "List Work:XainSleena"
-  python tools/amiga_remote.py start "Work:XainSleena/XainSleena STATS"
+  python tools/amiga_remote.py run "List Work:Games/XainSleena"
+  python tools/amiga_remote.py start "Work:Games/XainSleena/XainSleena STATS"
   python tools/amiga_remote.py stop XainSleena
   python tools/amiga_remote.py titles
   python tools/amiga_remote.py shot screen.png [x y w h]
   python tools/amiga_remote.py key ctrl [ms]          (or a raw key code: key 0x63)
       activates the game window first (title "Xain'd Sleena"); --window '' to skip
   python tools/amiga_remote.py activate "Xain"      activate a window by the start of its title
-  python tools/amiga_remote.py deploy [--remote-dir Work:XainSleena] [--args "STATS"]
+  python tools/amiga_remote.py deploy [--remote-dir Work:Games/XainSleena] [--args "STATS"]
       stop the running game, upload build/amiga/XainSleena, start it again
   python tools/amiga_remote.py stats [--wait 5]       the "Xain'd Sleena ... fps" window title
 """
@@ -179,7 +179,7 @@ def main():
     p.add_argument("--window", default="Xain", help="activate the window whose title starts so first ('' = none)")
     p = sub.add_parser("activate"); p.add_argument("prefix")
     p = sub.add_parser("deploy")
-    p.add_argument("--remote-dir", default="Work:XainSleena")
+    p.add_argument("--remote-dir", default="Work:Games/XainSleena")
     p.add_argument("--args", default="")
     p.add_argument("--local", default=GAME)
     p = sub.add_parser("stats"); p.add_argument("--wait", type=float, default=0)

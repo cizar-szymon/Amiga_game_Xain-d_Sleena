@@ -2,7 +2,7 @@
  * OpenWorkbenchObjectA, OS 3.5+: the Workbench start-up message, the icon's tool types and
  * stack, no Shell). Used after every build to check the start from the icon.
  *
- *   WBStart PROGRAM          e.g. WBStart Work:XainSleena/XainSleena_Fast
+ *   WBStart PROGRAM          e.g. WBStart Work:Games/XainSleena/XainSleena
  */
 #include <stdio.h>
 #include <proto/exec.h>
