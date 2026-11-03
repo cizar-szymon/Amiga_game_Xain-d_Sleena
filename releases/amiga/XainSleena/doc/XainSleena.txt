@@ -1,0 +1,145 @@
+XAIN'D SLEENA - automat Technos (1986) na Amige
+===============================================
+
+Lowca nagrod Xain wyrusza na piec planet opanowanych przez wroga.
+Na kazdej planecie walczy na piechote (skacze, strzela, na koncu
+pokonuje straznika bazy), miedzy planetami leci statkiem przez kosmos.
+Na mapie wybiera sie, na ktora planete leciec.
+
+To nie jest przerobka, tylko emulator automatu: program wykonuje
+oryginalne ROM-y (trzy procesory 6809, mikrokontroler 68705, dwa uklady
+dzwieku YM2203), wiec gra zachowuje sie dokladnie jak automat.
+ROM-ow nie ma w paczce - trzeba je miec samemu (patrz nizej).
+
+
+CO JEST POTRZEBNE
+-----------------
+
+ROM-y automatu: zestaw MAME "xsleena" (Xain'd Sleena, World), czyli
+plik xsleena.zip albo katalog xsleena z plikami. Wersje bootleg
+(xsleenab, xsleenaba) i japonska nie sa obslugiwane.
+
+AmigaOS 3.1 lub nowszy (sprawdzone na 3.2), procesor 68060, karta
+graficzna z Picasso96 (dziala tez bez karty, ale wolno), ok. 4 MB
+wolnej pamieci Fast. Pelne tempo gry: 68060 ok. 100 MHz (np. Warp 1260
+przyspieszony do 100 MHz). Przy 50 MHz gra chodzi wolniej.
+
+
+JAK ZACZAC
+----------
+
+1. Rozpakuj archiwum, np. do Work:Games:
+     UnZip XainSleena-x.y.z.zip -d Work:Games
+2. Poloz xsleena.zip (albo katalog xsleena) w szufladzie rom
+   (XainSleena/rom) albo w szufladzie XainSleena.
+3. Dwuklik na ikonie XainSleena.
+4. Joystick w lewo = gra dla 1 gracza, w prawo = gra dla 2 graczy
+   (monety wrzucaja sie same).
+
+
+STEROWANIE
+----------
+
+  Joystick w porcie joysticka (ustawienie CONTROL=JOY1, jak w ikonie):
+    joystick          ruch
+    ogien             strzal
+    do gory           na piechote: skok, w statku: ruch w gore
+    Spacja            drugi przycisk joysticka (jak X): w statku
+                      dodatkowa bron (na piechote skok)
+
+  Klawiatura:
+    strzalki          ruch; strzalka w gore na piechote = skok,
+                      w statku tylko ruch w gore (jak joystick)
+    Z                 ogien 1: strzal
+    Y                 w statku: dodatkowa bron
+    X                 ogien 2: skok / dodatkowa bron (zapasowo)
+    1 / 2             start 1 / 2 graczy
+    5 / 6             moneta (przy START=ARCADE)
+    P                 pauza (P jeszcze raz = gra dalej)
+    F3                reset automatu
+    F10               zapis stanu gry do zgloszenia bledu (patrz nizej)
+    Esc               koniec
+
+Po utracie ostatniego zycia pojawia sie napis PRESS FIRE TO CONTINUE:
+ogien = gra dalej od tego miejsca.
+Gdy gra dwoch graczy, graja na zmiane tym samym joystickiem.
+
+
+USTAWIENIA
+----------
+
+Ustawienia zmienia sie w ikonie: zaznacz ikone XainSleena, z menu
+wybierz Ikona -> Informacje i popraw liste "Tool types". Wpis
+w nawiasach jest wylaczony. Zeby go wlaczyc, usun nawiasy, np.
+
+    (DIFFICULTY=EASY)   ->   DIFFICULTY=EASY
+
+(a stary wpis DIFFICULTY=NORMAL wez w nawiasy albo usun). Potem Zapisz
+i uruchom gre od nowa.
+
+  SCREEN=FULL          gra na wlasnym ekranie (tak jest w ikonie)
+  SCREEN=WINDOW        gra w okienku na Workbenchu
+  SCALE=1 / SCALE=2    wielkosc obrazu (1 = najszybciej)
+  FPS                  w prawym dolnym rogu liczba obrazow narysowanych
+                       w ostatniej sekundzie (automat: 57; ekran
+                       16-bitowy)
+  LIVES=3|4|6|INF      liczba zyc (INF = nieskonczone)
+  DIFFICULTY=NORMAL    jak automat (tak jest w ikonie)
+  DIFFICULTY=EASY      na piechote trafienia zabieraja o polowe mniej
+                       z paska DAMAGE GAGE (nie ma tego w oryginale)
+  DIFFICULTY=VERYEASY  na piechote trafienia zabieraja 4 razy mniej
+                       (nie ma tego w oryginale)
+  TEST                 do sprawdzania plansz: na piechote pasek DAMAGE
+                       GAGE sie nie zmniejsza, zycia nieskonczone (w lotach
+                       statek dalej ginie od trafienia, ale gra trwa).
+                       Wpisz na koncu listy Tool Types.
+  CONTROL=JOY1         joystick z jednym przyciskiem, drugi przycisk
+                       to SPACJA; do gory = skok na piechote (tak jest
+                       w ikonie)
+  CONTROL=JOY2         joystick / pad z dwoma przyciskami: drugi
+                       przycisk = skok i dodatkowa bron, do gory
+                       tylko rusza
+  CONTROL=KEYBOARD     tylko klawiatura
+  START=ARCADE         jak automat: monety klawiszami 5 / 6, start 1 / 2
+  SOUND=AHI            dzwiek przez AHI zamiast wprost przez Paule
+  NOSOUND              bez dzwieku (szybciej)
+  JOYPORT=BOTH         joystick takze w porcie myszy
+  ROMPATH=Work:roms    gdzie szukac ROM-ow (gdy nie leza przy grze)
+
+Mozna tez z Shella, np.:   XainSleena SCREEN=WINDOW SCALE=2 LIVES=6
+
+
+DZWIEK
+------
+
+Dzwiek jest emulowany (dwa YM2203 i procesor dzwieku), co zabiera
+sporo czasu procesora: przy 68060/100 MHz z dzwiekiem gra chodzi
+ok. 25-40 klatek/s zamiast 57. Szybszy jest dzwiek z sampli: plik
+XainSleena.snd (nagrany z wlasnych ROM-ow narzedziem z repozytorium
+portu, opis w doc/XainSleena_dev.txt). Nie ma go w paczce, bo pochodzi
+z ROM-ow. Gdy lezy przy grze, gra uzywa go sama. Bez pliku
+najszybciej: NOSOUND.
+
+
+GDY COS NIE DZIALA
+------------------
+
+- "Cannot load the ROMs" (gra sie nie uruchamia): sprawdz, czy
+  xsleena.zip lezy przy programie albo w podkatalogu rom / roms, albo
+  podaj ROMPATH=. Musi to byc zestaw xsleena z MAME (z plikiem
+  pz-0.113).
+- Gra za wolna: SCALE=1, NOSOUND, procesor 100 MHz.
+- Brak dzwieku: wpisz SOUND=AHI (albo odwrotnie: usun SOUND=AHI).
+- Gra sie zawiesila (obraz stoi, muzyka gra) albo dzieje sie cos
+  dziwnego (blad obrazu, sterowanie nie dziala): nacisnij F10 (ekran
+  mignie). W RAM: powstaja pliki XainSleena-dumpN.bin / .txt / .ppm i
+  XainSleena-stateN.bin (N = kolejny numer, kazde nacisniecie nowe):
+  powtorka ostatnich sekund, opis planszy i obraz - przydadza sie
+  autorom do znalezienia bledu. Skopiuj je, zanim wylaczysz Amige.
+
+
+Numer wydania: na ekranie startu (RELEASE x.y.z). Co sie zmienilo
+w kolejnych wydaniach: doc/XainSleena_release.txt. Zglaszajac blad, podaj
+numer wydania i pliki z F10.
+
+Dla programistow: opis wszystkich parametrow w doc/XainSleena_dev.txt.

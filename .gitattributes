@@ -1,2 +1,6 @@
 * text=auto eol=lf
 *.info binary
+*.zip binary
+*.exe binary
+*.dll binary
+releases/amiga/XainSleena/XainSleena binary

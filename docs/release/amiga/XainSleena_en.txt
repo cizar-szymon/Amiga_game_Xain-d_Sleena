@@ -28,9 +28,10 @@ free Fast RAM. Full speed needs a 68060 at about 100 MHz (e.g. a Warp
 GETTING STARTED
 ---------------
 
-1. Unpack XainSleena_Amiga.lha, e.g. to Work:Games.
-2. Put xsleena.zip (or the drawer xsleena) into the XainSleena drawer
-   or into its subdrawer rom.
+1. Unpack the archive, e.g. to Work:Games:
+     UnZip XainSleena-x.y.z.zip -d Work:Games
+2. Put xsleena.zip (or the drawer xsleena) into the drawer rom
+   (XainSleena/rom) or into the XainSleena drawer.
 3. Double-click the XainSleena icon.
 4. Joystick left = 1 player game, right = 2 players (coins are
    inserted automatically).
@@ -114,7 +115,7 @@ The sound is emulated (two YM2203 and the sound CPU), which costs a
 lot of CPU time: on a 68060/100 MHz with sound the game runs at about
 25-40 frames/s instead of 57. Sound from samples is faster: the file
 XainSleena.snd (recorded from your own ROMs with a tool from the
-port's repository, see XainSleena_dev_en.txt). It is not included
+port's repository, see doc/XainSleena_dev_en.txt). It is not included
 because it comes from the ROMs. If it is next to the game, the game
 uses it by itself. Without the file the fastest is NOSOUND.
 
@@ -138,7 +139,7 @@ TROUBLESHOOTING
 
 
 Release number: on the start screen (RELEASE x.y.z). What changed in
-each release: XainSleena_release_en.txt. When reporting a bug, give the
+each release: doc/XainSleena_release_en.txt. When reporting a bug, give the
 release number and the F10 files.
 
-For programmers: all parameters are described in XainSleena_dev_en.txt.
+For programmers: all parameters are described in doc/XainSleena_dev_en.txt.

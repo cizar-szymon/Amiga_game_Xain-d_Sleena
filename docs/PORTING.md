@@ -20,7 +20,7 @@ Plan ogólny: `C:\Workprojects\AmigaGAMES\PORTING_PLAN.md`.
 | 8 | Wersja na Amigę (`main_amiga.c` z Vastar) | ✅ działa na A1200, wynik identyczny z PC co do bajtu (rozdział 11); 2,3 kl./s przy 68060/50 – punkt wyjścia fazy 4; ⏳ joystick i dźwięk do oceny po przyspieszeniu |
 | 9 | Optymalizacja: rdzeń 6809 w asm 68k (generator wzorem `gen_z80_68k.py`), renderer przyrostowy, FM | ⏳ 2,3 → 13–17 kl./s z dźwiękiem, ok. 20 bez (rozdział 12); rdzeń asm: Lockstep 5000 klatek identyczny |
 | 9b | Dźwięk z sampli zamiast emulacji (rozdział 13): polecenia z zatrzasku `3A08` → sample (`sndplay.c`) przez Paulę/AHI | ✅ pierwsza wersja PC i A1200: 060/50 tempo jak bez dźwięku (33–54 kl./s); ⏳ odsłuch przez użytkownika |
-| 10 | Wydanie: ikona, Tool Types, opisy PL/EN | ✅ 0.9 i 0.9.2 (12.10.2026; numer `XAIN_VERSION` widoczny jako `RELEASE x.y.z` na ekranie startu, lista zmian `XainSleena_release.txt` / `_release_en.txt` w paczce, uzupełniana przy każdym wydaniu): `releases/XainSleena_Amiga.lha` (LhA 2.15 na A1200), `releases/XainSleena_PC.zip`, opisy `XainSleena.txt` / `_en` / `_dev` / `_dev_en` (źródła `docs/release/amiga` i `docs/release/pc`, osobno dla każdej platformy); bez ROM-ów i bez `XainSleena.snd` (z ROM-ów) |
+| 10 | Wydanie: ikona, Tool Types, opisy PL/EN | ✅ 0.9 i 0.9.2 (12.10.2026; numer `XAIN_VERSION` widoczny jako `RELEASE x.y.z` na ekranie startu, lista zmian `XainSleena_release.txt` / `_release_en.txt` w paczce, uzupełniana przy każdym wydaniu): od 3.11.2026 `releases/amiga/XainSleena-<v>.zip` i `releases/pc/XainSleena-<v>-pc.zip` (`tools/make_release.sh`, rozdział 15; wcześniej LHA / ZIP bez numeru), opisy `XainSleena.txt` / `_en` / `_dev` / `_dev_en` (źródła `docs/release/amiga` i `docs/release/pc`, osobno dla każdej platformy); bez ROM-ów i bez `XainSleena.snd` (z ROM-ów) |
 
 ## 2. Materiały (skąd co jest)
 
@@ -1264,3 +1264,32 @@ wchodzi 1–2 instrukcje później. Z poprawką `memocheck` 9000 klatek identycz
 zawieszenia (main `A25D`, sub `8014`, `$3D = 43`), `NOHOLD=1` odtwarza stary błąd. Podobny
 zapis-odczyt w `AC3B`–`AC5C` (zapamiętanie i odtworzenie `$3D` wokół dłuższej procedury) nie
 jest chroniony.
+
+## 15. Wydanie w repo (3.11.2026)
+
+Układ wydań jak w portach Settlers i OpenDUNE (decyzja użytkownika 3.11.2026, `PORTING_PLAN.md`,
+„Wydanie w repo”). Jeden skrypt `sh tools/make_release.sh [--no-full]`:
+
+- numer z `XAIN_VERSION` (`port/src/xain.h`); odmawia, gdy `build/amiga/XainSleena` nie ma
+  `$VER: XainSleena <v> (`, a `build/port/XainSleena.exe` napisu `Xain'd Sleena <v>` (tytuł okna);
+- `releases/amiga/XainSleena/` (w gicie): program, ikona (`port/amiga/XainSleena.info`),
+  szuflada `doc/` z ikoną `doc.info` (wszystkie teksty: opisy PL/EN, `_dev`, `_release`), pusta
+  `rom/` z `ReadMe.txt` (`docs/release/amiga/rom_ReadMe.txt`); obok `releases/amiga/XainSleena.info`
+  (ikona szuflady; obie z `tools/make_doc_icon.py --drawer` i `tools/icon/drawer.png` z Settlers);
+- `releases/pc/XainSleena/` (w gicie): `XainSleena.exe`, `SDL2.dll`, `doc/`, pusta `rom/` z ReadMe;
+- `releases/amiga/XainSleena-<v>.zip`, `releases/pc/XainSleena-<v>-pc.zip` (w gicie, tylko bieżące;
+  starsze: `git rm --cached` i przeniesienie do `private/old/`);
+- `private/XainSleena-<v>-full.zip` (+ `rom/xsleena/` z `ROM/xsleena` i `XainSleena.snd`)
+  i `private/XainSleena-<v>-pc-full.zip` (+ `rom/xsleena.zip` składany z `ROM/xsleena`
+  i `XainSleena.snd`) – tylko na tym PC, `private/` w `.gitignore`; starsze do `private/old/`;
+- ZIP-y przez `tools/make_zip.py` (uprawnienia Unix: program 755, reszta 644, wpisy katalogów –
+  inaczej UnZip na Amidze rozpakuje program bez bitu E);
+- `tools/check_public.py` sprawdza drzewa i ZIP-y publiczne: plik o nazwie lub treści (SHA-1)
+  pliku z `ROM/` albo `XainSleena.snd`, a także każdy `*.zip`, `*.lha`, `*.snd`, `*.bin`, `*.cfg`,
+  `*.key` zatrzymuje wydanie.
+
+Na Amidze: `UnZip XainSleena-<v>.zip -d Work:Games`, potem `xsleena.zip` do `XainSleena/rom`.
+Pierwsze wydanie w tym układzie: 0.9.17 (binarki z 25.10.2026, bez przebudowy). Stare paczki 0.9.5
+(`XainSleena_Amiga.lha`, `_Amiga_full.lha`, `XainSleena_PC.zip`, `_PC_full.zip`, katalogi
+`releases/amiga`, `releases/pc`, `releases/pc_full`) przeniesione do `private/old/0.9.5/`.
+Pliki rdzenia MiSTer (`releases/*.rbf`, `*.mra`) zostają w `releases/`, poza gitem.

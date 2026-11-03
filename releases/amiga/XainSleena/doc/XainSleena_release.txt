@@ -1,0 +1,233 @@
+XAIN'D SLEENA - wydania (poprawki i dodatki)
+============================================
+
+Numer wydania widac na ekranie startu gry (RELEASE x.y.z, w miejscu
+liczby kredytow; przy START=ARCADE ekran jest jak w automacie) i
+w Shellu: Version XainSleena.
+Zglaszajac blad, podaj numer wydania - po nim widac, czy blad nie
+zostal juz poprawiony w nowszym.
+
+Zgloszenie bledu: gdy gra sie zawiesi albo dzieje sie cos
+dziwnego, nacisnij F10 (od 0.9.10: pliki numerowane
+RAM:XainSleena-dumpN.bin / .txt / .ppm i RAM:XainSleena-stateN.bin).
+Skopiuj je, zanim wylaczysz Amige (RAM: znika), i wyslij je razem
+z numerem wydania. Autorzy odtwarzaja ostatnie sekundy gry i widza
+dokladnie to, co bylo na Amidze.
+
+
+RELEASE 0.9.17  (25.10.2026)
+----------------------------
+
+Zmiany (na podstawie Twoich zrzutow F10 z miejsc, gdzie postac szarpala):
+- Na piechote pierwszy plan (ziemia, skaly) przesuwa sie inaczej niz
+  niebo: jego bloki kopiuje teraz blitter karty zamiast je rysowac.
+- Renderer rysuje warstwe od razu dla 8 linii (jedno wywolanie zamiast
+  osmiu), szybsze ustalanie, co trzeba narysowac.
+- Na tych zrzutach (A1200 060/100 MHz, SCALE=1): rysowanie obrazu
+  na piechote 8,5-12,7 -> 6,6-11,6 ms, w lotach 8,4 -> 7,4 ms; spoznionych
+  klatek (pominietych obrazow) ok. 20-46% -> 8-39%.
+
+
+RELEASE 0.9.16  (24.10.2026)
+----------------------------
+
+Dodatki:
+- Tool Type FPS: w prawym dolnym rogu obrazu liczba obrazow narysowanych
+  w ostatniej sekundzie (pelne tempo automatu: 57). Dziala tez na pelnym
+  ekranie (na ekranie 16-bitowym, jak domyslnie).
+
+
+RELEASE 0.9.15  (24.10.2026)
+----------------------------
+
+Zmiany:
+- Przewijanie robi blitter karty graficznej: obraz zostaje w pamieci
+  karty i jest przesuwany, a procesor rysuje tylko nowy brzeg, sprite'y,
+  napisy i zmienione kafelki (bloki 8x8 zamiast calych pasow).
+- Dolne tlo trzymane jako gotowy obraz calej mapy 512x512 - przy
+  rysowaniu kopiowane, nie skladane z kafelkow.
+- Przy zmianie kolorow przeliczane tylko zmienione kolory.
+- Na Twoich powtorkach z F10 (A1200 060/100 MHz, pelny ekran):
+  loty SCALE=1 16 -> 9 ms na obraz, 27 -> 44-45 obrazow na sekunde;
+  dzungla 14-18 -> 7-8,5 ms, 24-29 -> 46-51 obrazow/s; SCALE=2: loty
+  21 -> 13 ms (21 -> 31-32 obrazow/s), dzungla 17-25 -> 9-12 ms.
+- Na poczatku etapu (pierwszy obraz) jednorazowo ok. 40 ms na zbudowanie
+  obrazu mapy.
+
+
+RELEASE 0.9.14  (17.10.2026)
+----------------------------
+
+Zmiany:
+- Wiersze kafelkow jednego koloru (np. czarne tlo z gwiazdami w lotach)
+  wypelniane dlugimi slowami: rysowanie ok. 0,3-0,7 ms krotsze.
+
+
+RELEASE 0.9.13  (17.10.2026)
+----------------------------
+
+Zmiany:
+- Obraz rysowany tylko tam, gdzie mogl sie zmienic (pasy ze sprite'ami,
+  zmienionym tlem albo tekstem); przy zmianie kolorow bez ponownego
+  rysowania. Na Twoich powtorkach z F10 (SCALE=1, 100 MHz): rysowanie
+  ok. 15-16 -> 11-13 ms, 26-30 -> 34-39 obrazow na sekunde; przy
+  przewijaniu (cale tlo sie zmienia) zysk mniejszy.
+
+
+RELEASE 0.9.12  (17.10.2026)
+----------------------------
+
+Poprawki:
+- Po zniszczeniu bazy (odliczanie COUNT DOWN, trzeba wskoczyc do statku)
+  joystick do gory nie skakal (dzialala tylko Spacja), wiec nie dalo sie
+  poprawnie ukonczyc misji. Gra jest w tej fazie w innym stanie, ktorego
+  port nie rozpoznawal jako "na piechote". Poprawione (takze strzalka
+  w gore na klawiaturze).
+
+
+RELEASE 0.9.11  (17.10.2026)
+----------------------------
+
+Dodatki:
+- Opcja TEST (do sprawdzania plansz): na piechote pasek DAMAGE GAGE sie
+  nie zmniejsza, zycia nieskonczone. W lotach statek dalej ginie od
+  trafienia, ale gra trwa. Wpisz TEST na koncu listy Tool Types (albo
+  DIFFICULTY=NODAMAGE - sam brak obrazen).
+
+
+RELEASE 0.9.10  (17.10.2026)
+----------------------------
+
+Zmiany:
+- F10 zapisuje teraz pelny zestaw do zgloszen bledow, numerowany (kazde
+  nacisniecie nowe pliki, nic nie jest nadpisywane):
+    RAM:XainSleena-dumpN.bin   powtorka ostatnich 9-18 sekund gry
+    RAM:XainSleena-stateN.bin  stan automatu w chwili nacisniecia
+    RAM:XainSleena-dumpN.txt   opis: plansza, opcje, klawiatura, joystick
+    RAM:XainSleena-dumpN.ppm   obraz z ekranu
+  Ekran mignie na znak zapisu. Pliki znikaja po wylaczeniu Amigi -
+  skopiuj je albo zglos od razu.
+
+
+RELEASE 0.9.9  (17.10.2026)
+---------------------------
+
+Poprawki:
+- Po utracie zycia (i przy innych zmianach kolorow) czesc ekranu, np.
+  jednolite niebo, zostawala czarna albo w starym kolorze, dopoki nie
+  przelecial przez nia jakis obiekt (0.9.7, 0.9.8). Przyczyna: zbyt slaba
+  suma kontrolna kawalkow obrazu. Poprawione.
+- Ekran pelnoekranowy odswiezany w calosci, gdy cos go zaslonilo (inne
+  okno, komunikat systemu), oraz dodatkowo co kilka sekund.
+
+
+RELEASE 0.9.8  (17.10.2026)
+---------------------------
+
+Zmiany:
+- Zmiana kolorow w grze (gra robi to bardzo czesto, np. migajace
+  tlo) nie wysyla juz calego obrazu do karty, tylko te kawalki, ktore
+  naprawde zmienily wyglad. W najciezszej scenie przy 100 MHz: pelny
+  ekran SCALE=2 29-30 obrazow na sekunde (0.9.7: ok. 17-20), SCALE=1
+  31-32.
+- LAGLOG (opcja diagnostyczna): podsumowanie co 10 sekund gry w
+  RAM:XainSleena-lag.txt, przy dluzszych zwolnieniach zapis stanu
+  automatu (RAM:XainSleena-lagN.bin) do zgloszen bledow.
+
+
+RELEASE 0.9.7  (17.10.2026)
+---------------------------
+
+Zmiany:
+- Szybsze rysowanie obrazu przy wielu przeciwnikach i przewijaniu: obraz
+  powstaje pasami po 8 linii, zmienione kawalki sa od razu zamieniane na
+  kolory karty i wysylane. W najciezszej scenie (68060/100 MHz, pelny
+  ekran) 28-29 obrazow na sekunde zamiast 20-21; w oknie SCALE=2 17
+  zamiast 14-15. Gra (logika) dalej w pelnym tempie automatu.
+- Uwaga: przy zegarze 55 MHz gra w ciezkich scenach zwalnia (emulacja nie
+  nadaza); zalecany zegar 100 MHz.
+
+
+RELEASE 0.9.6  (15.10.2026)
+---------------------------
+
+Poprawki:
+- Skok strzalka w gore (i joystickiem w gore przy CONTROL=JOY1) w bok:
+  gra bierze kierunek skoku tylko w chwili wybicia, a strzalka w bok
+  wcisnieta chwile po strzalce w gore dawala skok pionowy. Teraz skok
+  czeka do 3 klatek (ok. 1/20 s) na kierunek w bok. Zmienic kierunku
+  w powietrzu nie mozna - tak jest w automacie.
+
+
+RELEASE 0.9.5  (12.10.2026)
+---------------------------
+
+Dodatki:
+- Poziom trudnosci VERY EASY (DIFFICULTY=VERYEASY): na piechote trafienia
+  zabieraja 4 razy mniej z paska DAMAGE GAGE (EASY: 2 razy mniej).
+
+
+RELEASE 0.9.4  (12.10.2026)
+---------------------------
+
+Zmiany:
+- Klawiatura jak joystick: strzalka w gore na piechote = skok, w statku
+  tylko ruch w gore; Y = dodatkowa bron w statku. Z = strzal, X dalej
+  dziala jako ogien 2 (zapasowo).
+
+
+RELEASE 0.9.3  (12.10.2026)
+---------------------------
+
+Zmiany:
+- Klawiatura wedlug wspolnego standardu: strzalki = ruch, Z = ogien 1
+  (strzal), X = ogien 2 (skok / dodatkowa bron), P = pauza. Usuniete
+  zamienniki Ctrl, Alt i Spacja.
+  Spacja zostaje jako drugi przycisk joysticka przy CONTROL=JOY1.
+
+
+RELEASE 0.9.2  (12.10.2026)
+---------------------------
+
+Dodatki:
+- Numer wydania na ekranie startu (RELEASE 0.9.2 zamiast CREDIT 2)
+  i w Version.
+- Opis CONTROL=JOY1: drugi przycisk joysticka to Spacja.
+- Opisy osobno dla wersji Amigi i PC (w paczce Amigi tylko
+  ustawienia Amigi).
+- Ten plik: lista poprawek i dodatkow kazdego wydania, w paczce
+  razem z gra.
+
+
+RELEASE 0.9  (12.10.2026) - pierwsze wydanie
+--------------------------------------------
+
+Gra:
+- Emulacja automatu Xain'd Sleena (3x 6809, MCU 68705, 2x YM2203)
+  na Amidze 1200 z 68060 i karta graficzna.
+- START=EASY (domyslnie): monety wrzucane same, joystick w lewo /
+  w prawo = gra dla 1 / 2 graczy, po utracie zyc PRESS FIRE TO
+  CONTINUE (ogien = gra dalej). START=ARCADE: jak automat.
+- CONTROL=JOY1 (domyslnie): joystick z jednym przyciskiem, do gory =
+  skok na piechote, w lotach Spacja = dodatkowa bron. CONTROL=JOY2:
+  drugi przycisk joysticka / pada. CONTROL=KEYBOARD.
+- DIFFICULTY=EASY: na piechote trafienia zabieraja o polowe mniej
+  z paska DAMAGE GAGE (nie ma tego w oryginale).
+- LIVES=3|4|6|INF.
+- Ikona: pelny ekran (SCREEN=FULL), wszystkie opcje jako Tool Types.
+
+Diagnostyka:
+- F10: zapis calego stanu automatu do RAM:XainSleena-state.bin do
+  analizy bledu. Opis wyzej.
+- Straznik: gdy gra przez 3 s nie rysuje klatki, stan programu trafia
+  do RAM:XainSleena-hang.txt.
+
+Poprawki (wzgledem wersji testowych):
+- Gra zawieszala sie co jakis czas (obraz stoi, muzyka gra, nic nie
+  dziala): wyscig dwoch procesorow automatu o wspolny bajt
+  synchronizacji. Znalezione dzieki zapisowi F10 z A1200.
+- W lotach po smierci nie bylo juz przeciwnikow i etap konczyl sie
+  sam: zmiana napisu PRESS FIRE TO CONTINUE zmieniala sume kontrolna
+  ROM-u, a gra przy zlej sumie wlacza wlasne zabezpieczenie. Teraz
+  suma zostaje bez zmian.
+- Skok w gore joystickiem (JOY1) nie dzialal na piechote.

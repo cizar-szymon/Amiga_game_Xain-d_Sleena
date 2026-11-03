@@ -1,0 +1,140 @@
+XAIN'D SLEENA (PC) - releases (fixes and additions)
+===================================================
+
+The release number is shown in the window title and on the game's start
+screen (RELEASE x.y.z, where the credit count was; with -arcade the screen
+is as on the arcade). When reporting a bug, give the release number - it
+tells whether the bug has already been fixed in a newer one.
+
+
+RELEASE 0.9.14  (17.10.2026)
+----------------------------
+
+Changes:
+- No changes to the game on the PC. Same release number as the Amiga version.
+
+
+RELEASE 0.9.13  (17.10.2026)
+----------------------------
+
+Changes:
+- No changes to the game on the PC. Same release number as the Amiga version.
+
+
+RELEASE 0.9.12  (17.10.2026)
+----------------------------
+
+Fixes:
+- After the base is destroyed (COUNT DOWN) the up arrow did not jump.
+  Fixed.
+
+
+RELEASE 0.9.11  (17.10.2026)
+----------------------------
+
+Additions:
+- -test: no damage on foot and infinite lives (for checking stages);
+  -nodamage: only no damage.
+
+
+RELEASE 0.9.10  (17.10.2026)
+----------------------------
+
+Changes:
+- -replay FILE: plays a replay saved with F10 on the Amiga
+  (RAM:XainSleena-dumpN.bin): the machine state and the recorded inputs.
+
+
+RELEASE 0.9.9  (17.10.2026)
+---------------------------
+
+Changes:
+- No changes to the game on the PC. Same release number as the Amiga version.
+
+
+RELEASE 0.9.8  (17.10.2026)
+---------------------------
+
+Changes:
+- No changes to the game on the PC. Same release number as the Amiga version.
+
+
+RELEASE 0.9.7  (17.10.2026)
+---------------------------
+
+Changes:
+- No changes to the game on the PC (the shared drawing code was split into
+  parts for the Amiga version). Same release number as the Amiga version.
+
+
+RELEASE 0.9.6  (15.10.2026)
+---------------------------
+
+Fixes:
+- Jumping sideways with up (keyboard):
+  the game takes the jump direction only at take-off, so left/right
+  pressed a moment after up gave a straight jump. The jump now waits up
+  to 3 frames (about 1/20 s) for a side direction. The direction cannot
+  be changed in the air - as on the arcade.
+
+
+RELEASE 0.9.5  (12.10.2026)
+---------------------------
+
+Additions:
+- Difficulty VERY EASY (-veryeasy): on foot, hits take a quarter as much from
+  the DAMAGE GAGE bar (EASY: half as much).
+
+
+RELEASE 0.9.4  (12.10.2026)
+---------------------------
+
+Changes:
+- Keyboard as the joystick: up on foot = jump, in the ship it only moves
+  up; Y = extra weapon in the ship. Z = shoot, X still works as fire 2
+  (spare).
+
+
+RELEASE 0.9.3  (12.10.2026)
+---------------------------
+
+Changes:
+- Keyboard following the common standard: cursor keys = move, Z = fire 1
+  (shoot), X = fire 2 (jump / extra weapon), P = pause. The alternatives
+  Ctrl, Alt and Space are gone.
+
+
+RELEASE 0.9.2  (12.10.2026)
+---------------------------
+
+Additions:
+- The release number on the start screen (RELEASE 0.9.2 instead of
+  CREDIT 2) and in the window title.
+- This file: the fixes and additions of every release, packed with
+  the game.
+- Separate descriptions for the PC and the Amiga version.
+
+
+RELEASE 0.9  (12.10.2026) - first release
+-----------------------------------------
+
+Game:
+- Emulation of the Xain'd Sleena arcade board (3x 6809, 68705 MCU,
+  2x YM2203) on the PC (Windows), keyboard only.
+- Default start: coins inserted automatically, cursor left / right =
+  1 / 2 player game, after the last life PRESS FIRE TO CONTINUE
+  (shoot = go on). -arcade: as the arcade.
+- -easy: on foot, hits take half as much from the DAMAGE GAGE bar (not
+  in the original).
+- -lives 3|4|6|inf.
+- -loadstate FILE: loads a state of the arcade board saved on the Amiga
+  with F10 (analysis of bug reports).
+
+Fixes (against the test builds):
+- The game froze now and then (picture stands still, music plays,
+  nothing works): a race of the arcade's two CPUs for a shared
+  synchronisation byte.
+- In the flying stages there were no enemies after a death and the
+  stage ended by itself: the PRESS FIRE TO CONTINUE text change altered
+  the ROM checksum, and with a wrong sum the game switches on its own
+  protection. The sum is kept now.

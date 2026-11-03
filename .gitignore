@@ -7,7 +7,17 @@
 !/port/
 !/tools/
 !/docs/
+# the public releases (tools/make_release.sh): releases/amiga and releases/pc, no ROMs;
+# the MiSTer core files in releases/ (*.rbf, *.mra) stay outside
+!/releases/
+/releases/*
+!/releases/amiga/
+!/releases/pc/
+# the full packages with the ROMs, only on this PC
+/private/
 __pycache__/
 *.exe
 *.o
 port/src/m6809_68k_trace.s
+# the PC release's program (*.exe above is for the build results)
+!/releases/pc/XainSleena/XainSleena.exe

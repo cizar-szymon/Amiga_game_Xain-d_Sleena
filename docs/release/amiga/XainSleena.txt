@@ -28,9 +28,10 @@ przyspieszony do 100 MHz). Przy 50 MHz gra chodzi wolniej.
 JAK ZACZAC
 ----------
 
-1. Rozpakuj XainSleena_Amiga.lha, np. do Work:Games.
-2. Poloz xsleena.zip (albo katalog xsleena) w szufladzie XainSleena
-   albo w jej podkatalogu rom.
+1. Rozpakuj archiwum, np. do Work:Games:
+     UnZip XainSleena-x.y.z.zip -d Work:Games
+2. Poloz xsleena.zip (albo katalog xsleena) w szufladzie rom
+   (XainSleena/rom) albo w szufladzie XainSleena.
 3. Dwuklik na ikonie XainSleena.
 4. Joystick w lewo = gra dla 1 gracza, w prawo = gra dla 2 graczy
    (monety wrzucaja sie same).
@@ -115,7 +116,7 @@ Dzwiek jest emulowany (dwa YM2203 i procesor dzwieku), co zabiera
 sporo czasu procesora: przy 68060/100 MHz z dzwiekiem gra chodzi
 ok. 25-40 klatek/s zamiast 57. Szybszy jest dzwiek z sampli: plik
 XainSleena.snd (nagrany z wlasnych ROM-ow narzedziem z repozytorium
-portu, opis w XainSleena_dev.txt). Nie ma go w paczce, bo pochodzi
+portu, opis w doc/XainSleena_dev.txt). Nie ma go w paczce, bo pochodzi
 z ROM-ow. Gdy lezy przy grze, gra uzywa go sama. Bez pliku
 najszybciej: NOSOUND.
 
@@ -138,7 +139,7 @@ GDY COS NIE DZIALA
 
 
 Numer wydania: na ekranie startu (RELEASE x.y.z). Co sie zmienilo
-w kolejnych wydaniach: XainSleena_release.txt. Zglaszajac blad, podaj
+w kolejnych wydaniach: doc/XainSleena_release.txt. Zglaszajac blad, podaj
 numer wydania i pliki z F10.
 
-Dla programistow: opis wszystkich parametrow w XainSleena_dev.txt.
+Dla programistow: opis wszystkich parametrow w doc/XainSleena_dev.txt.

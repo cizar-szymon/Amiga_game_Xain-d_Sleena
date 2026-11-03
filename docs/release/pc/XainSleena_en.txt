@@ -25,9 +25,9 @@ Windows 10 or newer (64 bit).
 GETTING STARTED
 ---------------
 
-1. Unpack XainSleena_PC.zip.
-2. Put xsleena.zip next to XainSleena.exe (or into a folder roms or
-   rom).
+1. Unpack the archive XainSleena-x.y.z-pc.zip.
+2. Put xsleena.zip into the folder rom (or next to XainSleena.exe or
+   into a folder roms).
 3. Run XainSleena.exe.
 4. Cursor left = 1 player game, right = 2 players (coins are inserted
    automatically).
@@ -81,7 +81,7 @@ TROUBLESHOOTING
 
 
 Release number: in the window title and on the start screen (RELEASE
-x.y.z). What changed in each release: XainSleena_release_en.txt. When
+x.y.z). What changed in each release: doc\XainSleena_release_en.txt. When
 reporting a bug, give the release number.
 
-For programmers: all parameters are described in XainSleena_dev_en.txt.
+For programmers: all parameters are described in doc\XainSleena_dev_en.txt.

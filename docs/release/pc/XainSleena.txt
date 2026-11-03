@@ -25,9 +25,9 @@ Windows 10 lub nowszy (64 bit).
 JAK ZACZAC
 ----------
 
-1. Rozpakuj XainSleena_PC.zip.
-2. Poloz xsleena.zip obok XainSleena.exe (albo w podkatalogu roms
-   lub rom).
+1. Rozpakuj archiwum XainSleena-x.y.z-pc.zip.
+2. Poloz xsleena.zip w podkatalogu rom (albo obok XainSleena.exe
+   lub w podkatalogu roms).
 3. Uruchom XainSleena.exe.
 4. Strzalka w lewo = gra dla 1 gracza, w prawo = gra dla 2 graczy
    (monety wrzucaja sie same).
@@ -82,7 +82,7 @@ GDY COS NIE DZIALA
 
 
 Numer wydania: w tytule okna i na ekranie startu (RELEASE x.y.z). Co
-sie zmienilo w kolejnych wydaniach: XainSleena_release.txt. Zglaszajac
+sie zmienilo w kolejnych wydaniach: doc\XainSleena_release.txt. Zglaszajac
 blad, podaj numer wydania.
 
-Dla programistow: opis wszystkich parametrow w XainSleena_dev.txt.
+Dla programistow: opis wszystkich parametrow w doc\XainSleena_dev.txt.

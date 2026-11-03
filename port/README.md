@@ -13,7 +13,7 @@ z MAME 0.289 (wzorzec). Szczegóły, decyzje, pomiary i historia: [`docs/PORTING
 | 2. Port na PC (SDL2) | ✅ grywalny; rdzenie CPU 0 różnic ze śladami MAME, obraz identyczny, dźwięk zgodny (korelacja 0,996) |
 | 3. Amiga (Intuition, Picasso96, Paula/AHI, joystick) | ✅ działa na A1200, wynik identyczny z PC co do bajtu |
 | 4. Optymalizacja | ✅ 68060/100 MHz: pełne tempo logiki (57,44 kl./s) bez dźwięku i z dźwiękiem z sampli; z emulacją YM2203 25–41 kl./s; 68060/50 ok. 2× wolniej |
-| 5. Wydanie (ikona, Tool Types, opisy) | ✅ 0.9.5: paczki LHA / ZIP, opisy dla graczy i programistów (PL/EN) w `docs/release/amiga` i `docs/release/pc`, lista zmian `XainSleena_release.txt` |
+| 5. Wydanie (ikona, Tool Types, opisy) | ✅ 0.9.5: paczki ZIP (`tools/make_release.sh`: `releases/amiga`, `releases/pc`, pełne z ROM-ami w `private/`), opisy dla graczy i programistów (PL/EN) w `docs/release/amiga` i `docs/release/pc`, lista zmian `XainSleena_release.txt` |
 
 ## Budowanie
 

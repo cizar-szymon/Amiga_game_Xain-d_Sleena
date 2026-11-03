@@ -1,0 +1,87 @@
+XAIN'D SLEENA - the Technos arcade game (1986) on the PC (Windows)
+=================================================================
+
+The bounty hunter Xain sets off for five planets held by the enemy.
+On each planet he fights on foot (jumping, shooting, and at the end
+beating the guardian of the base); between the planets he flies a
+ship through space. On the map you choose which planet to go to.
+
+This is not a remake but an emulator of the arcade board: it runs
+the original ROMs (three 6809 CPUs, a 68705 microcontroller, two
+YM2203 sound chips), so the game plays exactly like the arcade.
+The ROMs are not included - you need your own (see below).
+
+
+WHAT YOU NEED
+-------------
+
+The arcade ROMs: the MAME set "xsleena" (Xain'd Sleena, World), i.e.
+xsleena.zip or a folder xsleena with the files. The bootlegs
+(xsleenab, xsleenaba) and the Japanese version are not supported.
+
+Windows 10 or newer (64 bit).
+
+
+GETTING STARTED
+---------------
+
+1. Unpack the archive XainSleena-x.y.z-pc.zip.
+2. Put xsleena.zip into the folder rom (or next to XainSleena.exe or
+   into a folder roms).
+3. Run XainSleena.exe.
+4. Cursor left = 1 player game, right = 2 players (coins are inserted
+   automatically).
+
+
+CONTROLS (keyboard only)
+------------------------
+
+    cursor keys       move; up on foot = jump, in the ship it only
+                      moves up (as the joystick)
+    Z                 fire 1: shoot
+    Y                 in the ship: extra weapon
+    X                 fire 2: jump / extra weapon (spare)
+    1 / 2             start 1 / 2 players
+    5 / 6             coin (with -arcade)
+    P                 pause (P again = go on)
+    F3                reset the arcade board
+    Esc               quit
+
+When the last life is lost, PRESS FIRE TO CONTINUE appears: shoot =
+go on from there.
+With two players, they take turns on the same keyboard.
+
+
+SETTINGS
+--------
+
+Command line options (or in a shortcut to the program: Properties ->
+Target), e.g.:
+
+    XainSleena.exe -scale 4 -lives 6 -easy
+
+  -scale N     window size (default 3)
+  -lives N     number of lives: 3, 4, 6 or inf (infinite)
+  -easy        on foot, hits take half as much from the DAMAGE GAGE
+               bar (not in the original)
+  -veryeasy    on foot, hits take a quarter as much
+  -test        for checking stages: no damage on foot, infinite lives
+  -arcade      as the arcade: coins with keys 5 / 6, start 1 / 2
+  -nosound     no sound
+  -rompath DIR where to look for the ROMs (if not next to the game)
+
+
+TROUBLESHOOTING
+---------------
+
+- A "Cannot load the ROMs" box: check that xsleena.zip is next to the
+  program or in a folder roms / rom, or give -rompath. It must be the
+  MAME xsleena set (with the file pz-0.113).
+- The program does not start: SDL2.dll must be next to XainSleena.exe.
+
+
+Release number: in the window title and on the start screen (RELEASE
+x.y.z). What changed in each release: doc\XainSleena_release_en.txt. When
+reporting a bug, give the release number.
+
+For programmers: all parameters are described in doc\XainSleena_dev_en.txt.
