@@ -56,7 +56,7 @@ done
 cp docs/release/amiga/rom_ReadMe.txt "$A/$G/rom/ReadMe.txt"
 cp docs/release/pc/rom_ReadMe.txt "$P/$G/rom/ReadMe.txt"
 # the drawer icons: the game's drawer and doc (a plain drawer, tools/icon/drawer.png)
-python -W ignore::DeprecationWarning tools/make_doc_icon.py "$A/$G.info" --frame tools/icon/drawer.png --crop 0 0 46 40 --transparent --drawer >/dev/null
+cp tools/icon/warp-drawer.info "$A/$G.info"	# the game drawer: the WARP logo (tools/icon/warp-drawer.info, ../WARP-drawer.info)
 python -W ignore::DeprecationWarning tools/make_doc_icon.py "$A/$G/doc.info" --frame tools/icon/drawer.png --crop 0 0 46 40 --transparent --drawer >/dev/null
 cp build/port/$G.exe "$P/$G/$G.exe"
 cp build/port/SDL2.dll "$P/$G/SDL2.dll"
